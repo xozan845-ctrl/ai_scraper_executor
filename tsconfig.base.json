@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "lib": ["ES2022"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "@ai-scraper/core": ["packages/core/src"],
+      "@ai-scraper/commands": ["packages/commands/src"],
+      "@ai-scraper/crawler": ["packages/crawler/src"],
+      "@ai-scraper/execution-engine": ["packages/execution-engine/src"],
+      "@ai-scraper/ai": ["packages/ai/src"],
+      "@ai-scraper/ai-providers": ["packages/ai-providers/src"],
+      "@ai-scraper/schemas": ["packages/schemas/src"],
+      "@ai-scraper/storage": ["packages/storage/src"],
+      "@ai-scraper/queue": ["packages/queue/src"],
+      "@ai-scraper/security": ["packages/security/src"],
+      "@ai-scraper/observability": ["packages/observability/src"]
+    }
+  },
+  "exclude": ["node_modules", "dist"]
+}

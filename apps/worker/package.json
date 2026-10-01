@@ -1,0 +1,25 @@
+{
+  "name": "worker",
+  "version": "0.1.0",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/main.js",
+    "start:dev": "ts-node --transpile-only src/main.ts"
+  },
+  "dependencies": {
+    "@ai-scraper/ai": "^0.1.0",
+    "@ai-scraper/ai-providers": "^0.1.0",
+    "@ai-scraper/commands": "^0.1.0",
+    "@ai-scraper/core": "^0.1.0",
+    "@ai-scraper/crawler": "^0.1.0",
+    "@ai-scraper/execution-engine": "^0.1.0",
+    "@ai-scraper/observability": "^0.1.0",
+    "@ai-scraper/queue": "^0.1.0",
+    "@ai-scraper/storage": "^0.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.5.0"
+  }
+}

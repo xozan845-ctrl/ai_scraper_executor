@@ -1,0 +1,101 @@
+// Prisma schema — modelo de datos §40.
+// datasource db { provider = "postgresql"; url = env("DATABASE_URL") }
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+  jobs      Job[]
+}
+
+model Job {
+  id          String    @id @default(cuid())
+  url         String
+  instruction String
+  status      String    @default("CREATED")
+  limits      Json?
+  aiProvider  String    @default("openrouter")
+  aiModel     String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id])
+  plans       ScrapingPlan[]
+  commands    Command[]
+  pages       Page[]
+  results     Result[]
+  errors      JobError[]
+  aiRequests  AIInteraction[]
+}
+
+model ScrapingPlan {
+  id        String   @id @default(cuid())
+  jobId     String
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  version   String   @default("1.0")
+  payload   Json
+  createdAt DateTime @default(now())
+}
+
+model Command {
+  id        String   @id @default(cuid())
+  jobId     String
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  type      String
+  payload   Json
+  status    String   @default("PENDING")
+  createdAt DateTime @default(now())
+}
+
+model Page {
+  id        String   @id @default(cuid())
+  jobId     String
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  url       String
+  title     String?
+  depth     Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+model Result {
+  id         String   @id @default(cuid())
+  jobId      String
+  job        Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  data       Json
+  sourceUrl  String?
+  selector   String?
+  confidence Float?
+  createdAt  DateTime @default(now())
+}
+
+model JobError {
+  id        String   @id @default(cuid())
+  jobId     String
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  message   String
+  context   Json?
+  createdAt DateTime @default(now())
+}
+
+model AIInteraction {
+  id        String   @id @default(cuid())
+  jobId     String
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  provider  String
+  model     String?
+  kind      String // plan | analyze | recover | interpret
+  request   Json?
+  response  Json?
+  tokens    Int?
+  latencyMs Int?
+  createdAt DateTime @default(now())
+}
