@@ -61,7 +61,7 @@ apps/api apps/worker packages/{core,crawler,commands,execution-engine,ai,ai-prov
 ## Tests
 
 ```bash
-npm test   # node --test: dsl + engine + crawler + ai-providers + agent + persistence + dashboard/metrics = 50 tests
+npm test   # node --test: dsl + engine + crawler + ai-providers + agent + persistence + dashboard/metrics + security + browser + api-hardening + observability + scale = 73 tests
              # (el smoke Prisma se ejecuta solo con DATABASE_URL válido; sin él hace SKIP explícito)
 ALLOW_PRIVATE_HOSTS=1  # solo tests/e2e locales; en prod el SSRF sigue bloqueado
 ```

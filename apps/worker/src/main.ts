@@ -1,6 +1,7 @@
 import { runAgentLoop } from './agent-loop';
 import { AgentRunner } from './agent-runner';
 import { processJob } from './job-processor';
+import { createProductionEngine } from './browser-engine';
 import { AIOrchestrator } from '@ai-scraper/ai';
 import { createFallbackProvider } from '@ai-scraper/ai-providers';
 import { createJobStore } from '@ai-scraper/storage';
@@ -27,7 +28,7 @@ async function main() {
         const { jobId } = bullJob.data;
         console.log(`[WORKER] job recibido: ${jobId}`);
         try {
-          const result = await processJob(jobId, { store });
+          const result = await processJob(jobId, { store, createEngine: createProductionEngine });
           console.log(`[WORKER] ${jobId} ${result.status} (${result.items.length} items)`);
           if (result.status === 'FAILED') throw new Error(result.error ?? 'job fallido');
         } catch (e) {
@@ -55,7 +56,7 @@ async function main() {
       return;
     }
     const provider = createFallbackProvider(process.env.AI_PROVIDER);
-    const runner = new AgentRunner({ orchestrator: new AIOrchestrator(provider as never) });
+    const runner = new AgentRunner({ orchestrator: new AIOrchestrator(provider as never), createEngine: createProductionEngine });
     const result = await runner.run(job);
     console.log(
       `[JOB] ${job.id} ${result.status} :: ${result.steps.length} pasos, ` +
