@@ -13,11 +13,26 @@
  *   registra resultado del job para mejorar perfiles futuros.
  */
 import { AIOrchestrator } from '@ai-scraper/ai';
-import { CommandValidator } from '@ai-scraper/commands';
+import { CommandValidator, normalizeRawCommand } from '@ai-scraper/commands';
 import { DEFAULT_LIMITS } from '@ai-scraper/core';
 import { ExecutionEngine } from '@ai-scraper/execution-engine';
 import { generatePlan, type PlanJobInput, type PlanAction } from './planner';
 import { getLearnedProfile, mongoRepo } from './radiography';
+
+// Debug flag - activar con DEBUG=1 o LOG_LEVEL=debug
+const DEBUG = process.env.DEBUG === '1' || process.env.LOG_LEVEL === 'debug';
+
+function debugLog(...args: unknown[]) {
+  if (DEBUG) console.log('[AGENT-RUNNER DEBUG]', new Date().toISOString(), ...args);
+}
+
+function debugError(...args: unknown[]) {
+  if (DEBUG) console.error('[AGENT-RUNNER ERROR]', new Date().toISOString(), ...args);
+}
+
+function debugWarn(...args: unknown[]) {
+  if (DEBUG) console.warn('[AGENT-RUNNER WARN]', new Date().toISOString(), ...args);
+}
 
 export interface AgentJob extends PlanJobInput {
   id: string;
@@ -73,6 +88,7 @@ export class AgentRunner {
   }
 
   async run(job: AgentJob): Promise<AgentResult> {
+    debugLog('=== INICIO AGENT RUNNER ===', { jobId: job.id, url: job.url, instruction: job.instruction, useMemory: job.useMemory !== false });
     const base: Omit<AgentResult, 'status'> = {
       items: [],
       steps: [],
@@ -100,14 +116,20 @@ export class AgentRunner {
     // FASE 12: obtener perfil aprendido para decisiones inteligentes
     let learnedProfile = null;
     if (job.useMemory !== false) {
+      debugLog('Obteniendo perfil aprendido...', { url: job.url });
       learnedProfile = await getLearnedProfile(job.url);
+      debugLog('Perfil aprendido', { 
+        profile: learnedProfile?.profile ? { id: learnedProfile.profile.id, domain: learnedProfile.profile.domain } : null,
+        shouldUseBrowser: learnedProfile?.shouldUseBrowser,
+        recommendedSelectors: learnedProfile?.recommendedSelectors 
+      });
     }
 
     const engine = this.deps.createEngine ? this.deps.createEngine() : new ExecutionEngine();
     // Si el perfil dice que necesita browser, forzamos la creación con browser
     if (learnedProfile?.shouldUseBrowser && !this.deps.createEngine) {
+      debugLog('Perfil indica needsBrowser=true, creando engine con browser...');
       const { createProductionEngine } = await import('./browser-engine');
-      // Reemplazar engine por uno con browser
       Object.assign(engine, createProductionEngine());
     }
     const modelOpts = job.ai?.model ? { model: job.ai.model } : undefined;
@@ -122,6 +144,7 @@ export class AgentRunner {
     /** Helper para registrar resultado en MongoDB si hay perfil */
     const recordResult = async (success: boolean, itemCount: number) => {
       if (learnedProfile?.profile) {
+        debugLog('Registrando resultado en MongoDB', { success, itemCount });
         await mongoRepo.recordJobResult(learnedProfile.profile.id!, success, itemCount, 0);
       }
     };
@@ -135,6 +158,7 @@ export class AgentRunner {
     }> => {
       const url = engine.getCurrentUrl() ?? job.url;
       const depth = engine.getMemory().visited.length;
+      debugLog('OBSERVE', { url, depth });
       try {
         const page = await engine.execute({ type: 'INSPECT_PAGE' } as never);
         const linksRes = await engine.execute({ type: 'INSPECT_LINKS' } as never);
@@ -145,8 +169,10 @@ export class AgentRunner {
           0,
           MAX_CONTEXT_ELEMENTS,
         );
+        debugLog('OBSERVE RESULT', { url, title: data.title, linksCount: links.length, elementsCount: elements.length, depth });
         return { url, title: data.title ?? '', links, elements, depth };
-      } catch {
+      } catch (e) {
+        debugError('OBSERVE ERROR', e);
         return { url, title: '', links: [], elements: [], depth };
       }
     };
@@ -155,7 +181,9 @@ export class AgentRunner {
       failedCommand: Record<string, unknown>,
       error: string,
     ): Promise<{ ok: boolean; command: Record<string, unknown>; count?: number; error?: string; needsBrowser?: boolean; usedBrowser?: boolean; resItems?: unknown[] } | null> => {
+      debugLog('RECOVERY START', { failedCommand, error });
       for (let attempt = 1; attempt <= this.maxRecoveryAttempts; attempt += 1) {
+        debugLog('RECOVERY ATTEMPT', { attempt, maxAttempts: this.maxRecoveryAttempts });
         const ctx = await observe();
         let alternatives: unknown[];
         try {
@@ -163,17 +191,22 @@ export class AgentRunner {
             { ...ctx, instruction: job.instruction, failedCommand, error, ...(job.ai?.model ? { model: job.ai.model } : {}) },
             modelOpts,
           );
+          debugLog('RECOVERY LLM RESPONSE', { attempt, alternatives });
         } catch (e) {
           error = `recovery LLM falló (intento ${attempt}): ${(e as Error).message}`;
+          debugError('RECOVERY LLM ERROR', { attempt, error });
           continue;
         }
         const candidate = (Array.isArray(alternatives) ? alternatives[0] : alternatives) as Record<string, unknown>;
         if (!candidate || typeof candidate !== 'object') {
           error = `recovery devolvió decisión vacía (intento ${attempt})`;
+          debugWarn('RECOVERY EMPTY DECISION', { attempt });
           continue;
         }
         try {
-          const valid = validator.validateCommand(candidate) as unknown as PlanAction;
+          const { command: normalizedRec } = normalizeRawCommand(candidate);
+          if (!normalizedRec) throw new Error('comando de recovery no reconocible');
+          const valid = validator.validateCommand(normalizedRec) as unknown as PlanAction;
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const res = await engine.execute(valid as any);
           if (res.ok) {
@@ -191,11 +224,18 @@ export class AgentRunner {
 
     const attemptStep = async (raw: Record<string, unknown>): Promise<AgentStep & { resItems?: unknown[] }> => {
       const n = steps.length + 1;
+      debugLog('ATTEMPT STEP', { step: n, rawCommand: raw });
       let command: Record<string, unknown>;
       try {
-        command = validator.validateCommand(raw) as unknown as Record<string, unknown>;
+        // Normalizar tolerando "action"→"type", minúsculas y alias.
+        const { command: normalized, notes } = normalizeRawCommand(raw);
+        if (!normalized) throw new Error(`comando no reconocible`);
+        if (notes.length) debugLog('COMANDO NORMALIZADO', { step: n, notes });
+        command = validator.validateCommand(normalized) as unknown as Record<string, unknown>;
+        debugLog('VALIDATION OK', { step: n, command: command.type });
       } catch (e) {
         const err = `validación rechazada: ${(e as Error).message}`;
+        debugWarn('VALIDATION FAILED', { step: n, error: err });
         const rec = await recoverAndExecute(raw, err);
         if (rec) {
           if (rec.needsBrowser || rec.usedBrowser) browserEscalationSuggested = true;
@@ -206,10 +246,13 @@ export class AgentRunner {
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const res = await engine.execute(command as any);
+      debugLog('ENGINE EXEC RESULT', { step: n, command: command.type, ok: res.ok, count: res.count, error: res.error, needsBrowser: res.needsBrowser, usedBrowser: res.usedBrowser });
       if (res.needsBrowser || res.usedBrowser) browserEscalationSuggested = true;
       if (res.ok) {
+        debugLog('STEP SUCCESS', { step: n, command: command.type, count: res.count });
         return { n, command, ok: true, count: res.count, needsBrowser: res.needsBrowser, usedBrowser: res.usedBrowser, resItems: res.items };
       }
+      debugWarn('STEP FAILED, starting recovery', { step: n, error: res.error });
       const rec = await recoverAndExecute(command, res.error ?? 'ejecución fallida');
       if (rec) {
         if (rec.needsBrowser || rec.usedBrowser) browserEscalationSuggested = true;
@@ -227,6 +270,7 @@ export class AgentRunner {
     };
 
     // ---- Fase A: plan ----
+    debugLog('=== FASE A: PLANIFICACIÓN ===');
     let plan: PlanAction[];
     try {
       const generated = await generatePlan(job, { orchestrator: this.deps.orchestrator });
@@ -234,17 +278,21 @@ export class AgentRunner {
       planActions = generated.actions;
       base.providerName = generated.providerName;
       base.model = generated.model;
+      debugLog('PLAN GENERADO', { provider: generated.providerName, model: generated.model, actionsCount: plan.length, actions: plan.map(a => a.type) });
     } catch (e) {
       await recordResult(false, 0);
+      debugError('PLAN GENERATION FAILED', e);
       return { ...base, status: 'FAILED', error: `No se pudo generar el plan: ${(e as Error).message}` };
     }
 
     for (const action of plan) {
       if (steps.length >= this.maxSteps) break;
+      debugLog('EXECUTING PLAN ACTION', { action: action.type, step: steps.length + 1 });
       const step = await attemptStep(action as Record<string, unknown>);
       steps.push(step);
       if (!step.ok) {
         await recordResult(false, items.length);
+        debugError('PLAN STEP FAILED', { step: step.n, error: step.error });
         return {
           ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(),
           status: 'FAILED', error: `Paso ${step.n} (${String((step.command as { type?: string }).type)}) falló: ${step.error}`,
@@ -253,10 +301,12 @@ export class AgentRunner {
       pushItems((step as { resItems?: unknown[] }).resItems, String((step.command as { type?: string }).type));
       if (String((step.command as { type?: string }).type) === 'FINISH') {
         await recordResult(true, items.length);
+        debugLog('FINISH REACHED', { totalItems: items.length, totalSteps: steps.length });
         return { ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(), status: 'COMPLETED' };
       }
       if (items.length >= limits.maxItems) {
         await recordResult(true, items.length);
+        debugLog('MAX ITEMS REACHED', { itemsCount: items.length, limit: limits.maxItems });
         return {
           ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(),
           status: 'COMPLETED', note: `Límite maxItems (${limits.maxItems}) alcanzado`,
@@ -265,7 +315,9 @@ export class AgentRunner {
     }
 
     // ---- Fase B: bucle dinámico §47 ----
+    debugLog('=== FASE B: BUCLE DINÁMICO (Observe→Think→Act) ===');
     while (steps.length < this.maxSteps) {
+      debugLog('PHASE B ITERATION', { currentStep: steps.length + 1, maxSteps: this.maxSteps });
       const ctx = await observe();
       let decisions: unknown[];
       try {
@@ -273,8 +325,10 @@ export class AgentRunner {
           { ...ctx, instruction: job.instruction, ...(job.ai?.model ? { model: job.ai.model } : {}) },
           modelOpts,
         );
+        debugLog('ANALYZE PAGE DECISIONS', { decisionsCount: Array.isArray(decisions) ? decisions.length : 1, decisions });
       } catch (e) {
         await recordResult(items.length > 0, items.length);
+        debugError('ANALYZE PAGE FAILED', e);
         return {
           ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(),
           status: items.length > 0 ? 'COMPLETED' : 'FAILED',
@@ -284,8 +338,10 @@ export class AgentRunner {
         };
       }
       const decision = (Array.isArray(decisions) ? decisions[0] : decisions) as Record<string, unknown>;
+      debugLog('DECISION RECEIVED', { decision: decision.type });
       if (!decision || typeof decision !== 'object') {
         await recordResult(items.length > 0, items.length);
+        debugWarn('EMPTY DECISION FROM LLM');
         return {
           ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(),
           status: items.length > 0 ? 'COMPLETED' : 'FAILED',
@@ -298,6 +354,7 @@ export class AgentRunner {
       steps.push(step);
       if (!step.ok) {
         await recordResult(false, items.length);
+        debugError('PHASE B STEP FAILED', { step: step.n, error: step.error });
         return {
           ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(),
           status: 'FAILED', error: `Paso ${step.n} falló: ${step.error}`,
@@ -306,10 +363,12 @@ export class AgentRunner {
       pushItems((step as { resItems?: unknown[] }).resItems, String((step.command as { type?: string }).type));
       if (String((step.command as { type?: string }).type) === 'FINISH') {
         await recordResult(true, items.length);
+        debugLog('FINISH REACHED IN PHASE B', { totalItems: items.length, totalSteps: steps.length });
         return { ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(), status: 'COMPLETED' };
       }
       if (items.length >= limits.maxItems) {
         await recordResult(true, items.length);
+        debugLog('MAX ITEMS REACHED IN PHASE B', { itemsCount: items.length, limit: limits.maxItems });
         return {
           ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(),
           status: 'COMPLETED', note: `Límite maxItems (${limits.maxItems}) alcanzado`,

@@ -9,11 +9,25 @@
  * - FASE 12: inyecta perfil aprendido (selectores, paginación, needsBrowser) al contexto de la IA.
  */
 import { AIOrchestrator } from '@ai-scraper/ai';
-import { CommandValidator } from '@ai-scraper/commands';
+import { CommandValidator, normalizeRawPlan } from '@ai-scraper/commands';
 import { DEFAULT_LIMITS } from '@ai-scraper/core';
 import { createAIProviderForJob } from '@ai-scraper/ai-providers';
 import { getLearnedProfile } from './radiography';
 import type { PlanningContext } from '@ai-scraper/ai';
+
+const DEBUG = process.env.DEBUG === '1' || process.env.LOG_LEVEL === 'debug';
+
+function debugLog(...args: unknown[]) {
+  if (DEBUG) console.log('[PLANNER DEBUG]', new Date().toISOString(), ...args);
+}
+
+function debugError(...args: unknown[]) {
+  if (DEBUG) console.error('[PLANNER ERROR]', new Date().toISOString(), ...args);
+}
+
+function debugWarn(...args: unknown[]) {
+  if (DEBUG) console.warn('[PLANNER WARN]', new Date().toISOString(), ...args);
+}
 
 export interface PlanLimits {
   maxPages?: number;
@@ -56,6 +70,7 @@ function clampInt(value: unknown, max: number, fallback: number): number {
 }
 
 export async function generatePlan(input: PlanJobInput, deps?: PlannerDeps): Promise<GeneratedPlan> {
+  debugLog('=== GENERATE PLAN START ===', { url: input.url, instruction: input.instruction, useMemory: input.useMemory !== false });
   let domain: string;
   try {
     domain = new URL(input.url).hostname;
@@ -73,7 +88,13 @@ export async function generatePlan(input: PlanJobInput, deps?: PlannerDeps): Pro
   // FASE 12: obtener perfil aprendido
   let learnedProfile = null;
   if (input.useMemory !== false) {
+    debugLog('Obteniendo perfil aprendido para planner...', { url: input.url });
     learnedProfile = await getLearnedProfile(input.url);
+    debugLog('Perfil aprendido para planner', { 
+      profile: learnedProfile?.profile ? { id: learnedProfile.profile.id, domain: learnedProfile.profile.domain } : null,
+      shouldUseBrowser: learnedProfile?.shouldUseBrowser,
+      recommendedSelectors: learnedProfile?.recommendedSelectors 
+    });
   }
 
   const orchestrator =
@@ -101,26 +122,34 @@ export async function generatePlan(input: PlanJobInput, deps?: PlannerDeps): Pro
         avgItemsPerJob: learnedProfile.profile.avgItemsPerJob,
       },
     };
+    debugLog('Contexto enriquecido con learnedProfile', { domain: learnedProfile.profile.domain, isJavaScriptHeavy: learnedProfile.shouldUseBrowser });
   }
 
   let raw: unknown;
   try {
+    debugLog('LLAMANDO A ORCHESTRATOR.CREATEPLAN', { model, contextKeys: Object.keys(context) });
     raw = await orchestrator.createPlan(context, model ? { model } : undefined);
+    debugLog('ORCHESTRATOR RAW RESPONSE', raw);
   } catch (e) {
+    debugError('CREATEPLAN ERROR', e);
     throw new Error(`Planificación fallida (${orchestrator.providerName}): ${(e as Error).message}`, { cause: e });
   }
 
-  // Tolerar que el modelo devuelva el array de acciones directamente.
-  const actionsRaw: unknown =
-    Array.isArray(raw) ? raw : (raw as { actions?: unknown })?.actions;
-  if (!Array.isArray(actionsRaw) || actionsRaw.length === 0) {
+  // Normalizar el plan del LLM (tolerar "action"→"type", minúsculas, alias) ANTES de validar.
+  const { actions: actionsRaw, notes: normNotes } = normalizeRawPlan(raw, input.url);
+  if (normNotes.length) debugLog('NORMALIZACIÓN PLAN', { notes: normNotes });
+  if (actionsRaw.length === 0) {
     throw new Error(
-      `Planificación inválida (${orchestrator.providerName}): se esperaba {actions:[...]} con al menos 1 acción`,
+      `Planificación inválida (${orchestrator.providerName}): no se pudo normalizar ninguna acción`,
     );
   }
 
-  // Validación estricta + recorte a límites del job (la IA no puede elevarlos §35).
-  const actions = (actionsRaw as unknown[]).map((a) => {
+  // Validación estricta (all-or-nothing): las acciones ya vienen normalizadas
+  // (formato corregido), pero un comando que viola dominio/SSRF/límites hace fallar
+  // el plan (§26/§37). Los comandos inventados ya fueron filtrados en la normalización.
+  debugLog('VALIDANDO Y RECORTANDO ACCIONES', { rawActionsCount: actionsRaw.length, limits });
+  const actions: PlanAction[] = [];
+  for (const a of actionsRaw) {
     const valid = validator.validateCommand(a) as unknown as PlanAction;
     const type = valid.type as string;
     if (type === 'PAGINATE') {
@@ -132,8 +161,10 @@ export async function generatePlan(input: PlanJobInput, deps?: PlannerDeps): Pro
     if (type === 'EXTRACT_LIST') {
       (valid as Record<string, unknown>).limit = clampInt(valid.limit, limits.maxItems, 100);
     }
-    return valid;
-  });
+    actions.push(valid);
+  }
+
+  debugLog('PLAN FINAL', { actionsCount: actions.length, actions: actions.map(a => a.type) });
 
   // Todo plan debe empezar navegando a la URL del job.
   if (actions[0]?.type !== 'NAVIGATE') {
