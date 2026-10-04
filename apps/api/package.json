@@ -9,6 +9,7 @@
   "dependencies": {
     "@ai-scraper/observability": "^0.1.0",
     "@ai-scraper/queue": "^0.1.0",
+    "@ai-scraper/security": "^0.1.0",
     "@ai-scraper/storage": "^0.1.0",
     "@nestjs/common": "^10.3.0",
     "@nestjs/core": "^10.3.0",

@@ -1,4 +1,4 @@
-import { IsUrl, IsString, MinLength, IsOptional, IsObject } from 'class-validator';
+import { IsUrl, IsString, MinLength, IsOptional, IsObject, IsInt, Min, Max } from 'class-validator';
 
 /** POST /api/v1/jobs §42 */
 export class CreateJobDto {
@@ -22,4 +22,11 @@ export class CreateJobDto {
   @IsOptional()
   @IsObject()
   ai?: { provider?: 'openrouter' | 'custom'; model?: string };
+
+  /** FASE 11: 1 = máxima, 10 = mínima, 5 = defecto. */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(10)
+  priority?: number;
 }

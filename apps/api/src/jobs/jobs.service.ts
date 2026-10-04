@@ -1,9 +1,31 @@
-import { Injectable, Inject, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, Inject, InternalServerErrorException, BadRequestException } from '@nestjs/common';
+import { assertPublicUrl, isAllowedHost } from '@ai-scraper/security';
 import type { JobStore } from '@ai-scraper/storage';
 import type { JobQueue } from '@ai-scraper/queue';
 import { metrics } from '@ai-scraper/observability';
 import { JOB_STORE, JOB_QUEUE } from './providers';
 import { CreateJobDto } from './dto/create-job.dto';
+
+/** Dominios permitidos vía env ALLOWED_DOMAINS (coma-separados). Vacío = cualquier host público. */
+function allowedDomains(): string[] {
+  return (process.env.ALLOWED_DOMAINS ?? '')
+    .split(',')
+    .map((d) => d.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+export function assertJobUrlAllowed(url: string): void {
+  let parsed: URL;
+  try {
+    parsed = assertPublicUrl(url);
+  } catch (e) {
+    throw new BadRequestException(`URL rechazada: ${(e as Error).message}`);
+  }
+  const allow = allowedDomains();
+  if (allow.length > 0 && !allow.some((d) => isAllowedHost(parsed.hostname, d))) {
+    throw new BadRequestException(`Dominio no permitido (ALLOWED_DOMAINS): ${parsed.hostname}`);
+  }
+}
 
 /**
  * JobsService — FASE 8: persistencia + cola reales.
@@ -18,6 +40,8 @@ export class JobsService {
   ) {}
 
   async create(dto: CreateJobDto) {
+    // ETAPA 4: SSRF + allowlist ANTES de persistir (nunca jobs fantasma ni SSRF).
+    assertJobUrlAllowed(dto.url);
     const record = await this.store.createJob({
       url: dto.url,
       instruction: dto.instruction,
@@ -32,6 +56,8 @@ export class JobsService {
         instruction: record.instruction,
         limits: (record.limits as Record<string, number>) ?? undefined,
         ai: { provider: record.aiProvider, model: record.aiModel },
+        // FASE 11: prioridad del DTO (1..10, defecto 5).
+        ...(dto.priority !== undefined ? { priority: dto.priority } : {}),
       });
     } catch (e) {
       await this.store.saveError(record.id, `Enqueue fallido: ${(e as Error).message}`);
@@ -89,23 +115,31 @@ export class JobsService {
     return this.store.updateStatus(id, 'CANCELLED');
   }
 
-  async aiInteractions(id: string) {
+  async aiInteractions(id: string, limit = 50) {
     const job = await this.store.getJob(id);
     if (!job) return null;
-    return { jobId: id, provider: job.aiProvider, model: job.aiModel, calls: await this.store.getAIInteractions(id) };
+    const n = Math.min(Math.max(Number(limit) || 50, 1), 200);
+    const calls = (await this.store.getAIInteractions(id)).slice(-n);
+    return { jobId: id, provider: job.aiProvider, model: job.aiModel, count: calls.length, calls };
   }
 
-  /** Agregados DB + proceso para dashboard y /metrics (§56). */
+  /** Agregados DB + proceso para dashboard y /metrics (§56).
+   * ETAPA 5: `stats` es global (Postgres); `process` es local a la réplica
+   * (ver `instance`/`uptimeSec`). Prometheus agrega con `sum by`.
+   */
   async stats() {
     const stats = await this.store.getStats();
     const recoveryRate = stats.commandsTotal > 0 ? stats.commandsRecovered / stats.commandsTotal : 0;
+    const collector = metrics();
     return {
+      instance: collector.instance,
+      uptimeSec: collector.uptimeSec(),
       store: this.store.kind,
       queue: this.queue.kind,
       pendingJobs: await this.queue.pendingCount().catch(() => -1),
       stats,
       aiRecoveryRate: Math.round(recoveryRate * 10000) / 10000,
-      process: metrics().snapshot(),
+      process: collector.snapshot(),
     };
   }
 }

@@ -1,12 +1,16 @@
-import { Controller, Post, Get, Body, Param, Query, NotFoundException } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, Query, NotFoundException, UseGuards } from '@nestjs/common';
 import { JobsService } from './jobs.service';
 import { CreateJobDto } from './dto/create-job.dto';
+import { ApiKeyGuard } from './api-key.guard';
+import { CreateRateLimitGuard } from './rate-limit.guard';
 
-/** API principal §42 (+ listado para dashboard FASE 9). */
+/** API principal §42 (+ listado para dashboard FASE 9). ETAPA 4: auth + rate-limit. */
+@UseGuards(ApiKeyGuard)
 @Controller('jobs')
 export class JobsController {
   constructor(private readonly jobs: JobsService) {}
 
+  @UseGuards(CreateRateLimitGuard)
   @Post()
   create(@Body() dto: CreateJobDto) {
     return this.jobs.create(dto);
@@ -39,8 +43,8 @@ export class JobsController {
   }
 
   @Get(':id/ai')
-  async ai(@Param('id') id: string) {
-    const r = await this.jobs.aiInteractions(id);
+  async ai(@Param('id') id: string, @Query('limit') limit?: string) {
+    const r = await this.jobs.aiInteractions(id, limit ? Number(limit) : undefined);
     if (!r) throw new NotFoundException(`Job ${id} no encontrado`);
     return r;
   }
