@@ -4,26 +4,53 @@ import { processJob } from './job-processor';
 import { createProductionEngine } from './browser-engine';
 import { AIOrchestrator } from '@ai-scraper/ai';
 import { createFallbackProvider } from '@ai-scraper/ai-providers';
-import { createJobStore } from '@ai-scraper/storage';
-import { createJobQueue, createScrapingWorker, createRedisConnection } from '@ai-scraper/queue';
+import { createJobStore, closeJobStore } from '@ai-scraper/storage';
+import { createJobQueue, createScrapingWorker, createRedisConnection, closeJobQueue } from '@ai-scraper/queue';
+import { disconnectMongo } from '@ai-scraper/mongodb';
 
 /**
  * Worker entrypoint — FASE 7.
  * - Con REDIS_URL válido: consume la cola BullMQ (scraping-jobs) y persiste en DB.
- * - Con DEMO_URL: ejecución directa (útil sin Redis/LLM: usa heuística si no hay claves).
+ * - Con DEMO_URL: ejecución directa (útil sin Redis/LLM: usa heurística si no hay claves).
+ * - Apagado graceful ante SIGTERM/SIGINT: drena el job activo y cierra conexiones.
  */
 async function main() {
   console.log('[WORKER] iniciado.');
   const store = await createJobStore();
   const queue = await createJobQueue();
 
+  let closing = false;
+  let worker: { close: () => Promise<void> } | null = null;
+  let connection: { disconnect: () => void } | null = null;
+
+  const shutdown = async (signal: string) => {
+    if (closing) return;
+    closing = true;
+    console.log(`[WORKER] ${signal} — apagando (esperando job en curso)...`);
+    try {
+      if (worker) await worker.close(); // espera a que termine el job activo
+    } catch (e) {
+      console.error('[WORKER] error cerrando worker:', (e as Error).message);
+    }
+    try {
+      if (connection) connection.disconnect();
+    } catch { /* noop */ }
+    await closeJobQueue().catch(() => undefined);
+    await closeJobStore().catch(() => undefined);
+    await disconnectMongo().catch(() => undefined);
+    console.log('[WORKER] cerrado.');
+    process.exit(0);
+  };
+  process.on('SIGTERM', () => void shutdown('SIGTERM'));
+  process.on('SIGINT', () => void shutdown('SIGINT'));
+
   const hasLlm = Boolean(process.env.OPENROUTER_API_KEY ?? process.env.AI_CUSTOM_ENDPOINT);
 
   // Consumidor BullMQ cuando hay Redis real.
   if (queue.kind === 'bullmq' && process.env.REDIS_URL) {
-    const connection = createRedisConnection(process.env.REDIS_URL);
-    const worker = createScrapingWorker(
-      connection,
+    connection = createRedisConnection(process.env.REDIS_URL);
+    const bullWorker = createScrapingWorker(
+      connection as never,
       async (bullJob) => {
         const { jobId } = bullJob.data;
         console.log(`[WORKER] job recibido: ${jobId}`);
@@ -38,7 +65,8 @@ async function main() {
       },
       { concurrency: Number(process.env.WORKER_CONCURRENCY ?? 2) },
     );
-    worker.on('failed', (job, err) => console.error(`[WORKER] ${job?.data?.jobId} failed: ${err.message}`));
+    worker = bullWorker as unknown as { close: () => Promise<void> };
+    bullWorker.on('failed', (job, err) => console.error(`[WORKER] ${job?.data?.jobId} failed: ${err.message}`));
     console.log(`[WORKER] consumiendo cola "${queue.queueName}" (store=${store.kind})`);
     return; // Mantener vivo vía el worker BullMQ.
   }
@@ -53,6 +81,7 @@ async function main() {
     if (!hasLlm) {
       console.log('[WORKER] Sin claves LLM — loop heurístico sin IA (FASE 2).');
       await runAgentLoop(job);
+      await shutdown('demo-complete');
       return;
     }
     const provider = createFallbackProvider(process.env.AI_PROVIDER);
@@ -63,10 +92,11 @@ async function main() {
         `${result.items.length} items, recovery=${result.recoveryCount}, provider=${result.providerName}`,
     );
     if (result.status === 'FAILED') process.exitCode = 1;
+    await shutdown('demo-complete');
     return;
   }
 
-  // Sin Redis ni DEMO_URL: drenar cola en memoria por si la API encoló en el mismo proceso (tests).
+  // Sin Redis ni DEMO_URL: idle hasta señal.
   console.log(`[WORKER] Sin REDIS_URL ni DEMO_URL — idle (store=${store.kind}, queue=${queue.kind}).`);
   setInterval(() => undefined, 60_000);
 }

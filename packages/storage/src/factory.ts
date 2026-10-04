@@ -49,3 +49,12 @@ export async function createJobStore(): Promise<JobStore> {
 export function __resetJobStoreSingleton(): void {
   singleton = null;
 }
+
+/** Cierra el store (desconecta Prisma) para apagado graceful. */
+export async function closeJobStore(): Promise<void> {
+  if (prismaClient) {
+    await prismaClient.$disconnect().catch(() => undefined);
+    prismaClient = null;
+  }
+  singleton = null;
+}

@@ -47,3 +47,11 @@ export async function createJobQueue(): Promise<JobQueue> {
 export function __resetJobQueueSingleton(): void {
   singleton = null;
 }
+
+/** Cierra la cola (desconecta Redis) para apagado graceful. */
+export async function closeJobQueue(): Promise<void> {
+  if (singleton) {
+    await singleton.close().catch(() => undefined);
+    singleton = null;
+  }
+}
