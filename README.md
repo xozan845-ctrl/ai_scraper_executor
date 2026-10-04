@@ -41,7 +41,8 @@ npm test                    # 73 tests: dsl + engine + crawler + ai-providers + 
 MONGODB_MOCK=1 npm test     # Forzar mock MongoDB
 
 # Test E2E real contra https://www.sevasaonline.com/
-# Requiere: Docker (postgres+mongodb+redis) + OPENROOTER_API_KEY
+# Requiere: Docker (postgres+mongodb+redis) + OPENROUTER_API_KEY + Playwright Chromium en host
+# ⚠️ Para E2E local (fuera de Docker): `npx playwright install --with-deps chromium`
 npm run dev:e2e
 # O manual:
 docker compose up -d postgres mongodb redis
@@ -257,7 +258,7 @@ npm run typecheck
 | `MongooseServerSelectionError` | Levantar MongoDB: `docker compose up -d mongodb` |
 | `ECONNREFUSED redis` | Levantar Redis: `docker compose up -d redis` |
 | Jobs se quedan QUEUED | Verificar worker corriendo + `REDIS_URL` correcto |
-| `playwright: executable doesn't exist` | `npx playwright install --with-deps chromium` (en worker Dockerfile ya está) |
+| `playwright: executable doesn't exist` | `npx playwright install --with-deps chromium` (en worker Dockerfile ya está; para E2E local fuera de Docker, ejecutar en host) |
 | Tests fallan por flakiness | `npm test` usa `--test-concurrency=1` |
 | Radiografía lenta | Forzar `forceBrowser: true` si sitio es JS-heavy |
 
