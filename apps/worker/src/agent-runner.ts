@@ -1,5 +1,5 @@
 /**
- * AgentRunner — FASE 5 (bucle Observe→Think→Act §47) + FASE 6 (Recovery §28).
+ * AgentRunner — FASE 5 (bucle Observe→Think→Act §47) + FASE 6 (Recovery §28) + FASE 12 (Memoria).
  *
  * - Fase A: genera el plan (FASE 4) y lo ejecuta acción por acción.
  * - Fase B: bucle dinámico — observa la página (INSPECT_* vía engine),
@@ -9,12 +9,15 @@
  *   la página viaja como datos (§37), nunca como instrucciones privilegiadas.
  * - Límites del job (§35) y dominio (§37) se aplican en cada paso; el loop está
  *   acotado por maxSteps y corta al alcanzar maxItems.
+ * - FASE 12: consulta perfil aprendido (MongoDB) para selectores y needsBrowser;
+ *   registra resultado del job para mejorar perfiles futuros.
  */
 import { AIOrchestrator } from '@ai-scraper/ai';
 import { CommandValidator } from '@ai-scraper/commands';
 import { DEFAULT_LIMITS } from '@ai-scraper/core';
 import { ExecutionEngine } from '@ai-scraper/execution-engine';
 import { generatePlan, type PlanJobInput, type PlanAction } from './planner';
+import { getLearnedProfile, mongoRepo } from './radiography';
 
 export interface AgentJob extends PlanJobInput {
   id: string;
@@ -93,7 +96,20 @@ export class AgentRunner {
       maxDepth: limits.maxDepth,
       maxPages: limits.maxPages,
     });
+
+    // FASE 12: obtener perfil aprendido para decisiones inteligentes
+    let learnedProfile = null;
+    if (job.useMemory !== false) {
+      learnedProfile = await getLearnedProfile(job.url);
+    }
+
     const engine = this.deps.createEngine ? this.deps.createEngine() : new ExecutionEngine();
+    // Si el perfil dice que necesita browser, forzamos la creación con browser
+    if (learnedProfile?.shouldUseBrowser && !this.deps.createEngine) {
+      const { createProductionEngine } = await import('./browser-engine');
+      // Reemplazar engine por uno con browser
+      Object.assign(engine, createProductionEngine());
+    }
     const modelOpts = job.ai?.model ? { model: job.ai.model } : undefined;
     let planActions: PlanAction[];
     const visited = () => [...engine.getMemory().visited];
@@ -102,6 +118,13 @@ export class AgentRunner {
     const items: unknown[] = [];
     let recoveryCount = 0;
     let browserEscalationSuggested = false;
+
+    /** Helper para registrar resultado en MongoDB si hay perfil */
+    const recordResult = async (success: boolean, itemCount: number) => {
+      if (learnedProfile?.profile) {
+        await mongoRepo.recordJobResult(learnedProfile.profile.id!, success, itemCount, 0);
+      }
+    };
 
     const observe = async (): Promise<{
       url: string;
@@ -212,6 +235,7 @@ export class AgentRunner {
       base.providerName = generated.providerName;
       base.model = generated.model;
     } catch (e) {
+      await recordResult(false, 0);
       return { ...base, status: 'FAILED', error: `No se pudo generar el plan: ${(e as Error).message}` };
     }
 
@@ -220,6 +244,7 @@ export class AgentRunner {
       const step = await attemptStep(action as Record<string, unknown>);
       steps.push(step);
       if (!step.ok) {
+        await recordResult(false, items.length);
         return {
           ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(),
           status: 'FAILED', error: `Paso ${step.n} (${String((step.command as { type?: string }).type)}) falló: ${step.error}`,
@@ -227,9 +252,11 @@ export class AgentRunner {
       }
       pushItems((step as { resItems?: unknown[] }).resItems, String((step.command as { type?: string }).type));
       if (String((step.command as { type?: string }).type) === 'FINISH') {
+        await recordResult(true, items.length);
         return { ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(), status: 'COMPLETED' };
       }
       if (items.length >= limits.maxItems) {
+        await recordResult(true, items.length);
         return {
           ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(),
           status: 'COMPLETED', note: `Límite maxItems (${limits.maxItems}) alcanzado`,
@@ -247,6 +274,7 @@ export class AgentRunner {
           modelOpts,
         );
       } catch (e) {
+        await recordResult(items.length > 0, items.length);
         return {
           ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(),
           status: items.length > 0 ? 'COMPLETED' : 'FAILED',
@@ -257,6 +285,7 @@ export class AgentRunner {
       }
       const decision = (Array.isArray(decisions) ? decisions[0] : decisions) as Record<string, unknown>;
       if (!decision || typeof decision !== 'object') {
+        await recordResult(items.length > 0, items.length);
         return {
           ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(),
           status: items.length > 0 ? 'COMPLETED' : 'FAILED',
@@ -268,6 +297,7 @@ export class AgentRunner {
       const step = await attemptStep(decision);
       steps.push(step);
       if (!step.ok) {
+        await recordResult(false, items.length);
         return {
           ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(),
           status: 'FAILED', error: `Paso ${step.n} falló: ${step.error}`,
@@ -275,9 +305,11 @@ export class AgentRunner {
       }
       pushItems((step as { resItems?: unknown[] }).resItems, String((step.command as { type?: string }).type));
       if (String((step.command as { type?: string }).type) === 'FINISH') {
+        await recordResult(true, items.length);
         return { ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(), status: 'COMPLETED' };
       }
       if (items.length >= limits.maxItems) {
+        await recordResult(true, items.length);
         return {
           ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(),
           status: 'COMPLETED', note: `Límite maxItems (${limits.maxItems}) alcanzado`,
@@ -286,11 +318,13 @@ export class AgentRunner {
     }
 
     if (items.length > 0) {
+      await recordResult(true, items.length);
       return {
         ...base, items, steps, recoveryCount, browserEscalationSuggested,
         status: 'COMPLETED', note: `maxSteps (${this.maxSteps}) alcanzado con ${items.length} items parciales`,
       };
     }
+    await recordResult(false, 0);
     return {
       ...base, items, steps, recoveryCount, browserEscalationSuggested,
       status: 'FAILED', error: `maxSteps (${this.maxSteps}) alcanzado sin FINISH ni items`,
