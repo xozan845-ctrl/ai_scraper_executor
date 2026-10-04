@@ -19,7 +19,7 @@ jobs:
       - name: Prisma generate
         run: npm run prisma:generate
       - name: Build
-        run: npm run build --workspaces
+        run: npm run build
       - name: Lint
         run: npm run lint
       - name: Test

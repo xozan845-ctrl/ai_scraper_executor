@@ -29,7 +29,7 @@ docker compose up -d postgres mongodb redis
 npm run prisma:migrate:deploy
 
 # 5. Build completo
-npm run build --workspaces
+npm run build
 
 # 6. Desarrollo
 npm run dev:api     # API en :3000
@@ -352,7 +352,7 @@ AI_CUSTOM_MODEL=llama3.1:8b
 ```bash
 git checkout -b feature/x
 # Cambios + tests
-npm run lint && npm test && npm run build --workspaces
+npm run lint && npm test && npm run build
 git push && PR
 ```
 

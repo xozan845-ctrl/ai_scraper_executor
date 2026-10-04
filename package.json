@@ -8,8 +8,9 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build --workspaces",
-    "build:core": "npm run build -w @ai-scraper/core && npm run build -w @ai-scraper/security && npm run build -w @ai-scraper/commands && npm run build -w @ai-scraper/crawler && npm run build -w @ai-scraper/execution-engine && npm run build -w @ai-scraper/ai && npm run build -w @ai-scraper/ai-providers && npm run build -w @ai-scraper/mongodb && npm run build -w @ai-scraper/redis",
+    "build": "npm run build:core && npm run build -w api && npm run build -w worker",
+    "build:core": "npm run build -w @ai-scraper/core && npm run build -w @ai-scraper/security && npm run build -w @ai-scraper/observability && npm run build -w @ai-scraper/commands && npm run build -w @ai-scraper/crawler && npm run build -w @ai-scraper/execution-engine && npm run build -w @ai-scraper/ai && npm run build -w @ai-scraper/ai-providers && npm run build -w @ai-scraper/mongodb && npm run build -w @ai-scraper/redis && npm run build -w @ai-scraper/storage && npm run build -w @ai-scraper/queue",
+    "build:all": "npm run build:core && npm run build -w api && npm run build -w worker",
     "start:api": "npm run start -w api",
     "start:worker": "npm run start -w worker",
     "dev:api": "npm run start:dev -w api",
@@ -19,9 +20,9 @@
     "prisma:migrate:deploy": "prisma migrate deploy --schema=prisma/schema.prisma",
     "test": "node --test --test-concurrency=1 tests/dsl.test.mjs tests/engine.test.mjs tests/crawler.test.mjs tests/ai-providers.test.mjs tests/agent.test.mjs tests/persistence.test.mjs tests/dashboard.test.mjs tests/security.test.mjs tests/browser.test.mjs tests/api-hardening.test.mjs tests/observability.test.mjs tests/scale.test.mjs tests/normalize.test.mjs",
     "test:e2e": "node --env-file=.env --test --test-concurrency=1 tests/e2e-sevasa.test.mjs",
-    "dev:e2e": "docker compose up -d postgres mongodb redis && sleep 10 && npm run prisma:migrate:deploy && npm run build --workspaces && npm run test:e2e",
+    "dev:e2e": "docker compose up -d postgres mongodb redis && sleep 10 && npm run prisma:migrate:deploy && npm run build && npm run test:e2e",
     "lint": "eslint apps packages",
-    "typecheck": "npm run build --workspaces"
+    "typecheck": "npm run build"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

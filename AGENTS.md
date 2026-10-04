@@ -10,10 +10,10 @@ Guía para agentes de IA que trabajen en **ai-scraping-executor**. Monorepo npm 
 ```bash
 npm install                    # instalar (si falla por peers: --legacy-peer-deps)
 
-npm run build --workspaces     # compilar TODO (orden correcto: core→security→commands→…→apps)
-npm run build:core             # solo packages base (útil antes de apps)
+npm run build                  # compila TODO en orden de dependencias (packages → apps)
+npm run build:core             # solo packages base (sin apps)
 npm run lint                   # eslint apps packages (debe quedar en 0 errors)
-npm run typecheck              # alias de build --workspaces
+npm run typecheck              # alias de build
 npm test                       # 78 tests unitarios (mocks, sin BD reales)
 MONGODB_MOCK=1 npm test        # fuerza mock MongoDB (recomendado en local sin Docker)
 
@@ -35,7 +35,7 @@ npm run dev:worker             # worker (cola BullMQ, o DEMO_URL)
 Siempre ejecutar y dejar verdes:
 
 ```bash
-npm run build --workspaces && npm run lint && MONGODB_MOCK=1 npm test
+npm run build && npm run lint && MONGODB_MOCK=1 npm test
 ```
 
 `lint` debe reportar **0 errors** (los `no-explicit-any` en mocks/fallbacks son warnings aceptados).
