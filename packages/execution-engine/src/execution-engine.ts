@@ -10,7 +10,7 @@
  */
 import * as cheerio from 'cheerio';
 import type { ScrapingCommand as StrictCommand } from '@ai-scraper/commands';
-import { assertPublicUrl } from '@ai-scraper/security';
+import { assertPublicUrl, safeFetchText } from '@ai-scraper/security';
 import { PageCache, normalizeUrlForDedupe } from './page-cache';
 
 /**
@@ -75,21 +75,14 @@ type Fetcher = (url: string) => Promise<string>;
 /** Seguridad §37 centralizada en @ai-scraper/security (ETAPA 2). */
 
 async function defaultFetchHtml(url: string): Promise<string> {
-  assertPublicUrl(url);
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 20000);
-  try {
-    const res = await fetch(url, {
-      signal: ctrl.signal,
-      headers: { 'User-Agent': 'AI-Scraping-Executor/0.2 (+agnostic crawler)' },
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status} en ${url}`);
-    const text = await res.text();
-    if (text.length > 2_000_000) throw new Error('HTML demasiado grande (>2MB), usar contexto reducido');
-    return text;
-  } finally {
-    clearTimeout(t);
-  }
+  // SSRF: valida host + DNS en cada hop y sigo redirects a mano (sin auto-follow).
+  const { html } = await safeFetchText(url, {
+    headers: { 'User-Agent': 'AI-Scraping-Executor/0.2 (+agnostic crawler)' },
+    timeoutMs: 20000,
+    maxBytes: 2_000_000,
+    maxRedirects: 5,
+  });
+  return html;
 }
 
 function toAbs(href: string, base: string): string | null {

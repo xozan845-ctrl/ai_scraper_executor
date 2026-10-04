@@ -46,4 +46,39 @@ describe('Seguridad centralizada ETAPA 2 (@ai-scraper/security)', async () => {
     const ok = v.validateCommand({ type: 'NAVIGATE', url: 'https://sub.example.com/x' });
     assert.equal(ok.type, 'NAVIGATE');
   });
+
+  it('bloquea IPv6 (corchetes), IPv4-mapped, ULA, link-local y CGNAT', () => {
+    for (const u of [
+      'http://[::1]/',
+      'http://[::ffff:169.254.169.254]/',
+      'http://[::ffff:127.0.0.1]/',
+      'http://[fc00::1]/',
+      'http://[fe80::1]/',
+      'http://100.64.0.1/',
+      'http://169.254.10.10/',
+    ]) {
+      assert.throws(() => sec.assertPublicUrl(u), /SSRF/, `debe bloquear ${u}`);
+    }
+    assert.equal(sec.isBlockedIp('[::1]'), true);
+    assert.equal(sec.isBlockedIp('::ffff:10.0.0.1'), true);
+    assert.equal(sec.isBlockedIp('2606:4700:4700::1111'), false);
+  });
+
+  it('ALLOW_PRIVATE_HOSTS se ignora en producción', () => {
+    const prevEnv = process.env.NODE_ENV;
+    const prevAllow = process.env.ALLOW_PRIVATE_HOSTS;
+    process.env.NODE_ENV = 'production';
+    process.env.ALLOW_PRIVATE_HOSTS = '1';
+    assert.equal(sec.isPrivateHostsAllowed(), false);
+    assert.throws(() => sec.assertPublicUrl('http://127.0.0.1/x'), /SSRF/);
+    if (prevEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = prevEnv;
+    if (prevAllow === undefined) delete process.env.ALLOW_PRIVATE_HOSTS;
+    else process.env.ALLOW_PRIVATE_HOSTS = prevAllow;
+  });
+
+  it('assertSafeUrl resuelve DNS y bloquea hosts que apuntan a IP privada', async () => {
+    // localhost está bloqueado por string; un host que resuelve a 127.0.0.1 vía DNS también debe caer.
+    await assert.rejects(() => sec.assertSafeUrl('http://localhost/x'), /SSRF/);
+  });
 });

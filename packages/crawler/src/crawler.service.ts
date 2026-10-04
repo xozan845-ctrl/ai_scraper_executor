@@ -9,7 +9,7 @@
  */
 import { CheerioCrawler, PlaywrightCrawler, RequestQueue } from 'crawlee';
 import { chromium } from 'playwright';
-import { assertPublicUrl } from '@ai-scraper/security';
+import { assertSafeUrl } from '@ai-scraper/security';
 
 /** Acción browser delegada por el ExecutionEngine (ETAPA 3, §34). */
 export interface BrowserAction {
@@ -151,7 +151,7 @@ export class CrawlerService {
 
   async crawlDetailed(input: CrawlInput): Promise<{ pages: CrawledPage[]; stats: CrawlStats }> {
     const started = Date.now();
-    assertPublicUrl(input.url);
+    await assertSafeUrl(input.url);
     const mode = input.mode ?? 'hybrid';
 
     if (mode === 'browser') {
@@ -209,7 +209,7 @@ export class CrawlerService {
    * para que el engine lo cargue en Cheerio y siga en HTTP.
    */
   async interact(url: string, action: BrowserAction): Promise<BrowserResult> {
-    assertPublicUrl(url);
+    await assertSafeUrl(url);
     const browser = await chromium.launch({ headless: process.env.CRAWLEE_HEADLESS !== 'false' });
     try {
       const page = await browser.newPage();
@@ -236,7 +236,7 @@ export class CrawlerService {
    * No encola enlaces: devuelve contexto reducido §23.
    */
   async inspectSinglePage(url: string, mode: CrawlMode = 'http'): Promise<CrawledPage> {
-    assertPublicUrl(url);
+    await assertSafeUrl(url);
     const pages =
       mode === 'browser'
         ? await this.crawlWithBrowser({ url, maxRequests: 1, maxDepth: 0 })
