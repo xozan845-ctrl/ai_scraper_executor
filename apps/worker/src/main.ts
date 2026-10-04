@@ -1,9 +1,9 @@
 import { runAgentLoop } from './agent-loop';
 import { AgentRunner } from './agent-runner';
 import { processJob } from './job-processor';
-import { createProductionEngine } from './browser-engine';
+import { createProductionEngine, closeProductionBrowser } from './browser-engine';
 import { AIOrchestrator } from '@ai-scraper/ai';
-import { createFallbackProvider } from '@ai-scraper/ai-providers';
+import { createFallbackProvider, withCircuitBreaker } from '@ai-scraper/ai-providers';
 import { createJobStore, closeJobStore } from '@ai-scraper/storage';
 import { createJobQueue, createScrapingWorker, createRedisConnection, closeJobQueue, createDeadLetterQueue } from '@ai-scraper/queue';
 import { disconnectMongo } from '@ai-scraper/mongodb';
@@ -43,6 +43,7 @@ async function main() {
     await closeJobQueue().catch(() => undefined);
     await closeJobStore().catch(() => undefined);
     await disconnectMongo().catch(() => undefined);
+    await closeProductionBrowser().catch(() => undefined);
     console.log('[WORKER] cerrado.');
     process.exit(0);
   };
@@ -110,7 +111,7 @@ async function main() {
       return;
     }
     const provider = createFallbackProvider(process.env.AI_PROVIDER);
-    const runner = new AgentRunner({ orchestrator: new AIOrchestrator(provider as never), createEngine: createProductionEngine });
+    const runner = new AgentRunner({ orchestrator: new AIOrchestrator(withCircuitBreaker(provider as never)), createEngine: createProductionEngine });
     const result = await runner.run(job);
     console.log(
       `[JOB] ${job.id} ${result.status} :: ${result.steps.length} pasos, ` +

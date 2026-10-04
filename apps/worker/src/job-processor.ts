@@ -5,7 +5,7 @@
  * trazabilidad, errores e interacciones IA (stats para §56).
  */
 import { AIOrchestrator } from '@ai-scraper/ai';
-import { createAIProviderForJob } from '@ai-scraper/ai-providers';
+import { createAIProviderForJob, withCircuitBreaker } from '@ai-scraper/ai-providers';
 import { ExecutionEngine } from '@ai-scraper/execution-engine';
 import { incMetric } from './metrics-bridge';
 import { getJsonCache } from '@ai-scraper/redis';
@@ -68,7 +68,7 @@ export async function processJob(jobId: string, deps: ProcessJobDeps): Promise<A
   const cache = useCache ? await getJsonCache() : null;
   const orchestrator = deps.createOrchestrator
     ? deps.createOrchestrator(payload)
-    : new AIOrchestrator(createAIProviderForJob(payload.ai) as never, cache);
+    : new AIOrchestrator(withCircuitBreaker(createAIProviderForJob(payload.ai) as never), cache);
 
   const isCancelled = async () => (await store.getJob(jobId))?.status === 'CANCELLED';
   const runner = new AgentRunner({

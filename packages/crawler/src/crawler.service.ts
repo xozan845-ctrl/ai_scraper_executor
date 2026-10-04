@@ -8,8 +8,8 @@
  * - Seguridad §37: bloquea hosts privados / metadata endpoints antes de encolar.
  */
 import { CheerioCrawler, PlaywrightCrawler, RequestQueue } from 'crawlee';
-import { chromium } from 'playwright';
 import { assertSafeUrl } from '@ai-scraper/security';
+import { BrowserPool, Semaphore } from './pool';
 
 /** Acción browser delegada por el ExecutionEngine (ETAPA 3, §34). */
 export interface BrowserAction {
@@ -179,9 +179,17 @@ function extractLinks(
 }
 
 export class CrawlerService {
+  private readonly pool = new BrowserPool();
+  private readonly browserSemaphore = new Semaphore(Number(process.env.CRAWLEE_MAX_CONCURRENCY ?? 5));
+
   async crawl(input: CrawlInput): Promise<CrawledPage[]> {
     const { pages } = await this.crawlDetailed(input);
     return pages;
+  }
+
+  /** Cierra el navegador compartido (apagado graceful). */
+  async close(): Promise<void> {
+    await this.pool.close();
   }
 
   async crawlDetailed(input: CrawlInput): Promise<{ pages: CrawledPage[]; stats: CrawlStats }> {
@@ -239,15 +247,17 @@ export class CrawlerService {
 
   /**
    * Interacción puntual con browser real (ETAPA 3, §34).
-   * El ExecutionEngine delega aquí CLICK no-enlace y SCROLL: se abre
-   * Chromium, se ejecuta la acción y se devuelve el HTML resultante
-   * para que el engine lo cargue en Cheerio y siga en HTTP.
+   * El ExecutionEngine delega aquí CLICK no-enlace y SCROLL. Reutiliza el
+   * navegador del pool (no lanza uno por acción) y acota la concurrencia.
    */
   async interact(url: string, action: BrowserAction): Promise<BrowserResult> {
     await assertSafeUrl(url);
-    const browser = await chromium.launch({ headless: process.env.CRAWLEE_HEADLESS !== 'false' });
+    const release = await this.browserSemaphore.acquire();
+    let context: Awaited<ReturnType<Awaited<ReturnType<BrowserPool['acquire']>>['newContext']>> | null = null;
     try {
-      const page = await browser.newPage();
+      const browser = await this.pool.acquire();
+      context = await browser.newContext();
+      const page = await context.newPage();
       await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
       if (action.kind === 'click' && action.selector) {
         await page.click(action.selector, { timeout: 10000 });
@@ -262,7 +272,8 @@ export class CrawlerService {
       const title = (await page.title().catch(() => ''))?.slice(0, 200) ?? '';
       return { html, url: page.url(), title };
     } finally {
-      await browser.close().catch(() => undefined);
+      if (context) await context.close().catch(() => undefined);
+      release();
     }
   }
 

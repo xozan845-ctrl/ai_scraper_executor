@@ -5,3 +5,5 @@ export * from './fallback.provider';
 export * from './provider.factory';
 export * from './http';
 export * from './prompts';
+export * from './circuit-breaker';
+export * from './resilient';

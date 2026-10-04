@@ -37,3 +37,8 @@ export function createProductionEngine(): ExecutionEngine {
     pageCache: sharedCache,
   });
 }
+
+/** Cierra el navegador compartido (apagado graceful). */
+export async function closeProductionBrowser(): Promise<void> {
+  await crawler.close();
+}
