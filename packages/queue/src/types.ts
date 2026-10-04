@@ -9,6 +9,8 @@ export interface ScrapingJobPayload {
    * BullMQ ordena ascendente; la cola en memoria replica el orden.
    */
   priority?: number;
+  /** Correlación API→worker para logs/tracing. */
+  correlationId?: string;
 }
 
 /** Normaliza a 1..10; defecto 5. */

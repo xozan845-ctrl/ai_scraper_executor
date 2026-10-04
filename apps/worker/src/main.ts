@@ -5,8 +5,9 @@ import { createProductionEngine } from './browser-engine';
 import { AIOrchestrator } from '@ai-scraper/ai';
 import { createFallbackProvider } from '@ai-scraper/ai-providers';
 import { createJobStore, closeJobStore } from '@ai-scraper/storage';
-import { createJobQueue, createScrapingWorker, createRedisConnection, closeJobQueue } from '@ai-scraper/queue';
+import { createJobQueue, createScrapingWorker, createRedisConnection, closeJobQueue, createDeadLetterQueue } from '@ai-scraper/queue';
 import { disconnectMongo } from '@ai-scraper/mongodb';
+import { runWithContext } from '@ai-scraper/observability';
 
 /**
  * Worker entrypoint — FASE 7.
@@ -22,6 +23,7 @@ async function main() {
   let closing = false;
   let worker: { close: () => Promise<void> } | null = null;
   let connection: { disconnect: () => void } | null = null;
+  let deadQueue: { close: () => Promise<void> } | null = null;
 
   const shutdown = async (signal: string) => {
     if (closing) return;
@@ -32,6 +34,9 @@ async function main() {
     } catch (e) {
       console.error('[WORKER] error cerrando worker:', (e as Error).message);
     }
+    try {
+      if (deadQueue) await deadQueue.close();
+    } catch { /* noop */ }
     try {
       if (connection) connection.disconnect();
     } catch { /* noop */ }
@@ -52,21 +57,41 @@ async function main() {
     const bullWorker = createScrapingWorker(
       connection as never,
       async (bullJob) => {
-        const { jobId } = bullJob.data;
-        console.log(`[WORKER] job recibido: ${jobId}`);
-        try {
-          const result = await processJob(jobId, { store, createEngine: createProductionEngine });
-          console.log(`[WORKER] ${jobId} ${result.status} (${result.items.length} items)`);
-          if (result.status === 'FAILED') throw new Error(result.error ?? 'job fallido');
-        } catch (e) {
-          console.error(`[WORKER] ${jobId} error: ${(e as Error).message}`);
-          throw e;
-        }
+        const { jobId, correlationId } = bullJob.data;
+        return runWithContext({ jobId, correlationId }, async () => {
+          console.log(`[WORKER] job recibido: ${jobId}`);
+          try {
+            const result = await processJob(jobId, { store, createEngine: createProductionEngine });
+            console.log(`[WORKER] ${jobId} ${result.status} (${result.items.length} items)`);
+            if (result.status === 'FAILED') throw new Error(result.error ?? 'job fallido');
+          } catch (e) {
+            console.error(`[WORKER] ${jobId} error: ${(e as Error).message}`);
+            throw e;
+          }
+        });
       },
       { concurrency: Number(process.env.WORKER_CONCURRENCY ?? 2) },
     );
     worker = bullWorker as unknown as { close: () => Promise<void> };
-    bullWorker.on('failed', (job, err) => console.error(`[WORKER] ${job?.data?.jobId} failed: ${err.message}`));
+    const dead = createDeadLetterQueue(connection as never);
+    deadQueue = dead as unknown as { close: () => Promise<void> };
+    bullWorker.on('failed', (job, err) => {
+      const attempts = (job?.opts?.attempts as number | undefined) ?? 1;
+      const made = job?.attemptsMade ?? 0;
+      console.error(`[WORKER] ${job?.data?.jobId} failed (intento ${made}/${attempts}): ${err.message}`);
+      // DLQ: solo cuando se agotan los reintentos.
+      if (job && made >= attempts) {
+        void dead
+          .add('dead', {
+            ...job.data,
+            reason: err.message,
+            failedAt: new Date().toISOString(),
+            attemptsMade: made,
+          })
+          .then(() => console.error(`[WORKER] ${job.data.jobId} → DLQ`))
+          .catch(() => undefined);
+      }
+    });
     console.log(`[WORKER] consumiendo cola "${queue.queueName}" (store=${store.kind})`);
     return; // Mantener vivo vía el worker BullMQ.
   }

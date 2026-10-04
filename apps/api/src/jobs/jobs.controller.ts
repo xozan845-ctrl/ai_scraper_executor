@@ -55,4 +55,11 @@ export class JobsController {
     if (!r) throw new NotFoundException(`Job ${id} no encontrado`);
     return r;
   }
+
+  @Post(':id/retry')
+  async retry(@Param('id') id: string) {
+    const r = await this.jobs.retry(id);
+    if (!r) throw new NotFoundException(`Job ${id} no encontrado`);
+    return r;
+  }
 }

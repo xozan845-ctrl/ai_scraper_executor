@@ -48,4 +48,44 @@ describe('Observabilidad distribuida ETAPA 5 (instance + uptime + stats)', async
     assert.ok(overview.stats && typeof overview.aiRecoveryRate === 'number');
     assert.ok(overview.process && typeof overview.process === 'object');
   });
+
+  it('runWithContext inyecta correlationId/jobId en los logs', () => {
+    const lines = [];
+    const origLog = console.log;
+    console.log = (s) => void lines.push(s);
+    try {
+      obs.runWithContext({ correlationId: 'corr-1', jobId: 'job-1' }, () => {
+        obs.logger.info('dentro');
+      });
+      obs.logger.info('fuera');
+      const inside = JSON.parse(lines[0]);
+      const outside = JSON.parse(lines[1]);
+      assert.equal(inside.correlationId, 'corr-1');
+      assert.equal(inside.jobId, 'job-1');
+      assert.equal(outside.correlationId, undefined, 'fuera del contexto no se filtra');
+    } finally {
+      console.log = origLog;
+    }
+  });
+
+  it('withSpan emite un span con duración', async () => {
+    const lines = [];
+    const origLog = console.log;
+    console.log = (s) => void lines.push(s);
+    const prev = process.env.LOG_LEVEL;
+    process.env.LOG_LEVEL = 'debug';
+    try {
+      await obs.withSpan('test-span', async () => {
+        await new Promise((r) => setTimeout(r, 5));
+        return 42;
+      });
+      const span = lines.map((l) => JSON.parse(l)).find((l) => l.span === 'test-span');
+      assert.ok(span, 'debe emitir el span');
+      assert.ok(typeof span.durationMs === 'number' && span.durationMs >= 0);
+    } finally {
+      console.log = origLog;
+      if (prev === undefined) delete process.env.LOG_LEVEL;
+      else process.env.LOG_LEVEL = prev;
+    }
+  });
 });

@@ -1,7 +1,9 @@
 import 'reflect-metadata';
+import { randomUUID } from 'node:crypto';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
+import { runWithContext } from '@ai-scraper/observability';
 import { closeJobStore } from '@ai-scraper/storage';
 import { closeJobQueue } from '@ai-scraper/queue';
 import { disconnectMongo } from '@ai-scraper/mongodb';
@@ -12,6 +14,13 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.enableCors();
   app.enableShutdownHooks();
+  // Correlación: acepta x-correlation-id entrante o genera uno; lo propaga por contexto y respuesta.
+  app.use((req: { headers: Record<string, unknown> }, res: { setHeader: (k: string, v: string) => void }, next: () => void) => {
+    const incoming = req.headers['x-correlation-id'];
+    const correlationId = typeof incoming === 'string' && incoming ? incoming : randomUUID();
+    res.setHeader('x-correlation-id', correlationId);
+    runWithContext({ correlationId }, () => next());
+  });
   if (process.env.NODE_ENV === 'production' && !process.env.API_KEYS) {
     console.error('[API] ⚠️  NODE_ENV=production sin API_KEYS: la autenticación está CERRADA (todas las rutas protegidas devolverán 401).');
   }

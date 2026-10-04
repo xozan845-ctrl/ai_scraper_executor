@@ -2,7 +2,7 @@ import { Injectable, Inject, InternalServerErrorException, BadRequestException }
 import { assertPublicUrl, isAllowedHost } from '@ai-scraper/security';
 import type { JobStore } from '@ai-scraper/storage';
 import type { JobQueue } from '@ai-scraper/queue';
-import { metrics } from '@ai-scraper/observability';
+import { metrics, getContext } from '@ai-scraper/observability';
 import { getMetricsAggregator } from '@ai-scraper/redis';
 import { JOB_STORE, JOB_QUEUE } from './providers';
 import { CreateJobDto } from './dto/create-job.dto';
@@ -59,6 +59,8 @@ export class JobsService {
         ai: { provider: record.aiProvider, model: record.aiModel },
         // FASE 11: prioridad del DTO (1..10, defecto 5).
         ...(dto.priority !== undefined ? { priority: dto.priority } : {}),
+        // Etapa 3: correlación API→worker.
+        ...(getContext().correlationId ? { correlationId: getContext().correlationId } : {}),
       });
     } catch (e) {
       await this.store.saveError(record.id, `Enqueue fallido: ${(e as Error).message}`);
@@ -114,6 +116,25 @@ export class JobsService {
     await this.queue.remove(id).catch(() => false);
     metrics().inc('jobs_cancelled_total');
     return this.store.updateStatus(id, 'CANCELLED');
+  }
+
+  /** Reencola un job FAILED (replay manual / DLQ). Limpia artefactos previos. */
+  async retry(id: string) {
+    const job = await this.store.getJob(id);
+    if (!job) return null;
+    if (job.status !== 'FAILED') return job; // solo se reintentan fallidos
+    await this.store.clearJobArtifacts(id);
+    await this.store.updateStatus(id, 'QUEUED');
+    await this.queue.enqueue({
+      jobId: job.id,
+      url: job.url,
+      instruction: job.instruction,
+      limits: (job.limits as Record<string, number>) ?? undefined,
+      ai: { provider: job.aiProvider, model: job.aiModel },
+      ...(getContext().correlationId ? { correlationId: getContext().correlationId } : {}),
+    });
+    metrics().inc('jobs_retried_total');
+    return this.store.getJob(id);
   }
 
   async aiInteractions(id: string, limit = 50) {

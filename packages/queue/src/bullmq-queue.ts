@@ -5,6 +5,19 @@ import { SCRAPING_QUEUE } from './job-queue';
 import type { ScrapingJobPayload } from './types';
 import { normalizePriority } from './types';
 
+export const SCRAPING_DEAD_QUEUE = 'scraping-jobs:dead';
+
+export interface DeadJob extends ScrapingJobPayload {
+  reason: string;
+  failedAt: string;
+  attemptsMade: number;
+}
+
+/** Cola dead-letter: jobs que agotaron reintentos (inspección / replay manual). */
+export function createDeadLetterQueue(connection: IORedis): Queue<DeadJob> {
+  return new Queue<DeadJob>(SCRAPING_DEAD_QUEUE, { connection: connection as never });
+}
+
 export function createRedisConnection(url: string): IORedis {
   return new IORedis(url, {
     maxRetriesPerRequest: null,

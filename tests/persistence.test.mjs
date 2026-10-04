@@ -130,6 +130,25 @@ describe('JobsService FASE 8 (API real)', async () => {
     const failed = (await store.listJobs(10)).find((j) => j.status === 'FAILED');
     assert.ok(failed, 'el job con enqueue fallido queda FAILED');
   });
+
+  it('retry reencola un FAILED y limpia artefactos; no-op si no está FAILED', async () => {
+    const store = new InMemoryJobStore();
+    const queue = new InMemoryJobQueue();
+    const service = new JobsService(store, queue);
+    const job = await service.create(dto());
+    await store.updateStatus(job.id, 'FAILED');
+    await store.saveCommand(job.id, 'FINISH', {}, 'OK');
+    await queue.remove(job.id); // simular consumido
+    const r = await service.retry(job.id);
+    assert.equal(r.status, 'QUEUED');
+    assert.equal((await store.getCommands(job.id)).length, 0, 'artefactos limpiados');
+    assert.equal(await queue.pendingCount(), 1, 'reencolado');
+
+    const done = await service.create(dto({ url: 'https://shop.com/otro' }));
+    await store.updateStatus(done.id, 'COMPLETED');
+    const r2 = await service.retry(done.id);
+    assert.equal(r2.status, 'COMPLETED', 'no se reintenta un COMPLETED');
+  });
 });
 
 describe('processJob del worker (FASE 7)', async () => {
