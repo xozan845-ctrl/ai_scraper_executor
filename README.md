@@ -1,6 +1,9 @@
-# AI Web Scraping Executor — v0.13 (FASE 0–13 completas, MVP funcional + Memoria + Redis + E2E)
+# AI Web Scraping Executor — v0.14 (FASE 0–13 + Memoria MongoDB + Redis distribuido + IA real E2E)
 
 Plataforma agnóstica de scraping asistida por IA. `LA IA ES EL CEREBRO. CRAWLEE ES EL MOTOR.`
+
+> Estado: **MVP funcional validado E2E contra una web real** (`https://www.sevasaonline.com/`) con LLM
+> (incluidos modelos free de OpenRouter) extrayendo datos, memoria persistente (MongoDB) y caché Redis.
 
 ## Arquitectura (5 capas)
 
@@ -37,19 +40,18 @@ npm run dev:worker  # Worker consumiendo cola
 
 ```bash
 # Tests unitarios/integración (mocks, sin BD reales)
-npm test                    # 73 tests: dsl + engine + crawler + ai-providers + agent + persistence + dashboard + security + browser + api-hardening + observability + scale
+npm test                    # 78 tests: dsl + normalize + engine + crawler + ai-providers + agent + persistence + dashboard + security + browser + api-hardening + observability + scale
 MONGODB_MOCK=1 npm test     # Forzar mock MongoDB
 
 # Test E2E real contra https://www.sevasaonline.com/
-# Requiere: Docker (postgres+mongodb+redis) + OPENROUTER_API_KEY + Playwright Chromium en host
+# Requiere: Docker (postgres+mongodb+redis) + OPENROUTER_API_KEY en .env + Playwright Chromium en host
 # ⚠️ Para E2E local (fuera de Docker): `npx playwright install --with-deps chromium`
-npm run dev:e2e
-# O manual:
-docker compose up -d postgres mongodb redis
-npm run prisma:migrate:deploy
-npm run build --workspaces
-OPENROUTER_API_KEY=sk-xxx npm run test:e2e
+npm run dev:e2e             # levanta BDs + migra + build + test
+npm run test:e2e            # solo el test (carga .env automáticamente vía node --env-file)
 ```
+
+> `test:e2e` usa `node --env-file=.env` (Node ≥20.6), así que la `OPENROUTER_API_KEY` y los modelos
+> se toman del `.env` sin exportarlos manualmente.
 
 **Variables de test:**
 - `ALLOW_PRIVATE_HOSTS=1` — permite localhost/127.0.0.1 en tests (SSRF sigue bloqueado en prod)
@@ -69,7 +71,9 @@ OPENROUTER_API_KEY=sk-xxx npm run test:e2e
 | `MONGODB_DB` | DB MongoDB | `scraper` |
 | `REDIS_URL` | Redis | `redis://localhost:6379` |
 | `OPENROUTER_API_KEY` | Clave OpenRouter | **requerida para LLM** |
-| `OPENROUTER_MODEL` | Modelo | `anthropic/claude-3.5-sonnet` |
+| `OPENROUTER_MODEL` | Modelo principal | `openrouter/free` |
+| `OPENROUTER_FALLBACK_MODELS` | Modelos alternativos (coma-sep), se usan ante 404/429 | lista de `:free` |
+| `OPENROUTER_BASE_URL` | Base URL API | `https://openrouter.ai/api/v1` |
 | `AI_PROVIDER` | `openrouter\|custom` | `openrouter` |
 | `AI_CUSTOM_ENDPOINT` | Endpoint custom (Ollama/vLLM) | - |
 | `AI_CUSTOM_API_KEY` | API key custom | - |
@@ -77,6 +81,7 @@ OPENROUTER_API_KEY=sk-xxx npm run test:e2e
 | `AI_TEMPERATURE` | Temperatura LLM | `0.1` |
 | `AI_MAX_TOKENS` | Max tokens | `4000` |
 | `AI_TIMEOUT_MS` | Timeout LLM | `60000` |
+| `AI_MAX_RETRIES` | Reintentos por modelo (429/5xx) | `2` |
 | `CRAWLEE_HEADLESS` | Browser headless | `true` |
 | `CRAWLEE_MAX_CONCURRENCY` | Concurrencia Crawlee | `5` |
 | `CRAWLEE_MAX_REQUESTS_PER_MINUTE` | Rate limit Crawlee | - |
@@ -93,27 +98,26 @@ OPENROUTER_API_KEY=sk-xxx npm run test:e2e
 ```
 apps/
   api/           # NestJS API REST (POST/GET /jobs, /radiography, /metrics, /dashboard)
-  worker/        # Procesador de jobs (AgentRunner + browser-engine)
+  worker/        # Procesador de jobs (AgentRunner + browser-engine + planner)
 packages/
   core/          # Tipos compartidos (JobStatus, JobLimits, TracedValue)
-  commands/      # DSL Zod (13 comandos) + CommandValidator (SSRF + allowlist)
+  commands/      # DSL Zod (13 comandos) + CommandValidator (SSRF/allowlist) + normalize (anti-alucinación)
   crawler/       # CrawlerService (CheerioCrawler + PlaywrightCrawler, hybrid, SessionPool)
-  execution-engine/  # ExecutionEngine (HTTP/Cheerio + delegado browser CLICK/SCROLL)
+  execution-engine/  # ExecutionEngine (HTTP/Cheerio + delegado browser CLICK/SCROLL + PageCache)
   ai/            # AIOrchestrator + prompts + context-builder
-  ai-providers/  # OpenRouterProvider, CustomEndpointProvider, FallbackAIProvider
-  mongodb/       # SiteProfile, PageRadiography, MongoRepository (fallback memoria)
+  ai-providers/  # OpenRouterProvider (fallback modelos), CustomEndpointProvider, FallbackAIProvider
+  mongodb/       # SiteProfile, PageRadiography, MongoRepository, performRadiography/getLearnedProfile
   redis/         # RedisPageCache, RedisRateLimiter, RedisMetricsAggregator (fallback memoria)
-  queue/         # BullMQJobQueue + InMemoryJobQueue
+  queue/         # JobQueue (BullMQJobQueue + InMemoryJobQueue) + factory
   security/      # SSRF centralizado (assertPublicUrl, isBlockedHost, createAllowlist)
-  observability/ # Logger JSON + MetricsCollector (Prometheus)
+  observability/ # Logger JSON + MetricsCollector (Prometheus, instance labels)
   storage/       # JobStore (Prisma + InMemory)
   schemas/       # Stub Zod API (reservado)
-  queue/         # JobQueue interface + factory
 prisma/
   schema.prisma  # 8 tablas: User, Job, ScrapingPlan, Command, Page, Result, JobError, AIInteraction
-docker/
-  Dockerfile.api # Alpine + HEALTHCHECK
-  Dockerfile.worker # Bookworm-slim + Playwright Chromium
+docker-compose.yml # postgres + mongodb + redis + migrate + api + worker
+apps/api/Dockerfile      # node:22-alpine + HEALTHCHECK
+apps/worker/Dockerfile   # node:22-bookworm-slim + Playwright Chromium
 ```
 
 ## API Endpoints
@@ -204,11 +208,12 @@ RATE_LIMIT_CREATE_PER_MIN=60
 2. Worker (BullMQ) consume job
    -> AgentRunner.run(job)
    -> FASE 12: getLearnedProfile(url) -> perfil MongoDB (selectores, needsBrowser)
-   -> FASE 4: generatePlan() -> inyecta learnedProfile al LLM -> plan validado
-   -> FASE 5: Fase A (plan) + Fase B (Observe→Think→Act loop)
+   -> FASE 4: generatePlan() -> inyecta learnedProfile al LLM -> normaliza (normalizeRawPlan) -> plan validado
+   -> FASE 5: Fase A (plan) + Fase B (Observe→Think→Act loop, comandos normalizados)
    -> FASE 3: CLICK/SCROLL -> CrawlerService.interact() (Chromium real)
    -> FASE 6: Recovery automático (max 2 intentos)
    -> FASE 11: PageCache (Redis) + dedupe URLs + prioridades
+   -> LLM: fallback automático de modelos ante 404/429 (OpenRouter)
 
 3. Persistencia (PostgreSQL via Prisma)
    -> Job, ScrapingPlan, Command, Page, Result, JobError, AIInteraction
