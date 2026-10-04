@@ -55,6 +55,11 @@ export interface DiscoveredElement {
   text: string;
 }
 
+export interface ElementCount {
+  selector: string;
+  count: number;
+}
+
 export interface CrawledPage {
   url: string;
   title: string;
@@ -62,6 +67,10 @@ export interface CrawledPage {
   statusCode?: number;
   links: Array<{ text: string; href: string }>;
   elements: DiscoveredElement[];
+  /** Conteo por selector candidato (para fingerprint/estructura de la radiografía). */
+  elementCounts: ElementCount[];
+  /** Hash del HTML (detección de cambios / drift). */
+  htmlHash: string;
   textSnippet: string;
   usedBrowser: boolean;
 }
@@ -73,6 +82,27 @@ export interface CrawlStats {
   durationMs: number;
 }
 
+/** Selectores candidatos (heurística agnóstica §6). */
+export const CANDIDATE_SELECTORS = [
+  '.product-card',
+  '.product',
+  '[data-product]',
+  '[data-testid*="product"]',
+  '.card',
+  'article',
+  'li:has(.price), li:has([class*="price"])',
+  '.item',
+];
+
+/** Hash estable y barato del HTML (no criptográfico; solo detección de cambios). */
+export function hashHtml(html: string): string {
+  let hash = 0;
+  for (let i = 0; i < html.length; i++) {
+    hash = ((hash << 5) - hash + html.charCodeAt(i)) | 0;
+  }
+  return (hash >>> 0).toString(36);
+}
+
 /** Seguridad §37 centralizada en @ai-scraper/security (ETAPA 2). */
 
 /** Heurística agnóstica §6: detectar tarjetas de listado sin conocer el CMS. */
@@ -81,17 +111,7 @@ function discoverElements(
   $: any,
 ): DiscoveredElement[] {
   const out: DiscoveredElement[] = [];
-  const candidates = [
-    '.product-card',
-    '.product',
-    '[data-product]',
-    '[data-testid*="product"]',
-    '.card',
-    'article',
-    'li:has(.price), li:has([class*="price"])',
-    '.item',
-  ];
-  for (const sel of candidates) {
+  for (const sel of CANDIDATE_SELECTORS) {
     try {
       const found = $(sel);
       if (!found || found.length === 0 || found.length > 200) continue;
@@ -109,6 +129,21 @@ function discoverElements(
     }
   }
   return out.slice(0, 80);
+}
+
+/** Conteo por selector candidato (cheerio). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function countElements($: any): ElementCount[] {
+  const out: ElementCount[] = [];
+  for (const sel of CANDIDATE_SELECTORS) {
+    try {
+      const n = $(sel).length as number;
+      if (n > 0) out.push({ selector: sel, count: n });
+    } catch {
+      /* selector inválido */
+    }
+  }
+  return out;
 }
 
 function guessType(text: string): string {
@@ -274,6 +309,8 @@ export class CrawlerService {
           statusCode: 200,
           links,
           elements,
+          elementCounts: countElements($),
+          htmlHash: hashHtml(html),
           textSnippet: $('body').text().replace(/\s+/g, ' ').trim().slice(0, 2000),
           usedBrowser: false,
         });
@@ -348,6 +385,15 @@ export class CrawlerService {
           .catch(() => [] as DiscoveredElement[]);
         const bodyText = await page.$eval('body', (b) => b.innerText.slice(0, 2000)).catch(() => '');
         const html = await page.content().catch(() => '');
+        const elementCounts = await page
+          .evaluate(
+            (sels: string[]) =>
+              sels
+                .map((s) => ({ selector: s, count: document.querySelectorAll(s).length }))
+                .filter((e) => e.count > 0),
+            CANDIDATE_SELECTORS as unknown as string[],
+          )
+          .catch(() => [] as ElementCount[]);
         pages.push({
           url: request.loadedUrl ?? request.url,
           title,
@@ -355,6 +401,8 @@ export class CrawlerService {
           statusCode: 200,
           links: absLinks,
           elements,
+          elementCounts,
+          htmlHash: hashHtml(html),
           textSnippet: bodyText,
           usedBrowser: true,
         });

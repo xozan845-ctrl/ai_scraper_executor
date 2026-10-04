@@ -42,6 +42,11 @@ describe('CrawlerService FASE 1 (HTTP contra servidor local)', async () => {
     assert.equal(home.title, 'Home Shop');
     assert.ok(home.links.some((l) => l.href.includes('/cat')));
     assert.ok(home.elements.length >= 1);
+    // Radiografía real: hash del HTML + conteo por selector
+    assert.equal(typeof home.htmlHash, 'string');
+    assert.ok(home.htmlHash.length > 0);
+    assert.ok(Array.isArray(home.elementCounts));
+    assert.ok(home.elementCounts.some((e) => e.selector === '.product-card' && e.count >= 1));
   });
 
   it('inspectSinglePage no encola y devuelve contexto reducido', async () => {

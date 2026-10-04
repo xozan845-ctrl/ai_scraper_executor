@@ -209,6 +209,32 @@ describe('AgentRunner FASE 5 + Recovery FASE 6 (§47, §28)', async () => {
     assert.match(res.error, /maxRuntimeSec/);
   });
 
+  it('maxAiTokens corta la ejecución al superar el presupuesto', async () => {
+    // Fake que reporta tokens altos por llamada.
+    const calls = { createPlan: 0 };
+    const tokenFake = {
+      name: 'fake-llm',
+      async createPlan() {
+        calls.createPlan += 1;
+        return { version: '1.0', actions: [{ type: 'NAVIGATE', url: baseJob.url }] };
+      },
+      async analyzePage() {
+        return [{ type: 'FINISH' }];
+      },
+      async recover() {
+        return [{ type: 'FINISH' }];
+      },
+      async interpret(c) {
+        return c.rawItems;
+      },
+      getLastStats: () => ({ latencyMs: 1, tokens: 100, model: 'm', provider: 'fake-llm' }),
+    };
+    const { fetcher } = makeFetcher();
+    const res = await runner(tokenFake, fetcher).run({ ...baseJob, limits: { maxAiTokens: 50 } });
+    assert.equal(res.status, 'FAILED');
+    assert.match(res.error, /Presupuesto IA/);
+  });
+
   it('recovery: selector fallido → alternativa del LLM → éxito con recoveryCount=1', async () => {
     const { fake, calls } = makeFake({
       plan: {

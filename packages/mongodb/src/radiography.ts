@@ -6,6 +6,8 @@ import { ISiteProfile, DiscoveredSelector, PaginationPattern } from './models';
 /** Resultado de una radiografía completa */
 export interface RadiographyResult {
   profile: ISiteProfile;
+  /** true si el HTML cambió respecto a la última radiografía (drift). */
+  changed?: boolean;
   radiography: {
     url: string;
     title: string;
@@ -139,37 +141,41 @@ export async function performRadiography(
     },
   });
 
-  // 6. Guardar radiografía de la página principal
+  // 6. Detectar drift: ¿cambió el HTML respecto a la última radiografía?
+  const previous = await mongoRepo.findFreshRadiography(mainPage.url, 24 * 3650).catch(() => null);
+  const changed = Boolean(previous?.htmlHash && previous.htmlHash !== mainPage.htmlHash);
+  if (changed) {
+    console.warn(`[RADIOGRAPHY] cambio detectado en ${mainPage.url} (hash ${previous?.htmlHash} → ${mainPage.htmlHash})`);
+  }
+
+  // 7. Guardar radiografía real (hash del HTML + estructura con conteos).
+  const structure = {
+    lists: (mainPage.elementCounts ?? []).map((ec) => ({ selector: ec.selector, count: ec.count, sampleItems: [] })),
+    forms: [] as Array<{ selector: string; fields: string[] }>,
+    scripts: 0,
+    stylesheets: 0,
+  };
   await mongoRepo.saveRadiography({
     url: mainPage.url,
     profileId: profile.id!,
-    html: mainPage.title, // solo título como muestra, el HTML real sería muy grande
+    htmlHash: mainPage.htmlHash,
     title: mainPage.title,
-    structure: {
-      lists: listSelectors.map((s) => ({ selector: s.selector, count: 0, sampleItems: [] })),
-      forms: [],
-      scripts: 0,
-      stylesheets: 0,
-    },
-    statusCode: 200,
+    structure,
+    statusCode: mainPage.statusCode ?? 200,
     loadTimeMs: stats.durationMs,
     usedBrowser,
     ttlHours: 24,
   });
 
-  console.log(`[RADIOGRAPHY] Completada para ${domain} en ${Date.now() - started}ms (browser: ${usedBrowser})`);
+  console.log(`[RADIOGRAPHY] Completada para ${domain} en ${Date.now() - started}ms (browser: ${usedBrowser}, changed: ${changed})`);
 
   return {
     profile,
+    changed,
     radiography: {
       url: mainPage.url,
       title: mainPage.title,
-      structure: {
-        lists: listSelectors.map((s) => ({ selector: s.selector, count: 0, sampleItems: [] })),
-        forms: [],
-        scripts: 0,
-        stylesheets: 0,
-      },
+      structure,
       loadTimeMs: stats.durationMs,
       usedBrowser,
     },

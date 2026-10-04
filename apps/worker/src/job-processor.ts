@@ -8,6 +8,7 @@ import { AIOrchestrator } from '@ai-scraper/ai';
 import { createAIProviderForJob } from '@ai-scraper/ai-providers';
 import { ExecutionEngine } from '@ai-scraper/execution-engine';
 import { incMetric } from './metrics-bridge';
+import { getJsonCache } from '@ai-scraper/redis';
 import type { JobStore } from '@ai-scraper/storage';
 import type { ScrapingJobPayload } from '@ai-scraper/queue';
 import { AgentRunner, type AgentResult } from './agent-runner';
@@ -61,9 +62,11 @@ export async function processJob(jobId: string, deps: ProcessJobDeps): Promise<A
     ai: { provider: record.aiProvider, model: record.aiModel },
   };
 
+  const useCache = process.env.AI_CACHE !== '0';
+  const cache = useCache ? await getJsonCache() : null;
   const orchestrator = deps.createOrchestrator
     ? deps.createOrchestrator(payload)
-    : new AIOrchestrator(createAIProviderForJob(payload.ai) as never);
+    : new AIOrchestrator(createAIProviderForJob(payload.ai) as never, cache);
 
   const isCancelled = async () => (await store.getJob(jobId))?.status === 'CANCELLED';
   const runner = new AgentRunner({
@@ -120,7 +123,7 @@ export async function processJob(jobId: string, deps: ProcessJobDeps): Promise<A
     model: result.model,
     kind: 'run',
     request: { url: record.url, instruction: record.instruction },
-    response: { status: result.status, steps: result.steps.length, items: result.items.length },
+    response: { status: result.status, steps: result.steps.length, items: result.items.length, cacheHits: orchestrator.cacheHitCount },
     tokens: stats?.tokens,
     latencyMs: stats?.latencyMs,
   });

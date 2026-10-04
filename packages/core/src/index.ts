@@ -23,6 +23,8 @@ export interface JobLimits {
   maxItems?: number;
   maxRuntimeSec?: number;
   maxRequests?: number;
+  /** Presupuesto de tokens IA por job (0 = sin límite). Corta la ejecución al superarlo. */
+  maxAiTokens?: number;
 }
 
 export const DEFAULT_LIMITS: Required<JobLimits> = {
@@ -31,6 +33,7 @@ export const DEFAULT_LIMITS: Required<JobLimits> = {
   maxItems: 10000,
   maxRuntimeSec: 300,
   maxRequests: 1000,
+  maxAiTokens: 200000,
 };
 
 export interface CreateJobInput {

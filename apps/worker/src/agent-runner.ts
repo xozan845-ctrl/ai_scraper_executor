@@ -118,6 +118,11 @@ export class AgentRunner {
     const deadline = Date.now() + limits.maxRuntimeSec * 1000;
     const pastDeadline = () => Date.now() > deadline;
     const checkCancel = this.deps.isCancelled ?? (async () => false);
+    // Presupuesto de tokens IA por job (0/undefined = sin límite).
+    const aiBudget = limits.maxAiTokens && limits.maxAiTokens > 0 ? limits.maxAiTokens : Infinity;
+    let aiTokens = 0;
+    const addTokens = () => { aiTokens += this.deps.orchestrator.lastStats()?.tokens ?? 0; };
+    const overBudget = () => aiTokens >= aiBudget;
 
     // FASE 12: obtener perfil aprendido para decisiones inteligentes
     let learnedProfile = null;
@@ -197,6 +202,7 @@ export class AgentRunner {
             { ...ctx, instruction: job.instruction, failedCommand, error, ...(job.ai?.model ? { model: job.ai.model } : {}) },
             modelOpts,
           );
+          addTokens();
           debugLog('RECOVERY LLM RESPONSE', { attempt, alternatives });
         } catch (e) {
           error = `recovery LLM falló (intento ${attempt}): ${(e as Error).message}`;
@@ -288,6 +294,7 @@ export class AgentRunner {
       planActions = generated.actions;
       base.providerName = generated.providerName;
       base.model = generated.model;
+      addTokens();
       debugLog('PLAN GENERADO', { provider: generated.providerName, model: generated.model, actionsCount: plan.length, actions: plan.map(a => a.type) });
     } catch (e) {
       await recordResult(false, 0);
@@ -312,6 +319,17 @@ export class AgentRunner {
         await recordResult(items.length > 0, items.length);
         debugWarn('JOB CANCELLED (Fase A)', { items: items.length });
         return { ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(), status: 'FAILED', error: 'Job cancelado durante la ejecución' };
+      }
+      if (overBudget()) {
+        await recordResult(items.length > 0, items.length);
+        debugWarn('AI TOKEN BUDGET REACHED (Fase A)', { aiTokens, aiBudget, items: items.length });
+        return {
+          ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(),
+          status: items.length > 0 ? 'COMPLETED' : 'FAILED',
+          ...(items.length > 0
+            ? { note: `Presupuesto IA (${aiBudget} tokens) alcanzado con ${items.length} items` }
+            : { error: `Presupuesto IA (${aiBudget} tokens) alcanzado sin items` }),
+        };
       }
       debugLog('EXECUTING PLAN ACTION', { action: action.type, step: steps.length + 1 });
       const step = await attemptStep(action as Record<string, unknown>);
@@ -359,6 +377,17 @@ export class AgentRunner {
         debugWarn('JOB CANCELLED (Fase B)', { items: items.length });
         return { ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(), status: 'FAILED', error: 'Job cancelado durante la ejecución' };
       }
+      if (overBudget()) {
+        await recordResult(items.length > 0, items.length);
+        debugWarn('AI TOKEN BUDGET REACHED (Fase B)', { aiTokens, aiBudget, items: items.length });
+        return {
+          ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(),
+          status: items.length > 0 ? 'COMPLETED' : 'FAILED',
+          ...(items.length > 0
+            ? { note: `Presupuesto IA (${aiBudget} tokens) alcanzado con ${items.length} items` }
+            : { error: `Presupuesto IA (${aiBudget} tokens) alcanzado sin items` }),
+        };
+      }
       debugLog('PHASE B ITERATION', { currentStep: steps.length + 1, maxSteps: this.maxSteps });
       const ctx = await observe();
       let decisions: unknown[];
@@ -367,6 +396,7 @@ export class AgentRunner {
           { ...ctx, instruction: job.instruction, ...(job.ai?.model ? { model: job.ai.model } : {}) },
           modelOpts,
         );
+        addTokens();
         debugLog('ANALYZE PAGE DECISIONS', { decisionsCount: Array.isArray(decisions) ? decisions.length : 1, decisions });
       } catch (e) {
         await recordResult(items.length > 0, items.length);

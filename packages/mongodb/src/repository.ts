@@ -232,11 +232,11 @@ export class MongoRepository {
     }
   }
 
-  /** Guarda radiografía de página */
+  /** Guarda radiografía de página (usa el hash real del HTML provisto por el crawler). */
   async saveRadiography(data: {
     url: string;
     profileId: string;
-    html: string;
+    htmlHash: string;
     title: string;
     structure: IPageRadiography['structure'];
     extractedData?: unknown;
@@ -249,7 +249,7 @@ export class MongoRepository {
     const store = this.getStore();
     if (store) return store.saveRadiography(data);
     const domain = normalizeDomain(data.url);
-    const htmlHash = hashHtml(data.html);
+    const htmlHash = data.htmlHash;
     const existing = await PageRadiography.findOne({ url: data.url, htmlHash });
     if (existing) {
       existing.fetchedAt = new Date();
