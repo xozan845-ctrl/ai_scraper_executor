@@ -13,7 +13,7 @@
  *   registra resultado del job para mejorar perfiles futuros.
  */
 import { AIOrchestrator } from '@ai-scraper/ai';
-import { CommandValidator, normalizeRawCommand } from '@ai-scraper/commands';
+import { CommandValidator, normalizeRawCommand, clampCommandLimits } from '@ai-scraper/commands';
 import { DEFAULT_LIMITS } from '@ai-scraper/core';
 import { ExecutionEngine } from '@ai-scraper/execution-engine';
 import { generatePlan, type PlanJobInput, type PlanAction } from './planner';
@@ -112,6 +112,9 @@ export class AgentRunner {
       maxDepth: limits.maxDepth,
       maxPages: limits.maxPages,
     });
+    // Deadline global del job (§35): acota el runtime total aunque maxSteps no se alcance.
+    const deadline = Date.now() + limits.maxRuntimeSec * 1000;
+    const pastDeadline = () => Date.now() > deadline;
 
     // FASE 12: obtener perfil aprendido para decisiones inteligentes
     let learnedProfile = null;
@@ -206,6 +209,8 @@ export class AgentRunner {
         try {
           const { command: normalizedRec } = normalizeRawCommand(candidate);
           if (!normalizedRec) throw new Error('comando de recovery no reconocible');
+          // §35: la IA no puede elevar límites tampoco en recovery.
+          clampCommandLimits(normalizedRec, { maxPages: limits.maxPages, maxItems: limits.maxItems });
           const valid = validator.validateCommand(normalizedRec) as unknown as PlanAction;
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const res = await engine.execute(valid as any);
@@ -231,6 +236,8 @@ export class AgentRunner {
         const { command: normalized, notes } = normalizeRawCommand(raw);
         if (!normalized) throw new Error(`comando no reconocible`);
         if (notes.length) debugLog('COMANDO NORMALIZADO', { step: n, notes });
+        // §35: recorta límites también en las decisiones dinámicas (Fase B).
+        clampCommandLimits(normalized, { maxPages: limits.maxPages, maxItems: limits.maxItems });
         command = validator.validateCommand(normalized) as unknown as Record<string, unknown>;
         debugLog('VALIDATION OK', { step: n, command: command.type });
       } catch (e) {
@@ -287,6 +294,17 @@ export class AgentRunner {
 
     for (const action of plan) {
       if (steps.length >= this.maxSteps) break;
+      if (pastDeadline()) {
+        await recordResult(items.length > 0, items.length);
+        debugWarn('MAX RUNTIME REACHED (Fase A)', { maxRuntimeSec: limits.maxRuntimeSec, items: items.length });
+        return {
+          ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(),
+          status: items.length > 0 ? 'COMPLETED' : 'FAILED',
+          ...(items.length > 0
+            ? { note: `maxRuntimeSec (${limits.maxRuntimeSec}s) alcanzado con ${items.length} items` }
+            : { error: `maxRuntimeSec (${limits.maxRuntimeSec}s) alcanzado sin items` }),
+        };
+      }
       debugLog('EXECUTING PLAN ACTION', { action: action.type, step: steps.length + 1 });
       const step = await attemptStep(action as Record<string, unknown>);
       steps.push(step);
@@ -317,6 +335,17 @@ export class AgentRunner {
     // ---- Fase B: bucle dinámico §47 ----
     debugLog('=== FASE B: BUCLE DINÁMICO (Observe→Think→Act) ===');
     while (steps.length < this.maxSteps) {
+      if (pastDeadline()) {
+        await recordResult(items.length > 0, items.length);
+        debugWarn('MAX RUNTIME REACHED (Fase B)', { maxRuntimeSec: limits.maxRuntimeSec, items: items.length });
+        return {
+          ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(),
+          status: items.length > 0 ? 'COMPLETED' : 'FAILED',
+          ...(items.length > 0
+            ? { note: `maxRuntimeSec (${limits.maxRuntimeSec}s) alcanzado con ${items.length} items` }
+            : { error: `maxRuntimeSec (${limits.maxRuntimeSec}s) alcanzado sin items` }),
+        };
+      }
       debugLog('PHASE B ITERATION', { currentStep: steps.length + 1, maxSteps: this.maxSteps });
       const ctx = await observe();
       let decisions: unknown[];

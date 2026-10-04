@@ -184,6 +184,31 @@ describe('AgentRunner FASE 5 + Recovery FASE 6 (§47, §28)', async () => {
     assert.ok(calls.analyzePage[0].ctx.elements.length >= 1);
   });
 
+  it('Fase B no permite elevar límites (clamp §35)', async () => {
+    const { fake } = makeFake({
+      plan: { version: '1.0', actions: [{ type: 'NAVIGATE', url: baseJob.url }] },
+      decisions: [
+        { type: 'EXTRACT_LIST', selector: '.product-card', fields: { name: '.name' }, limit: 1000 },
+        { type: 'FINISH' },
+      ],
+    });
+    const { fetcher } = makeFetcher();
+    const res = await runner(fake, fetcher).run({ ...baseJob, limits: { maxItems: 5 } });
+    const extract = res.steps.find((s) => s.command.type === 'EXTRACT_LIST');
+    assert.ok(extract, 'debe haber un paso EXTRACT_LIST');
+    assert.equal(extract.command.limit, 5, 'limit debe recortarse a maxItems');
+  });
+
+  it('maxRuntimeSec acota el runtime del job (deadline)', async () => {
+    const { fake } = makeFake({
+      plan: { version: '1.0', actions: [{ type: 'NAVIGATE', url: baseJob.url }] },
+    });
+    const { fetcher } = makeFetcher();
+    const res = await runner(fake, fetcher).run({ ...baseJob, limits: { maxRuntimeSec: 0 } });
+    assert.equal(res.status, 'FAILED');
+    assert.match(res.error, /maxRuntimeSec/);
+  });
+
   it('recovery: selector fallido → alternativa del LLM → éxito con recoveryCount=1', async () => {
     const { fake, calls } = makeFake({
       plan: {

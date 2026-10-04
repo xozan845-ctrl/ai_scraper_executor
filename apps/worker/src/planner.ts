@@ -9,7 +9,7 @@
  * - FASE 12: inyecta perfil aprendido (selectores, paginación, needsBrowser) al contexto de la IA.
  */
 import { AIOrchestrator } from '@ai-scraper/ai';
-import { CommandValidator, normalizeRawPlan } from '@ai-scraper/commands';
+import { CommandValidator, normalizeRawPlan, clampCommandLimits } from '@ai-scraper/commands';
 import { DEFAULT_LIMITS } from '@ai-scraper/core';
 import { createAIProviderForJob } from '@ai-scraper/ai-providers';
 import { getLearnedProfile } from '@ai-scraper/mongodb';
@@ -64,10 +64,6 @@ function mergeLimits(input?: PlanLimits): Required<PlanLimits> {
   return { ...DEFAULT_LIMITS, ...input };
 }
 
-function clampInt(value: unknown, max: number, fallback: number): number {
-  const n = typeof value === 'number' && Number.isFinite(value) ? Math.floor(value) : fallback;
-  return Math.min(Math.max(n, 1), max);
-}
 
 export async function generatePlan(input: PlanJobInput, deps?: PlannerDeps): Promise<GeneratedPlan> {
   debugLog('=== GENERATE PLAN START ===', { url: input.url, instruction: input.instruction, useMemory: input.useMemory !== false });
@@ -151,16 +147,7 @@ export async function generatePlan(input: PlanJobInput, deps?: PlannerDeps): Pro
   const actions: PlanAction[] = [];
   for (const a of actionsRaw) {
     const valid = validator.validateCommand(a) as unknown as PlanAction;
-    const type = valid.type as string;
-    if (type === 'PAGINATE') {
-      (valid as Record<string, unknown>).maxPages = clampInt(valid.maxPages, limits.maxPages, limits.maxPages);
-    }
-    if (type === 'FOLLOW_LINKS') {
-      (valid as Record<string, unknown>).maxLinks = clampInt(valid.maxLinks, limits.maxPages, 10);
-    }
-    if (type === 'EXTRACT_LIST') {
-      (valid as Record<string, unknown>).limit = clampInt(valid.limit, limits.maxItems, 100);
-    }
+    clampCommandLimits(valid as Record<string, unknown>, { maxPages: limits.maxPages, maxItems: limits.maxItems });
     actions.push(valid);
   }
 
