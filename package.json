@@ -9,7 +9,7 @@
   ],
   "scripts": {
     "build": "npm run build --workspaces",
-    "build:core": "npm run build -w @ai-scraper/core && npm run build -w @ai-scraper/security && npm run build -w @ai-scraper/commands && npm run build -w @ai-scraper/crawler && npm run build -w @ai-scraper/execution-engine && npm run build -w @ai-scraper/ai && npm run build -w @ai-scraper/ai-providers",
+    "build:core": "npm run build -w @ai-scraper/core && npm run build -w @ai-scraper/security && npm run build -w @ai-scraper/commands && npm run build -w @ai-scraper/crawler && npm run build -w @ai-scraper/execution-engine && npm run build -w @ai-scraper/ai && npm run build -w @ai-scraper/ai-providers && npm run build -w @ai-scraper/mongodb && npm run build -w @ai-scraper/redis",
     "start:api": "npm run start -w api",
     "start:worker": "npm run start -w worker",
     "dev:api": "npm run start:dev -w api",
@@ -32,6 +32,7 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@prisma/client": "^6.19.3"
+    "@prisma/client": "^6.19.3",
+    "mongoose": "^8.24.4"
   }
 }

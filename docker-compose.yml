@@ -15,6 +15,20 @@ services:
       timeout: 3s
       retries: 10
 
+  mongodb:
+    image: mongo:7-jammy
+    environment:
+      MONGO_INITDB_DATABASE: ${MONGODB_DB:-scraper}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   redis:
     image: redis:7-alpine
     ports:
@@ -35,8 +49,11 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgresql://scraper:scraper@postgres:5432/scraper?schema=public
+      MONGODB_URI: mongodb://mongodb:27017/${MONGODB_DB:-scraper}
     depends_on:
       postgres:
+        condition: service_healthy
+      mongodb:
         condition: service_healthy
     command: npx prisma migrate deploy --schema=prisma/schema.prisma
 
@@ -47,6 +64,7 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgresql://scraper:scraper@postgres:5432/scraper?schema=public
+      MONGODB_URI: mongodb://mongodb:27017/${MONGODB_DB:-scraper}
       REDIS_URL: redis://redis:6379
     ports:
       - "3000:3000"
@@ -54,6 +72,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      mongodb:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
@@ -68,6 +88,7 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgresql://scraper:scraper@postgres:5432/scraper?schema=public
+      MONGODB_URI: mongodb://mongodb:27017/${MONGODB_DB:-scraper}
       REDIS_URL: redis://redis:6379
       WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-2}
       CRAWLEE_MAX_CONCURRENCY: ${CRAWLEE_MAX_CONCURRENCY:-5}
@@ -76,6 +97,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      mongodb:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
@@ -86,4 +109,5 @@ services:
 
 volumes:
   postgres-data:
+  mongodb-data:
   redis-data:
