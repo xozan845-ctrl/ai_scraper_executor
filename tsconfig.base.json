@@ -12,17 +12,17 @@
     "sourceMap": true,
     "baseUrl": ".",
     "paths": {
-      "@ai-scraper/core": ["packages/core/src"],
-      "@ai-scraper/commands": ["packages/commands/src"],
-      "@ai-scraper/crawler": ["packages/crawler/src"],
-      "@ai-scraper/execution-engine": ["packages/execution-engine/src"],
-      "@ai-scraper/ai": ["packages/ai/src"],
-      "@ai-scraper/ai-providers": ["packages/ai-providers/src"],
-      "@ai-scraper/schemas": ["packages/schemas/src"],
-      "@ai-scraper/storage": ["packages/storage/src"],
-      "@ai-scraper/queue": ["packages/queue/src"],
-      "@ai-scraper/security": ["packages/security/src"],
-      "@ai-scraper/observability": ["packages/observability/src"]
+      "@ai-scraper/core": ["packages/core/dist"],
+      "@ai-scraper/commands": ["packages/commands/dist"],
+      "@ai-scraper/crawler": ["packages/crawler/dist"],
+      "@ai-scraper/execution-engine": ["packages/execution-engine/dist"],
+      "@ai-scraper/ai": ["packages/ai/dist"],
+      "@ai-scraper/ai-providers": ["packages/ai-providers/dist"],
+      "@ai-scraper/schemas": ["packages/schemas/dist"],
+      "@ai-scraper/storage": ["packages/storage/dist"],
+      "@ai-scraper/queue": ["packages/queue/dist"],
+      "@ai-scraper/security": ["packages/security/dist"],
+      "@ai-scraper/observability": ["packages/observability/dist"]
     }
   },
   "exclude": ["node_modules", "dist"]

@@ -9,19 +9,24 @@
   ],
   "scripts": {
     "build": "npm run build --workspaces",
-    "build:core": "npm run build -w @ai-scraper/core && npm run build -w @ai-scraper/commands && npm run build -w @ai-scraper/crawler && npm run build -w @ai-scraper/execution-engine && npm run build -w @ai-scraper/ai && npm run build -w @ai-scraper/ai-providers",
+    "build:core": "npm run build -w @ai-scraper/core && npm run build -w @ai-scraper/security && npm run build -w @ai-scraper/commands && npm run build -w @ai-scraper/crawler && npm run build -w @ai-scraper/execution-engine && npm run build -w @ai-scraper/ai && npm run build -w @ai-scraper/ai-providers",
     "start:api": "npm run start -w api",
     "start:worker": "npm run start -w worker",
     "dev:api": "npm run start:dev -w api",
     "dev:worker": "npm run start:dev -w worker",
     "prisma:generate": "prisma generate --schema=prisma/schema.prisma",
     "prisma:migrate": "prisma migrate dev --schema=prisma/schema.prisma",
-    "test": "node --test tests/dsl.test.mjs tests/engine.test.mjs tests/crawler.test.mjs tests/ai-providers.test.mjs tests/agent.test.mjs tests/persistence.test.mjs tests/dashboard.test.mjs",
-    "lint": "echo \"TODO: eslint\""
+    "prisma:migrate:deploy": "prisma migrate deploy --schema=prisma/schema.prisma",
+    "test": "node --test --test-concurrency=1 tests/dsl.test.mjs tests/engine.test.mjs tests/crawler.test.mjs tests/ai-providers.test.mjs tests/agent.test.mjs tests/persistence.test.mjs tests/dashboard.test.mjs tests/security.test.mjs tests/browser.test.mjs tests/api-hardening.test.mjs tests/observability.test.mjs tests/scale.test.mjs",
+    "lint": "eslint apps packages",
+    "typecheck": "npm run build --workspaces"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^9.39.5",
     "prisma": "^6.19.3",
-    "typescript": "^5.5.0"
+    "typescript": "^5.5.0",
+    "typescript-eslint": "^8.71.0"
   },
   "engines": {
     "node": ">=20"

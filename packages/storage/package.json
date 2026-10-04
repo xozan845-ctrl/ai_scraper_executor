@@ -1,0 +1,1 @@
+{"name":"@ai-scraper/storage","version":"0.1.0","main":"dist/index.js","types":"dist/index.d.ts","scripts":{"build":"tsc -p tsconfig.json"},"devDependencies":{"typescript":"^5.5.0"},"dependencies":{"@ai-scraper/core":"^0.1.0","@prisma/client":"^6.19.3"}}

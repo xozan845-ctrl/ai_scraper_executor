@@ -28,6 +28,8 @@ export interface AgentStep {
   error?: string;
   recovered?: boolean;
   needsBrowser?: boolean;
+  /** true cuando el paso se resolvió en Chromium real (ETAPA 3). */
+  usedBrowser?: boolean;
 }
 
 export interface AgentResult {
@@ -93,7 +95,7 @@ export class AgentRunner {
     });
     const engine = this.deps.createEngine ? this.deps.createEngine() : new ExecutionEngine();
     const modelOpts = job.ai?.model ? { model: job.ai.model } : undefined;
-    let planActions: PlanAction[] = [];
+    let planActions: PlanAction[];
     const visited = () => [...engine.getMemory().visited];
 
     const steps: AgentStep[] = [];
@@ -129,7 +131,7 @@ export class AgentRunner {
     const recoverAndExecute = async (
       failedCommand: Record<string, unknown>,
       error: string,
-    ): Promise<{ ok: boolean; command: Record<string, unknown>; count?: number; error?: string; needsBrowser?: boolean; resItems?: unknown[] } | null> => {
+    ): Promise<{ ok: boolean; command: Record<string, unknown>; count?: number; error?: string; needsBrowser?: boolean; usedBrowser?: boolean; resItems?: unknown[] } | null> => {
       for (let attempt = 1; attempt <= this.maxRecoveryAttempts; attempt += 1) {
         const ctx = await observe();
         let alternatives: unknown[];
@@ -153,7 +155,8 @@ export class AgentRunner {
           const res = await engine.execute(valid as any);
           if (res.ok) {
             recoveryCount += 1;
-            return { ok: true, command: valid as Record<string, unknown>, count: res.count, needsBrowser: res.needsBrowser, resItems: res.items };
+            if (res.needsBrowser || res.usedBrowser) browserEscalationSuggested = true;
+            return { ok: true, command: valid as Record<string, unknown>, count: res.count, needsBrowser: res.needsBrowser, usedBrowser: res.usedBrowser, resItems: res.items };
           }
           error = res.error ?? `comando alternativo falló (intento ${attempt})`;
         } catch (e) {
@@ -172,24 +175,24 @@ export class AgentRunner {
         const err = `validación rechazada: ${(e as Error).message}`;
         const rec = await recoverAndExecute(raw, err);
         if (rec) {
-          if (rec.needsBrowser) browserEscalationSuggested = true;
-          const step: AgentStep = { n, command: rec.command, ok: true, count: rec.count, recovered: true, needsBrowser: rec.needsBrowser };
+          if (rec.needsBrowser || rec.usedBrowser) browserEscalationSuggested = true;
+          const step: AgentStep = { n, command: rec.command, ok: true, count: rec.count, recovered: true, needsBrowser: rec.needsBrowser, usedBrowser: rec.usedBrowser };
           return { ...step, resItems: rec.resItems };
         }
         return { n, command: raw, ok: false, error: `${err} (recovery agotado)` };
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const res = await engine.execute(command as any);
-      if (res.needsBrowser) browserEscalationSuggested = true;
+      if (res.needsBrowser || res.usedBrowser) browserEscalationSuggested = true;
       if (res.ok) {
-        return { n, command, ok: true, count: res.count, needsBrowser: res.needsBrowser, resItems: res.items };
+        return { n, command, ok: true, count: res.count, needsBrowser: res.needsBrowser, usedBrowser: res.usedBrowser, resItems: res.items };
       }
       const rec = await recoverAndExecute(command, res.error ?? 'ejecución fallida');
       if (rec) {
-        if (rec.needsBrowser) browserEscalationSuggested = true;
-        return { n, command: rec.command, ok: true, count: rec.count, recovered: true, needsBrowser: rec.needsBrowser, resItems: rec.resItems };
+        if (rec.needsBrowser || rec.usedBrowser) browserEscalationSuggested = true;
+        return { n, command: rec.command, ok: true, count: rec.count, recovered: true, needsBrowser: rec.needsBrowser, usedBrowser: rec.usedBrowser, resItems: rec.resItems };
       }
-      return { n, command, ok: false, error: `${res.error ?? 'ejecución fallida'} (recovery agotado)`, needsBrowser: res.needsBrowser };
+      return { n, command, ok: false, error: `${res.error ?? 'ejecución fallida'} (recovery agotado)`, needsBrowser: res.needsBrowser, usedBrowser: res.usedBrowser };
     };
 
     const pushItems = (resItems: unknown[] | undefined, commandType: string) => {

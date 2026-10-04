@@ -6,4 +6,4 @@ dist/
 postgres-data/
 redis-data/
 crawlee-storage/
-storage/
+/storage/

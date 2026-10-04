@@ -79,7 +79,7 @@ export async function postChatCompletions(req: ChatRequest): Promise<ChatResult>
       const err = e as Error;
       // Abort (timeout) y errores de cliente: no reintentar.
       if (err.name === 'AbortError') {
-        throw new Error(`${req.label}: timeout tras ${req.timeoutMs}ms`);
+        throw new Error(`${req.label}: timeout tras ${req.timeoutMs}ms`, { cause: e });
       }
       if (/ (400|401|403|404|422):/.test(err.message)) throw err;
       lastError = err;

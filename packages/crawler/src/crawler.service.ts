@@ -8,6 +8,20 @@
  * - Seguridad §37: bloquea hosts privados / metadata endpoints antes de encolar.
  */
 import { CheerioCrawler, PlaywrightCrawler, RequestQueue } from 'crawlee';
+import { chromium } from 'playwright';
+import { assertPublicUrl } from '@ai-scraper/security';
+
+/** Acción browser delegada por el ExecutionEngine (ETAPA 3, §34). */
+export interface BrowserAction {
+  kind: 'click' | 'scroll';
+  selector?: string;
+}
+
+export interface BrowserResult {
+  html: string;
+  url: string;
+  title: string;
+}
 
 let queueSeq = 0;
 async function freshQueue() {
@@ -59,28 +73,7 @@ export interface CrawlStats {
   durationMs: number;
 }
 
-const BLOCKED_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0', '::1', '169.254.169.254']);
-
-function assertPublicUrl(raw: string): URL {
-  let u: URL;
-  try {
-    u = new URL(raw);
-  } catch {
-    throw new Error(`URL inválida: ${raw}`);
-  }
-  if (!['http:', 'https:'].includes(u.protocol)) throw new Error(`Protocolo no permitido: ${u.protocol}`);
-  if (process.env.ALLOW_PRIVATE_HOSTS === '1') return u;
-  const host = u.hostname;
-  if (
-    BLOCKED_HOSTS.has(host) ||
-    /^10\./.test(host) ||
-    /^192\.168\./.test(host) ||
-    /^172\.(1[6-9]|2\d|3[01])\./.test(host)
-  ) {
-    throw new Error(`SSRF bloqueado (§37): host no permitido ${host}`);
-  }
-  return u;
-}
+/** Seguridad §37 centralizada en @ai-scraper/security (ETAPA 2). */
 
 /** Heurística agnóstica §6: detectar tarjetas de listado sin conocer el CMS. */
 function discoverElements(
@@ -135,7 +128,7 @@ function extractLinks(
       if (links.length >= 100) return false;
       const rawHref = $(el).attr('href');
       if (!rawHref || rawHref.startsWith('#') || rawHref.startsWith('javascript:')) return;
-      let href = rawHref;
+      let href: string;
       try {
         href = new URL(rawHref, baseUrl).toString();
       } catch {
@@ -207,6 +200,35 @@ export class CrawlerService {
         durationMs: Date.now() - started,
       },
     };
+  }
+
+  /**
+   * Interacción puntual con browser real (ETAPA 3, §34).
+   * El ExecutionEngine delega aquí CLICK no-enlace y SCROLL: se abre
+   * Chromium, se ejecuta la acción y se devuelve el HTML resultante
+   * para que el engine lo cargue en Cheerio y siga en HTTP.
+   */
+  async interact(url: string, action: BrowserAction): Promise<BrowserResult> {
+    assertPublicUrl(url);
+    const browser = await chromium.launch({ headless: process.env.CRAWLEE_HEADLESS !== 'false' });
+    try {
+      const page = await browser.newPage();
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      if (action.kind === 'click' && action.selector) {
+        await page.click(action.selector, { timeout: 10000 });
+        await page.waitForLoadState('domcontentloaded', { timeout: 15000 }).catch(() => undefined);
+        await page.waitForTimeout(800).catch(() => undefined);
+      } else {
+        // scroll: disparar lazy-load / infinite-scroll inicial (§59)
+        await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)).catch(() => undefined);
+        await page.waitForTimeout(1200).catch(() => undefined);
+      }
+      const html = await page.content().catch(() => '');
+      const title = (await page.title().catch(() => ''))?.slice(0, 200) ?? '';
+      return { html, url: page.url(), title };
+    } finally {
+      await browser.close().catch(() => undefined);
+    }
   }
 
   /**

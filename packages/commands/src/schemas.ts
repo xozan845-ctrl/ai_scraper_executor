@@ -68,10 +68,6 @@ const FollowLinksCommand = BaseCommand.extend({
   sameDomainOnly: z.boolean().default(true),
 });
 
-const SimpleCommand = BaseCommand.extend({
-  type: z.enum(['INSPECT_PAGE', 'INSPECT_LINKS', 'INSPECT_ELEMENTS', 'SCROLL', 'WAIT', 'GET_ATTRIBUTE', 'FINISH'] as never),
-});
-
 export const ScrapingCommandSchema = z.discriminatedUnion('type', [
   NavigateCommand,
   ClickCommand,

@@ -77,7 +77,7 @@ export async function generatePlan(input: PlanJobInput, deps?: PlannerDeps): Pro
       model ? { model } : undefined,
     );
   } catch (e) {
-    throw new Error(`Planificación fallida (${orchestrator.providerName}): ${(e as Error).message}`);
+    throw new Error(`Planificación fallida (${orchestrator.providerName}): ${(e as Error).message}`, { cause: e });
   }
 
   // Tolerar que el modelo devuelva el array de acciones directamente.

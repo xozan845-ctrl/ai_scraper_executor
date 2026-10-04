@@ -1,21 +1,29 @@
 /**
- * Execution Engine §27 — FASE 2 real (HTTP/Cheerio).
+ * Execution Engine §27 — FASE 2 real (HTTP/Cheerio) + escalado browser (ETAPA 3, §34).
  * Traduce el DSL tipado a operaciones DOM. Sin eval() libre (§4).
  *
  * - NAVIGATE / INSPECT_* / EXTRACT / EXTRACT_LIST / FOLLOW_LINKS / PAGINATE funcionales en HTTP.
- * - CLICK no-enlace, SCROLL con JS pesado y formularios → { needsBrowser: true } para que
- *   el Agent Loop escale a Playwright (§34) en FASE 5 en vez de fallar en silencio.
+ * - CLICK no-enlace y SCROLL: si hay `browserInteract` (CrawlerService.interact),
+ *   se ejecutan en Chromium real y el HTML resultante se carga en Cheerio;
+ *   sin delegado se devuelve { needsBrowser: true } como antes.
  * - Trazabilidad §33: cada item incluye _source { url, selector, scrapedAt }.
  */
 import * as cheerio from 'cheerio';
+import type { ScrapingCommand as StrictCommand } from '@ai-scraper/commands';
+import { assertPublicUrl } from '@ai-scraper/security';
+import { PageCache, normalizeUrlForDedupe } from './page-cache';
 
-export interface ScrapingCommand {
+/**
+ * Fuente única del DSL: @ai-scraper/commands (Zod).
+ * El engine acepta el tipo estricto + comandos desconocidos en runtime
+ * (la IA puede alucinar tipos) para devolver error recuperable, no crash.
+ */
+export interface LooseCommand {
   type: string;
   url?: string;
   selector?: string;
-  selectors?: string[];
-  fields?: Record<string, string | { selector: string; attribute?: string }>;
   attribute?: string;
+  fields?: Record<string, string | { selector: string; attribute?: string }>;
   limit?: number;
   maxLinks?: number;
   maxPages?: number;
@@ -25,6 +33,8 @@ export interface ScrapingCommand {
   reason?: string;
   [key: string]: unknown;
 }
+export type ScrapingCommand = StrictCommand | LooseCommand;
+export type { StrictCommand };
 
 export interface ExecutionResult {
   ok: boolean;
@@ -35,7 +45,23 @@ export interface ExecutionResult {
   error?: string;
   nextHint?: string;
   needsBrowser?: boolean;
+  /** true cuando la acción se resolvió en Chromium real (ETAPA 3). */
+  usedBrowser?: boolean;
 }
+
+/** Acción browser delegada al CrawlerService (ETAPA 3, §34). */
+export interface BrowserAction {
+  kind: 'click' | 'scroll';
+  selector?: string;
+}
+
+export interface BrowserResult {
+  html: string;
+  url: string;
+  title?: string;
+}
+
+export type BrowserInteract = (url: string, action: BrowserAction) => Promise<BrowserResult>;
 
 export interface EngineMemory {
   visited: string[];
@@ -46,18 +72,7 @@ export interface EngineMemory {
 
 type Fetcher = (url: string) => Promise<string>;
 
-const BLOCKED = new Set(['localhost', '127.0.0.1', '0.0.0.0', '::1', '169.254.169.254']);
-
-function assertPublicUrl(raw: string): URL {
-  const u = new URL(raw);
-  if (!['http:', 'https:'].includes(u.protocol)) throw new Error(`Protocolo no permitido: ${u.protocol}`);
-  if (process.env.ALLOW_PRIVATE_HOSTS === '1') return u;
-  const h = u.hostname;
-  if (BLOCKED.has(h) || /^10\./.test(h) || /^192\.168\./.test(h) || /^172\.(1[6-9]|2\d|3[01])\./.test(h)) {
-    throw new Error(`SSRF bloqueado (§37): ${h}`);
-  }
-  return u;
-}
+/** Seguridad §37 centralizada en @ai-scraper/security (ETAPA 2). */
 
 async function defaultFetchHtml(url: string): Promise<string> {
   assertPublicUrl(url);
@@ -111,8 +126,21 @@ export class ExecutionEngine {
     private readonly deps?: {
       crawlPage?: (url: string) => Promise<{ title: string; links: unknown[]; htmlLength: number }>;
       fetcher?: Fetcher;
+      /** Delegado browser (CrawlerService.interact). Sin él, CLICK/SCROLL devuelven needsBrowser. */
+      browserInteract?: BrowserInteract;
+      /** Caché HTML compartible (FASE 11). Por defecto, caché propia por engine. */
+      pageCache?: PageCache;
     },
-  ) {}
+  ) {
+    this.pageCache = deps?.pageCache ?? new PageCache();
+  }
+
+  private readonly pageCache: PageCache;
+
+  /** Stats de caché para observabilidad. */
+  getCacheStats(): { hits: number; misses: number; size: number } {
+    return { hits: this.pageCache.hits, misses: this.pageCache.misses, size: this.pageCache.size };
+  }
 
   getMemory(): EngineMemory {
     return { ...this.memory, visited: [...this.memory.visited] };
@@ -122,8 +150,9 @@ export class ExecutionEngine {
     return this.currentUrl;
   }
 
-  private async loadUrl(url: string): Promise<void> {
-    assertPublicUrl(url);
+  private async fetchHtml(url: string): Promise<string> {
+    const cached = this.pageCache.get(url);
+    if (cached !== null) return cached;
     let html: string;
     if (this.deps?.fetcher) {
       html = await this.deps.fetcher(url);
@@ -134,6 +163,23 @@ export class ExecutionEngine {
     } else {
       html = await defaultFetchHtml(url);
     }
+    this.pageCache.set(url, html);
+    return html;
+  }
+
+  private async loadUrl(url: string): Promise<void> {
+    assertPublicUrl(url);
+    const html = await this.fetchHtml(url);
+    this.$ = cheerio.load(html);
+    this.currentUrl = url;
+    this.currentHtmlLength = html.length;
+    if (!this.memory.visited.includes(url)) this.memory.visited.push(url);
+    this.memory.lastUrl = url;
+  }
+
+  /** Carga HTML ya obtenido (p.ej. tras interacción browser) sin refetch. */
+  private loadHtml(url: string, html: string): void {
+    assertPublicUrl(url);
     this.$ = cheerio.load(html);
     this.currentUrl = url;
     this.currentHtmlLength = html.length;
@@ -147,13 +193,16 @@ export class ExecutionEngine {
   }
 
   async execute(command: ScrapingCommand): Promise<ExecutionResult> {
+    // Vista suelta para runtime: StrictCommand es asignable a LooseCommand,
+    // así el switch no colapsa a `never` y acepta comandos alucinados por la IA.
+    const cmd: LooseCommand = command as LooseCommand;
     try {
-      switch (command.type) {
+      switch (cmd.type) {
         case 'NAVIGATE': {
-          if (!command.url) return { ok: false, commandType: 'NAVIGATE', error: 'NAVIGATE requiere url' };
-          await this.loadUrl(command.url);
+          if (!cmd.url) return { ok: false, commandType: 'NAVIGATE', error: 'NAVIGATE requiere url' };
+          await this.loadUrl(cmd.url);
           const title = this.$!('title').first().text().trim().slice(0, 200);
-          return { ok: true, commandType: 'NAVIGATE', count: this.currentHtmlLength, nextHint: title || command.url };
+          return { ok: true, commandType: 'NAVIGATE', count: this.currentHtmlLength, nextHint: title || cmd.url };
         }
 
         case 'INSPECT_PAGE': {
@@ -215,9 +264,9 @@ export class ExecutionEngine {
 
         case 'EXTRACT': {
           const $ = this.requirePage();
-          if (!command.fields) return { ok: false, commandType: 'EXTRACT', error: 'EXTRACT requiere fields' };
+          if (!cmd.fields) return { ok: false, commandType: 'EXTRACT', error: 'EXTRACT requiere fields' };
           const obj: Record<string, unknown> = {};
-          for (const [k, spec] of Object.entries(command.fields)) {
+          for (const [k, spec] of Object.entries(cmd.fields)) {
             obj[k] = {
               value: extractFieldValue($, $, spec),
               source: {
@@ -233,22 +282,22 @@ export class ExecutionEngine {
 
         case 'EXTRACT_LIST': {
           const $ = this.requirePage();
-          if (!command.selector) return { ok: false, commandType: 'EXTRACT_LIST', error: 'selector requerido' };
-          if (!command.fields) return { ok: false, commandType: 'EXTRACT_LIST', error: 'fields requerido' };
-          const limit = Math.min(command.limit ?? 100, 1000);
+          if (!cmd.selector) return { ok: false, commandType: 'EXTRACT_LIST', error: 'selector requerido' };
+          if (!cmd.fields) return { ok: false, commandType: 'EXTRACT_LIST', error: 'fields requerido' };
+          const limit = Math.min(cmd.limit ?? 100, 1000);
           const items: Record<string, unknown>[] = [];
-          const cards = $(command.selector);
+          const cards = $(cmd.selector);
           if (cards.length === 0) {
             return {
               ok: false,
               commandType: 'EXTRACT_LIST',
-              error: `0 elementos para selector "${command.selector}" → Recovery (§28): probar INSPECT_ELEMENTS`,
+              error: `0 elementos para selector "${cmd.selector}" → Recovery (§28): probar INSPECT_ELEMENTS`,
             };
           }
           cards.each((_, card) => {
             if (items.length >= limit) return false;
             const row: Record<string, unknown> = {};
-            for (const [k, spec] of Object.entries(command.fields!)) {
+            for (const [k, spec] of Object.entries(cmd.fields!)) {
               const sel = typeof spec === 'string' ? spec : spec.selector;
               const attr = typeof spec === 'string' ? undefined : spec.attribute;
               const el = $(card).find(sel).first();
@@ -260,10 +309,10 @@ export class ExecutionEngine {
                     : el.attr(attr)?.slice(0, 1000) ?? null;
               row[k] = {
                 value,
-                source: { url: this.currentUrl, selector: `${command.selector} ${sel}`, scrapedAt: new Date().toISOString() },
+                source: { url: this.currentUrl, selector: `${cmd.selector} ${sel}`, scrapedAt: new Date().toISOString() },
               };
             }
-            row._source = { url: this.currentUrl, selector: command.selector, scrapedAt: new Date().toISOString() };
+            row._source = { url: this.currentUrl, selector: cmd.selector, scrapedAt: new Date().toISOString() };
             items.push(row);
           });
           this.memory.lastItems = items.length;
@@ -272,23 +321,23 @@ export class ExecutionEngine {
 
         case 'GET_ATTRIBUTE': {
           const $ = this.requirePage();
-          if (!command.selector || !command.attribute) {
+          if (!cmd.selector || !cmd.attribute) {
             return { ok: false, commandType: 'GET_ATTRIBUTE', error: 'selector y attribute requeridos' };
           }
           const vals: Array<string | null> = [];
-          $(command.selector).each((_, el) => {
+          $(cmd.selector).each((_, el) => {
             if (vals.length >= 100) return false;
-            vals.push($(el).attr(command.attribute!) ?? null);
+            vals.push($(el).attr(cmd.attribute!) ?? null);
           });
           return { ok: true, commandType: 'GET_ATTRIBUTE', items: vals, count: vals.length };
         }
 
         case 'CLICK': {
           const $ = this.requirePage();
-          if (!command.selector) return { ok: false, commandType: 'CLICK', error: 'selector requerido' };
-          const el = $(command.selector).first();
+          if (!cmd.selector) return { ok: false, commandType: 'CLICK', error: 'selector requerido' };
+          const el = $(cmd.selector).first();
           if (el.length === 0) {
-            return { ok: false, commandType: 'CLICK', error: `selector no encontrado: ${command.selector}` };
+            return { ok: false, commandType: 'CLICK', error: `selector no encontrado: ${cmd.selector}` };
           }
           // Solo soportamos click en enlace en modo HTTP.
           const href = el.closest('a').attr('href') ?? (el.is('a') ? el.attr('href') : undefined);
@@ -297,6 +346,16 @@ export class ExecutionEngine {
             if (!abs) return { ok: false, commandType: 'CLICK', error: `href no resoluble: ${href}` };
             await this.loadUrl(abs);
             return { ok: true, commandType: 'CLICK', nextHint: abs };
+          }
+          // ETAPA 3: escalar a Chromium real cuando hay delegado.
+          if (this.deps?.browserInteract && cmd.selector) {
+            try {
+              const out = await this.deps.browserInteract(this.currentUrl!, { kind: 'click', selector: cmd.selector });
+              this.loadHtml(out.url, out.html);
+              return { ok: true, commandType: 'CLICK', usedBrowser: true, nextHint: out.title || out.url };
+            } catch (e) {
+              return { ok: false, commandType: 'CLICK', needsBrowser: true, error: `browser CLICK falló: ${(e as Error).message}` };
+            }
           }
           return {
             ok: false,
@@ -307,12 +366,23 @@ export class ExecutionEngine {
         }
 
         case 'WAIT': {
-          const ms = Math.min(Number(command.ms ?? 1000), 5000);
+          const ms = Math.min(Number(cmd.ms ?? 1000), 5000);
           await new Promise((r) => setTimeout(r, ms));
           return { ok: true, commandType: 'WAIT', nextHint: `esperados ${ms}ms` };
         }
 
         case 'SCROLL': {
+          this.requirePage();
+          // ETAPA 3: scroll real en Chromium (lazy-load / infinite-scroll).
+          if (this.deps?.browserInteract && this.currentUrl) {
+            try {
+              const out = await this.deps.browserInteract(this.currentUrl, { kind: 'scroll', selector: cmd.selector });
+              this.loadHtml(out.url, out.html);
+              return { ok: true, commandType: 'SCROLL', usedBrowser: true, nextHint: `scroll browser (${out.html.length}b)` };
+            } catch (e) {
+              return { ok: false, commandType: 'SCROLL', needsBrowser: true, error: `browser SCROLL falló: ${(e as Error).message}` };
+            }
+          }
           return {
             ok: true,
             commandType: 'SCROLL',
@@ -323,22 +393,30 @@ export class ExecutionEngine {
 
         case 'FOLLOW_LINKS': {
           const $ = this.requirePage();
-          if (!command.selector) return { ok: false, commandType: 'FOLLOW_LINKS', error: 'selector requerido' };
-          const maxLinks = Math.min(command.maxLinks ?? 10, 100);
+          if (!cmd.selector) return { ok: false, commandType: 'FOLLOW_LINKS', error: 'selector requerido' };
+          const maxLinks = Math.min(cmd.maxLinks ?? 10, 100);
           const baseHost = new URL(this.currentUrl!).hostname;
           const hrefs: string[] = [];
-          $(command.selector).each((_, el) => {
+          const seen = new Set<string>();
+          $(cmd.selector).each((_, el) => {
             if (hrefs.length >= maxLinks) return false;
             const raw = $(el).attr('href') ?? $(el).find('a').first().attr('href') ?? '';
             const abs = toAbs(raw, this.currentUrl!);
             if (!abs) return;
-            if (command.sameDomainOnly !== false && new URL(abs).hostname !== baseHost) return;
-            if (!hrefs.includes(abs)) hrefs.push(abs);
+            if (cmd.sameDomainOnly !== false && new URL(abs).hostname !== baseHost) return;
+            // FASE 11: deduplicar variantes (/p, /p/, /p#frag → una sola).
+            const key = normalizeUrlForDedupe(abs);
+            if (seen.has(key)) return;
+            seen.add(key);
+            hrefs.push(abs);
           });
           const visited: Array<{ url: string; title: string; htmlLength: number }> = [];
-          for (const href of hrefs) {
+          // ETAPA 3+6: no refetchear URLs ya visitadas; la caché evita refetch entre comandos.
+          const seenVisited = new Set(this.memory.visited.map((v) => normalizeUrlForDedupe(v)));
+          const pending = hrefs.filter((h) => !seenVisited.has(normalizeUrlForDedupe(h)));
+          for (const href of pending) {
             try {
-              const html = this.deps?.fetcher ? await this.deps.fetcher(href) : await defaultFetchHtml(href);
+              const html = await this.fetchHtml(href);
               const $$ = cheerio.load(html);
               visited.push({
                 url: href,
@@ -354,25 +432,25 @@ export class ExecutionEngine {
         }
 
         case 'PAGINATE': {
-          if (command.pattern) {
-            const maxPages = Math.min(command.maxPages ?? 5, 50);
+          if (cmd.pattern) {
+            const maxPages = Math.min(cmd.maxPages ?? 5, 50);
             const urls: string[] = [];
             for (let p = 1; p <= maxPages; p++) {
-              const u = command.pattern.replace('{page}', String(p)).replace('N', String(p));
-              const abs = toAbs(u, this.currentUrl ?? command.url ?? '') ?? u;
+              const u = cmd.pattern.replace('{page}', String(p)).replace('N', String(p));
+              const abs = toAbs(u, this.currentUrl ?? cmd.url ?? '') ?? u;
               urls.push(abs);
             }
             return { ok: true, commandType: 'PAGINATE', items: urls, count: urls.length };
           }
-          if (command.selector) {
+          if (cmd.selector) {
             const $ = this.requirePage();
-            const next = $(command.selector).first();
+            const next = $(cmd.selector).first();
             const href = next.attr('href') ?? next.find('a').first().attr('href');
             if (!href) {
               return {
                 ok: false,
                 commandType: 'PAGINATE',
-                error: `No se encontró enlace siguiente con "${command.selector}"`,
+                error: `No se encontró enlace siguiente con "${cmd.selector}"`,
               };
             }
             return { ok: true, commandType: 'PAGINATE', items: [toAbs(href, this.currentUrl!)], count: 1 };
@@ -384,10 +462,10 @@ export class ExecutionEngine {
           return { ok: true, commandType: 'FINISH', nextHint: 'objetivo cumplido' };
 
         default:
-          return { ok: false, commandType: command.type, error: `Comando no soportado: ${command.type}` };
+          return { ok: false, commandType: cmd.type, error: `Comando no soportado: ${cmd.type}` };
       }
     } catch (e) {
-      return { ok: false, commandType: command.type, error: (e as Error).message };
+      return { ok: false, commandType: cmd.type, error: (e as Error).message };
     }
   }
 }
