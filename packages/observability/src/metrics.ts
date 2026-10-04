@@ -14,13 +14,38 @@ interface Counter {
   labels: MetricLabels;
 }
 
+/**
+ * Identidad de la réplica (ETAPA 5, multi-worker --scale N).
+ * Fijable vía INSTANCE_ID (tests deterministas); por defecto hostname-pid.
+ */
+export function instanceId(): string {
+  const fixed = (process.env.INSTANCE_ID ?? '').trim();
+  if (fixed) return fixed;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const os = require('node:os') as { hostname?: () => string };
+    const host = typeof os.hostname === 'function' ? os.hostname() : 'unknown';
+    return `${host}-${process.pid}`;
+  } catch {
+    return `pid-${process.pid}`;
+  }
+}
+
 export class MetricsCollector {
   private counters = new Map<string, Counter[]>();
   private gauges = new Map<string, { value: number; labels: MetricLabels }>();
   private readonly prefix: string;
+  private readonly startedAt = Date.now();
+  readonly instance: string;
 
-  constructor(prefix = 'scraper') {
+  constructor(prefix = 'scraper', instance?: string) {
     this.prefix = prefix;
+    this.instance = instance ?? instanceId();
+  }
+
+  /** Segundos desde la creación del collector (uptime de la réplica). */
+  uptimeSec(): number {
+    return Math.floor((Date.now() - this.startedAt) / 1000);
   }
 
   inc(name: string, by = 1, labels: MetricLabels = {}): void {
@@ -45,17 +70,27 @@ export class MetricsCollector {
     return out;
   }
 
-  /** Formato Prometheus text exposition (listo para Grafana §38). */
+  /** Formato Prometheus text exposition (listo para Grafana §38).
+   * ETAPA 5: cada serie lleva label `instance` para agregar multi-réplica
+   * con `sum by (…)`; `scraper_instance_info` y `scraper_uptime_seconds`
+   * identifican la réplica.
+   */
   toPrometheus(): string {
     const lines: string[] = [];
+    const withInstance = (labels: MetricLabels): string =>
+      renderLabels({ ...labels, instance: this.instance });
     for (const [name, list] of this.counters) {
       lines.push(`# TYPE ${name} counter`);
-      for (const c of list) lines.push(`${name}${renderLabels(c.labels)} ${c.value}`);
+      for (const c of list) lines.push(`${name}${withInstance(c.labels)} ${c.value}`);
     }
     for (const [name, g] of this.gauges) {
       lines.push(`# TYPE ${name} gauge`);
-      lines.push(`${name}${renderLabels(g.labels)} ${g.value}`);
+      lines.push(`${name}${withInstance(g.labels)} ${g.value}`);
     }
+    lines.push(`# TYPE ${this.prefix}_instance_info gauge`);
+    lines.push(`${this.prefix}_instance_info${renderLabels({ instance: this.instance })} 1`);
+    lines.push(`# TYPE ${this.prefix}_uptime_seconds gauge`);
+    lines.push(`${this.prefix}_uptime_seconds${renderLabels({ instance: this.instance })} ${this.uptimeSec()}`);
     return `${lines.join('\n')}\n`;
   }
 }

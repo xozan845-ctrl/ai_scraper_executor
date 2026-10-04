@@ -18,9 +18,16 @@ export interface LogFields {
   [key: string]: unknown;
 }
 
+/** Instancia emisora (ETAPA 5): correlación multi-réplica en Loki/ELK. */
+function instance(): string {
+  const fixed = (process.env.INSTANCE_ID ?? '').trim();
+  if (fixed) return fixed;
+  return `pid-${process.pid}`;
+}
+
 function emit(level: LogLevel, msg: string, fields: LogFields = {}): void {
   if (ORDER[level] < ORDER[activeLevel()]) return;
-  const line = JSON.stringify({ ts: new Date().toISOString(), level, msg, ...fields });
+  const line = JSON.stringify({ ts: new Date().toISOString(), level, msg, instance: instance(), ...fields });
   if (level === 'error') console.error(line);
   else console.log(line);
 }

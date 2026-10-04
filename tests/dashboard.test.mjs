@@ -20,7 +20,8 @@ describe('MetricsCollector + logger (§38, §56)', async () => {
     assert.equal(snap.scraper_pending_jobs, 3);
     const prom = m.toPrometheus();
     assert.match(prom, /# TYPE scraper_jobs_created_total counter/);
-    assert.match(prom, /scraper_items_extracted_total\{source="test"\} 5/);
+    assert.match(prom, /scraper_items_extracted_total\{[^}]*source="test"[^}]*\} 5/);
+    assert.match(prom, /scraper_instance_info\{[^}]*instance="[^"]+"[^}]*\} 1/);
     assert.match(prom, /# TYPE scraper_pending_jobs gauge/);
     obs.__resetMetrics();
   });
@@ -96,7 +97,7 @@ describe('Stats con RECOVERED + endpoints de API (FASE 9)', async () => {
     assert.ok(overview.stats);
     const { metrics } = await import('../packages/observability/dist/index.js');
     metrics().inc('jobs_created_total');
-    assert.match(ctrl.prometheus(), /scraper_jobs_created_total 1/);
+    assert.match(ctrl.prometheus(), /scraper_jobs_created_total\{[^}]*\} 1/);
   });
 
   it('dashboard HTML contiene los paneles y endpoints relativos', async () => {
