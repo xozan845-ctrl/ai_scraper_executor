@@ -99,10 +99,11 @@ export async function ensureConnected(url?: string): Promise<boolean> {
   if (c.status === 'ready') return true;
   try {
     if (c.status === 'wait' || c.status === 'end') await c.connect();
-    return c.status === 'ready';
   } catch {
     return false;
   }
+  const status: string = c.status;
+  return status === 'ready';
 }
 
 export { Redis };

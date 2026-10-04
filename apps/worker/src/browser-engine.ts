@@ -2,15 +2,34 @@
  * Factoría del engine de producción (ETAPA 3/6 + Redis).
  * HTTP primero (Cheerio); CLICK no-enlace y SCROLL escalan a Chromium real
  * vía CrawlerService.interact. La caché de páginas usa Redis (compartida entre
- * réplicas `--scale worker=N`); si Redis no responde, el engine sigue sin caché
- * (degradación silenciosa segura, los errores de caché se ignoran).
+ * réplicas `--scale worker=N`) con fallback a memoria; el engine ignora errores
+ * de caché, así que un Redis caído no rompe el scraping.
  */
 import { CrawlerService } from '@ai-scraper/crawler';
-import { ExecutionEngine } from '@ai-scraper/execution-engine';
-import { RedisPageCache } from '@ai-scraper/redis';
+import { ExecutionEngine, type EnginePageCache } from '@ai-scraper/execution-engine';
+import { getPageCache } from '@ai-scraper/redis';
 
 const crawler = new CrawlerService();
-const sharedCache = new RedisPageCache();
+
+/** Proxy que resuelve la caché real (Redis con fallback) de forma perezosa. */
+class LazyPageCache implements EnginePageCache {
+  private real: EnginePageCache | null = null;
+
+  private async resolve(): Promise<EnginePageCache> {
+    if (!this.real) this.real = (await getPageCache()) as EnginePageCache;
+    return this.real;
+  }
+
+  async get(url: string): Promise<string | null> {
+    return (await this.resolve()).get(url) as Promise<string | null>;
+  }
+
+  async set(url: string, html: string): Promise<void> {
+    await (await this.resolve()).set(url, html);
+  }
+}
+
+const sharedCache = new LazyPageCache();
 
 export function createProductionEngine(): ExecutionEngine {
   return new ExecutionEngine({
