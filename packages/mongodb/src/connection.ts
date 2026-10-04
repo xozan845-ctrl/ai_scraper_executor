@@ -36,6 +36,8 @@ export async function connectMongo(uri?: string): Promise<typeof mongoose> {
 
 function mockMongoose(): typeof mongoose {
   // Mongoose mock mínimo para tests - evita conexión real
+  const collections: Record<string, any> = {};
+
   const mock = {
     ...mongoose,
     connect: async () => mock,
@@ -44,7 +46,7 @@ function mockMongoose(): typeof mongoose {
       ...mongoose.connection,
       readyState: 1,
       on: () => {},
-      collections: {},
+      collections,
     },
     model: (name: string, schema: any) => {
       const collectionName = name.toLowerCase() + 's';

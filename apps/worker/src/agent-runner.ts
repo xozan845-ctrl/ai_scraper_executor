@@ -17,7 +17,7 @@ import { CommandValidator, normalizeRawCommand } from '@ai-scraper/commands';
 import { DEFAULT_LIMITS } from '@ai-scraper/core';
 import { ExecutionEngine } from '@ai-scraper/execution-engine';
 import { generatePlan, type PlanJobInput, type PlanAction } from './planner';
-import { getLearnedProfile, mongoRepo } from './radiography';
+import { getLearnedProfile, mongoRepo } from '@ai-scraper/mongodb';
 
 // Debug flag - activar con DEBUG=1 o LOG_LEVEL=debug
 const DEBUG = process.env.DEBUG === '1' || process.env.LOG_LEVEL === 'debug';

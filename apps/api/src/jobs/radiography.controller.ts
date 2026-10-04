@@ -1,7 +1,7 @@
 import { Controller, Post, Get, Body, Param, Query, NotFoundException, UseGuards } from '@nestjs/common';
 import { ApiKeyGuard } from './api-key.guard';
 import { CreateRateLimitGuard } from './rate-limit.guard';
-import { mongoRepo, normalizeDomain } from '@ai-scraper/mongodb';
+import { mongoRepo, normalizeDomain, performRadiography, getLearnedProfile } from '@ai-scraper/mongodb';
 
 /** Radiografía y memoria de sitios (FASE 12) */
 @UseGuards(ApiKeyGuard)
@@ -10,7 +10,6 @@ export class RadiographyController {
   @UseGuards(CreateRateLimitGuard)
   @Post()
   async create(@Body() dto: { url: string; maxDepth?: number; maxPages?: number; forceBrowser?: boolean }) {
-    const { performRadiography } = await import('../../../worker/src/radiography');
     const result = await performRadiography(dto.url, {
       maxDepth: dto.maxDepth,
       maxPages: dto.maxPages,
@@ -33,7 +32,6 @@ export class RadiographyController {
 
   @Get('profile/:domain/selectors')
   async getSelectors(@Param('domain') domain: string) {
-    const { getLearnedProfile } = await import('../../../worker/src/radiography');
     return getLearnedProfile(`https://${domain}`);
   }
 

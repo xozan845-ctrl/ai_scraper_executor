@@ -13,7 +13,7 @@ COPY packages/storage/package.json ./packages/storage/package.json
 COPY packages/queue/package.json ./packages/queue/package.json
 COPY packages/security/package.json ./packages/security/package.json
 COPY packages/observability/package.json ./packages/observability/package.json
-RUN npm ci --ignore-scripts
+RUN npm ci --ignore-scripts --legacy-peer-deps
 COPY . .
 RUN npx prisma generate --schema=prisma/schema.prisma
 RUN npm run build -w @ai-scraper/core -w @ai-scraper/commands -w @ai-scraper/storage -w @ai-scraper/queue -w @ai-scraper/observability && npm run build -w api

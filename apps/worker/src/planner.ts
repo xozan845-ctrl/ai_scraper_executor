@@ -12,7 +12,7 @@ import { AIOrchestrator } from '@ai-scraper/ai';
 import { CommandValidator, normalizeRawPlan } from '@ai-scraper/commands';
 import { DEFAULT_LIMITS } from '@ai-scraper/core';
 import { createAIProviderForJob } from '@ai-scraper/ai-providers';
-import { getLearnedProfile } from './radiography';
+import { getLearnedProfile } from '@ai-scraper/mongodb';
 import type { PlanningContext } from '@ai-scraper/ai';
 
 const DEBUG = process.env.DEBUG === '1' || process.env.LOG_LEVEL === 'debug';

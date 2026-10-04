@@ -23,27 +23,55 @@ export function hashHtml(html: string): string {
 }
 
 /** Fallback en memoria para tests sin MongoDB */
+interface ProfileWithId extends ISiteProfile { _id: any }
+interface RadiographyWithId extends IPageRadiography { _id: any }
+
 class MemoryFallback {
-  private profiles = new Map<string, ISiteProfile & { _id: any }>();
-  private radiographies = new Map<string, IPageRadiography & { _id: any }>();
+  private profiles = new Map<string, ProfileWithId>();
+  private radiographies = new Map<string, RadiographyWithId>();
 
   private genId() { return new mongoose.Types.ObjectId(); }
 
-  async getOrCreateProfile(domain: string, baseUrl: string) {
+  async getOrCreateProfile(domain: string, baseUrl: string): Promise<ProfileWithId> {
     const norm = normalizeDomain(domain);
-    let p = this.profiles.get(norm);
+    const p = this.profiles.get(norm);
     if (!p) {
-      p = { _id: this.genId(), domain: norm, baseUrl, listSelectors: [], detailSelectors: [], navigationSelectors: [], totalJobs: 0, successfulJobs: 0, failedJobs: 0, avgItemsPerJob: 0, avgDurationMs: 0, isJavaScriptHeavy: false, createdAt: new Date(), updatedAt: new Date() } as any;
-      this.profiles.set(norm, p);
+      const newProfile = {
+        _id: this.genId(),
+        domain: norm,
+        baseUrl,
+        listSelectors: [],
+        detailSelectors: [],
+        navigationSelectors: [],
+        pagination: null,
+        totalJobs: 0,
+        successfulJobs: 0,
+        failedJobs: 0,
+        avgItemsPerJob: 0,
+        avgDurationMs: 0,
+        isJavaScriptHeavy: false,
+        recommendedLimits: {},
+        language: undefined,
+        currency: undefined,
+        robotsTxt: undefined,
+        sitemapUrls: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        recordJobSuccess: async () => {},
+        recordJobFailure: async () => {},
+        upsertSelector: () => {},
+      } as any;
+      this.profiles.set(norm, newProfile);
+      return newProfile;
     }
     return p;
   }
 
-  async findProfile(domain: string) {
+  async findProfile(domain: string): Promise<ProfileWithId | null> {
     return this.profiles.get(normalizeDomain(domain)) ?? null;
   }
 
-  async updateSelectors(profileId: string, updates: any) {
+  async updateSelectors(profileId: string, updates: any): Promise<ProfileWithId | null> {
     for (const p of this.profiles.values()) {
       if (p._id.toString() === profileId) {
         if (updates.listSelectors) updates.listSelectors.forEach((s: DiscoveredSelector) => this.upsertSelector(p.listSelectors, s));
@@ -87,14 +115,14 @@ class MemoryFallback {
     }
   }
 
-  async saveRadiography(data: any) {
+  async saveRadiography(data: any): Promise<RadiographyWithId> {
     const key = data.url;
-    const rad = { _id: this.genId(), ...data, fetchedAt: new Date(), expiresAt: data.expiresAt };
-    this.radiographies.set(key, rad as any);
+    const rad: RadiographyWithId = { _id: this.genId(), ...data, fetchedAt: new Date(), expiresAt: data.expiresAt };
+    this.radiographies.set(key, rad);
     return rad;
   }
 
-  async findFreshRadiography(url: string, maxAgeHours = 24) {
+  async findFreshRadiography(url: string, maxAgeHours = 24): Promise<RadiographyWithId | null> {
     const cutoff = new Date(Date.now() - maxAgeHours * 3600 * 1000);
     for (const r of this.radiographies.values()) {
       if (r.url === url && r.fetchedAt >= cutoff) return r;
@@ -102,9 +130,9 @@ class MemoryFallback {
     return null;
   }
 
-  async findRadiographiesByDomain(domain: string, limit = 50) {
+  async findRadiographiesByDomain(domain: string, limit = 50): Promise<RadiographyWithId[]> {
     const norm = normalizeDomain(domain);
-    const results: any[] = [];
+    const results: RadiographyWithId[] = [];
     for (const r of this.radiographies.values()) {
       if (r.domain === norm) results.push(r);
     }
