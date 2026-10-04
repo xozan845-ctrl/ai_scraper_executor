@@ -7,7 +7,7 @@
 import { AIOrchestrator } from '@ai-scraper/ai';
 import { createAIProviderForJob } from '@ai-scraper/ai-providers';
 import { ExecutionEngine } from '@ai-scraper/execution-engine';
-import { metrics } from '@ai-scraper/observability';
+import { incMetric } from './metrics-bridge';
 import type { JobStore } from '@ai-scraper/storage';
 import type { ScrapingJobPayload } from '@ai-scraper/queue';
 import { AgentRunner, type AgentResult } from './agent-runner';
@@ -127,13 +127,13 @@ export async function processJob(jobId: string, deps: ProcessJobDeps): Promise<A
 
   if (result.status === 'COMPLETED') {
     await store.updateStatus(jobId, 'COMPLETED');
-    metrics().inc('jobs_completed_total');
-    metrics().inc('items_extracted_total', result.items.length);
-    metrics().inc('recoveries_total', result.recoveryCount);
+    incMetric('jobs_completed_total');
+    incMetric('items_extracted_total', result.items.length);
+    incMetric('recoveries_total', result.recoveryCount);
   } else {
     await store.saveError(jobId, result.error ?? 'Fallo desconocido', { steps: result.steps.length });
     await store.updateStatus(jobId, 'FAILED');
-    metrics().inc('jobs_failed_total');
+    incMetric('jobs_failed_total');
   }
   return result;
 }

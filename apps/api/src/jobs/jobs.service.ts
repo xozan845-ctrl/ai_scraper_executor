@@ -3,6 +3,7 @@ import { assertPublicUrl, isAllowedHost } from '@ai-scraper/security';
 import type { JobStore } from '@ai-scraper/storage';
 import type { JobQueue } from '@ai-scraper/queue';
 import { metrics } from '@ai-scraper/observability';
+import { getMetricsAggregator } from '@ai-scraper/redis';
 import { JOB_STORE, JOB_QUEUE } from './providers';
 import { CreateJobDto } from './dto/create-job.dto';
 
@@ -124,13 +125,19 @@ export class JobsService {
   }
 
   /** Agregados DB + proceso para dashboard y /metrics (§56).
-   * ETAPA 5: `stats` es global (Postgres); `process` es local a la réplica
-   * (ver `instance`/`uptimeSec`). Prometheus agrega con `sum by`.
+   * ETAPA 5: `stats` es global (Postgres); `process` es local a la réplica.
+   * `distributed` agrega contadores de todas las réplicas/workers vía Redis.
    */
   async stats() {
     const stats = await this.store.getStats();
     const recoveryRate = stats.commandsTotal > 0 ? stats.commandsRecovered / stats.commandsTotal : 0;
     const collector = metrics();
+    let distributed: Record<string, number>;
+    try {
+      distributed = await (await getMetricsAggregator()).getAllCounters();
+    } catch {
+      distributed = {};
+    }
     return {
       instance: collector.instance,
       uptimeSec: collector.uptimeSec(),
@@ -140,6 +147,7 @@ export class JobsService {
       stats,
       aiRecoveryRate: Math.round(recoveryRate * 10000) / 10000,
       process: collector.snapshot(),
+      distributed,
     };
   }
 }

@@ -97,7 +97,7 @@ describe('Stats con RECOVERED + endpoints de API (FASE 9)', async () => {
     assert.ok(overview.stats);
     const { metrics } = await import('../packages/observability/dist/index.js');
     metrics().inc('jobs_created_total');
-    assert.match(ctrl.prometheus(), /scraper_jobs_created_total\{[^}]*\} 1/);
+    assert.match(await ctrl.prometheus(), /scraper_jobs_created_total\{[^}]*\} 1/);
   });
 
   it('dashboard HTML contiene los paneles y endpoints relativos', async () => {
