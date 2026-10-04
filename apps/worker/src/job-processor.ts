@@ -12,6 +12,7 @@ import { getJsonCache } from '@ai-scraper/redis';
 import type { JobStore } from '@ai-scraper/storage';
 import type { ScrapingJobPayload } from '@ai-scraper/queue';
 import { AgentRunner, type AgentResult } from './agent-runner';
+import { enrichItems } from './interpret';
 
 export interface ProcessJobDeps {
   store: JobStore;
@@ -25,13 +26,14 @@ export interface ProcessJobDeps {
 function toSaveResult(item: unknown): { data: unknown; sourceUrl?: string; selector?: string; confidence?: number } {
   if (item && typeof item === 'object' && !Array.isArray(item)) {
     const src = (item as Record<string, unknown>)._source as
-      | { url?: string; selector?: string }
+      | { url?: string; selector?: string; confidence?: number }
       | undefined;
     const { _source: _dropped, ...data } = item as Record<string, unknown>;
     return {
       data,
       sourceUrl: typeof src?.url === 'string' ? src.url : undefined,
       selector: typeof src?.selector === 'string' ? src.selector : undefined,
+      confidence: typeof src?.confidence === 'number' ? src.confidence : undefined,
     };
   }
   return { data: item };
@@ -100,6 +102,22 @@ export async function processJob(jobId: string, deps: ProcessJobDeps): Promise<A
     await store.updateStatus(jobId, 'CANCELLED');
     return { ...result, status: 'FAILED', error: 'Job cancelado durante la ejecución' };
   }
+
+  // Etapa 2: interpretar resultados (normalizar valores + confianza + dedup).
+  let finalItems = enrichItems(result.items);
+  if (process.env.AI_INTERPRET === '1' && finalItems.length > 0) {
+    try {
+      const interpreted = await orchestrator.interpret({
+        instruction: record.instruction,
+        rawItems: finalItems,
+        ...(record.aiModel ? { model: record.aiModel } : {}),
+      });
+      if (Array.isArray(interpreted)) finalItems = enrichItems(interpreted);
+    } catch (e) {
+      console.warn(`[WORKER] interpret falló: ${(e as Error).message}`);
+    }
+  }
+  result.items = finalItems;
 
   // Persistir artefactos §40.
   await store.savePlan(jobId, { version: '1.0', actions: result.planActions });
