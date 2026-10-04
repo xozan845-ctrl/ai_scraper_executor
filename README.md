@@ -251,7 +251,80 @@ npm run lint
 npm run typecheck
 ```
 
+## Integración con OpenRouter (IA)
+
+El sistema usa **OpenRouter** como proveedor LLM por defecto (OpenAI-compatible). La IA decide QUÉ hacer
+(plan + decisiones), el motor decide CÓMO ejecutarlo. Para que funcione con modelos económicos/free,
+hay tres capas de robustez:
+
+### 1. Selección de modelo y fallback automático
+
+`packages/ai-providers/src/openrouter/openrouter.provider.ts` prueba en orden:
+`OPENROUTER_MODEL` → cada uno de `OPENROUTER_FALLBACK_MODELS`. Salta al siguiente modelo **solo** en:
+- `404` — el modelo no existe / no disponible para tu cuenta
+- `429` — rate limit del proveedor
+
+Cualquier otro error (401, 402, 403, 5xx…) se propaga y no se reintenta con otro modelo.
+
+```bash
+# Opción recomendada para tests/dev: router que auto-elige un free disponible
+OPENROUTER_MODEL=openrouter/free
+# O un modelo concreto gratuito (sufijo :free)
+OPENROUTER_MODEL=qwen/qwen3.8-27b:free
+OPENROUTER_FALLBACK_MODELS=qwen/qwen3.8-27b:free,nvidia/nemotron-3-super-120b-a12b:free,google/gemma-4-26b-a4b-it:free
+```
+
+> ⚠️ **Los modelos `:free` cambian con el tiempo** (los IDs rotan y se deprecan). Consúltalos en
+> `https://openrouter.ai/models?q=free` o vía API: `curl https://openrouter.ai/api/v1/models`.
+> Precio $0 = prompt pricing `"0"`. Los free tienen **rate limit** (≈20-50 req/min).
+
+### 2. Prompts reforzados con el esquema DSL
+
+Los prompts del planner/explorer/recovery incluyen el **esquema DSL completo** (13 comandos) y un
+ejemplo, exigiendo el campo `"type"` en MAYÚSCULAS y prohibiendo comandos inventados
+(`loop`, `waitForSelector`, etc.). Ver `packages/ai-providers/src/prompts.ts`.
+
+### 3. Normalizador de comandos (anti-alucinación)
+
+Los modelos débiles suelen desviarse. `packages/commands/src/normalize.ts` **corrige antes de validar**:
+
+| El modelo devuelve | Se normaliza a |
+|---|---|
+| `{"action":"navigate","url":...}` | `{"type":"NAVIGATE","url":...}` |
+| `{"action":"extractList",...}` | `{"type":"EXTRACT_LIST",...}` |
+| `{"type":"loop",...}` (inventado) | se **descarta** |
+| `EXTRACT_LIST` sin `fields` | `fields` por defecto (name/price/link/image) |
+| `maxItems` / `cssSelector` / `pages` | `limit` / `selector` / `maxPages` |
+| `{steps:[...]}` o `{plan:[...]}` | `actions` |
+
+Aun así, la **validación estricta** (§26/§37) sigue: un comando que viola dominio/SSRF/límites hace
+fallar el plan. Los comandos inventados se filtran; los maliciosos se rechazan.
+
+### Verificar tu clave / modelos
+
+```bash
+# ¿Qué modelos free tiene mi cuenta?
+curl https://openrouter.ai/api/v1/models -H "Authorization: Bearer $OPENROUTER_API_KEY" \
+  | python3 -c "import sys,json; [print(m['id']) for m in json.load(sys.stdin)['data'] if ':free' in m['id']]"
+
+# Probar una llamada simple
+curl https://openrouter.ai/api/v1/chat/completions \
+  -H "Authorization: Bearer $OPENROUTER_API_KEY" -H "Content-Type: application/json" \
+  -d '{"model":"openrouter/free","messages":[{"role":"user","content":"say ok"}],"max_tokens":10}'
+```
+
+### Alternativa sin coste: endpoint local (Ollama)
+
+```bash
+ollama pull llama3.1:8b && ollama serve
+# .env:
+AI_PROVIDER=custom
+AI_CUSTOM_ENDPOINT=http://localhost:11434/v1
+AI_CUSTOM_MODEL=llama3.1:8b
+```
+
 ## Troubleshooting
+
 
 | Problema | Solución |
 |---|---|
@@ -261,6 +334,10 @@ npm run typecheck
 | `playwright: executable doesn't exist` | `npx playwright install --with-deps chromium` (en worker Dockerfile ya está; para E2E local fuera de Docker, ejecutar en host) |
 | Tests fallan por flakiness | `npm test` usa `--test-concurrency=1` |
 | Radiografía lenta | Forzar `forceBrowser: true` si sitio es JS-heavy |
+| OpenRouter `404 No endpoints found` | Modelo inexistente/deprecado → usa `openrouter/free` o IDs `:free` actuales; revisa `OPENROUTER_FALLBACK_MODELS` |
+| OpenRouter `403 Key limit exceeded` | Sin créditos o límite total de la clave → recarga en openrouter.ai o usa Ollama local |
+| OpenRouter `429` | Rate limit del modelo free → el fallback salta al siguiente modelo automáticamente |
+| Plan inválido del LLM | El normalizador lo corrige; si persiste, usa un modelo mayor (paid) o sube `AI_MAX_TOKENS` |
 
 ## Contribuir
 
