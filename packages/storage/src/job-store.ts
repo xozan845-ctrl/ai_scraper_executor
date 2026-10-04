@@ -18,6 +18,12 @@ export interface SaveResultInput {
   confidence?: number;
 }
 
+/** Opciones de listado (paginación por cursor + filtro por estado). */
+export interface ListJobsOptions {
+  cursor?: string;
+  status?: string;
+}
+
 /**
  * JobStore — persistencia de jobs y artefactos (§11, §40).
  * Implementaciones: PrismaJobStore (PostgreSQL) e InMemoryJobStore (tests/dev sin DB).
@@ -26,7 +32,7 @@ export interface JobStore {
   readonly kind: 'prisma' | 'memory';
   createJob(input: CreateJobInput): Promise<JobRecord>;
   getJob(id: string): Promise<JobRecord | null>;
-  listJobs(limit?: number): Promise<JobRecord[]>;
+  listJobs(limit?: number, opts?: ListJobsOptions): Promise<JobRecord[]>;
   updateStatus(id: string, status: JobStatus): Promise<JobRecord | null>;
   savePlan(jobId: string, payload: unknown): Promise<void>;
   saveCommand(jobId: string, type: string, payload: unknown, status: string): Promise<void>;

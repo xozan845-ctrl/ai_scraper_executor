@@ -99,8 +99,9 @@ describe('JobsService FASE 8 (API real)', async () => {
     const found = await service.findOne(created.id);
     assert.equal(found.url, 'https://shop.com/');
 
-    const list = await service.list();
-    assert.equal(list.length, 1);
+    const page = await service.list();
+    assert.equal(page.items.length, 1);
+    assert.equal(page.nextCursor, null);
 
     const empty = await service.results(created.id);
     assert.equal(empty.count, 0);
@@ -148,6 +149,32 @@ describe('JobsService FASE 8 (API real)', async () => {
     await store.updateStatus(done.id, 'COMPLETED');
     const r2 = await service.retry(done.id);
     assert.equal(r2.status, 'COMPLETED', 'no se reintenta un COMPLETED');
+  });
+
+  it('idempotency-key reutiliza el job (no duplica)', async () => {
+    const store = new InMemoryJobStore();
+    const service = new JobsService(store, new InMemoryJobQueue());
+    const a = await service.create(dto(), 'key-1');
+    const b = await service.create(dto(), 'key-1');
+    assert.equal(a.id, b.id, 'misma clave → mismo job');
+    assert.equal((await store.listJobs(10)).length, 1);
+    const c = await service.create(dto(), 'key-2');
+    assert.notEqual(c.id, a.id);
+  });
+
+  it('list pagina por cursor y filtra por status', async () => {
+    const store = new InMemoryJobStore();
+    const service = new JobsService(store, new InMemoryJobQueue());
+    for (let i = 0; i < 3; i += 1) await service.create(dto({ url: 'https://shop.com/' + i }));
+    const p1 = await service.list(2);
+    assert.equal(p1.items.length, 2);
+    assert.ok(p1.nextCursor, 'hay siguiente página');
+    const p2 = await service.list(2, { cursor: p1.nextCursor });
+    assert.equal(p2.items.length, 1);
+    const all = await service.list(10);
+    await store.updateStatus(all.items[0].id, 'FAILED');
+    const failed = await service.list(10, { status: 'FAILED' });
+    assert.equal(failed.items.length, 1);
   });
 });
 

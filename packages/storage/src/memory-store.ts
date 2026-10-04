@@ -45,11 +45,14 @@ export class InMemoryJobStore implements JobStore {
     return this.jobs.get(id) ?? null;
   }
 
-  async listJobs(limit = 20): Promise<JobRecord[]> {
-    return this.order
-      .slice(-limit)
-      .reverse()
-      .map((id) => ({ ...(this.jobs.get(id) as JobRecord) }));
+  async listJobs(limit = 20, opts?: import('./job-store').ListJobsOptions): Promise<JobRecord[]> {
+    let ids = [...this.order].reverse(); // más recientes primero
+    if (opts?.status) ids = ids.filter((id) => this.jobs.get(id)?.status === opts.status);
+    if (opts?.cursor) {
+      const idx = ids.indexOf(opts.cursor);
+      if (idx >= 0) ids = ids.slice(idx + 1);
+    }
+    return ids.slice(0, limit).map((id) => ({ ...(this.jobs.get(id) as JobRecord) }));
   }
 
   async updateStatus(id: string, status: JobStatus): Promise<JobRecord | null> {

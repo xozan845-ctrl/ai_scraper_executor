@@ -60,8 +60,13 @@ export class PrismaJobStore implements JobStore {
     return j ? toRecord(j) : null;
   }
 
-  async listJobs(limit = 20): Promise<JobRecord[]> {
-    const rows = await this.prisma.job.findMany({ orderBy: { createdAt: 'desc' }, take: limit });
+  async listJobs(limit = 20, opts?: import('./job-store').ListJobsOptions): Promise<JobRecord[]> {
+    const rows = await this.prisma.job.findMany({
+      where: opts?.status ? { status: opts.status } : undefined,
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      ...(opts?.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
+    });
     return rows.map(toRecord);
   }
 

@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { randomUUID } from 'node:crypto';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { runWithContext } from '@ai-scraper/observability';
 import { closeJobStore } from '@ai-scraper/storage';
@@ -14,6 +15,14 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.enableCors();
   app.enableShutdownHooks();
+  // OpenAPI/Swagger en /api/v1/docs
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('AI Scraping Executor API')
+    .setDescription('LA IA ES EL CEREBRO. CRAWLEE ES EL MOTOR.')
+    .setVersion('0.1.0')
+    .addApiKey({ type: 'apiKey', in: 'header', name: 'x-api-key' }, 'api-key')
+    .build();
+  SwaggerModule.setup('api/v1/docs', app, SwaggerModule.createDocument(app, swaggerConfig));
   // Correlación: acepta x-correlation-id entrante o genera uno; lo propaga por contexto y respuesta.
   app.use((req: { headers: Record<string, unknown> }, res: { setHeader: (k: string, v: string) => void }, next: () => void) => {
     const incoming = req.headers['x-correlation-id'];

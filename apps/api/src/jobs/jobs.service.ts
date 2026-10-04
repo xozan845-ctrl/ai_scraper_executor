@@ -3,7 +3,7 @@ import { assertPublicUrl, isAllowedHost } from '@ai-scraper/security';
 import type { JobStore } from '@ai-scraper/storage';
 import type { JobQueue } from '@ai-scraper/queue';
 import { metrics, getContext } from '@ai-scraper/observability';
-import { getMetricsAggregator } from '@ai-scraper/redis';
+import { getMetricsAggregator, getJsonCache } from '@ai-scraper/redis';
 import { JOB_STORE, JOB_QUEUE } from './providers';
 import { CreateJobDto } from './dto/create-job.dto';
 
@@ -40,7 +40,19 @@ export class JobsService {
     @Inject(JOB_QUEUE) private readonly queue: JobQueue,
   ) {}
 
-  async create(dto: CreateJobDto) {
+  async create(dto: CreateJobDto, idempotencyKey?: string) {
+    // Idempotencia: si la clave ya existe, devuelve el job previo (no duplica).
+    if (idempotencyKey) {
+      const cache = await getJsonCache();
+      const existingId = await cache.get<string>(`idem:${idempotencyKey}`);
+      if (existingId) {
+        const existing = await this.store.getJob(existingId);
+        if (existing) {
+          console.log(`[JOB] ${existing.id} reutilizado (idempotency-key)`);
+          return existing;
+        }
+      }
+    }
     // ETAPA 4: SSRF + allowlist ANTES de persistir (nunca jobs fantasma ni SSRF).
     assertJobUrlAllowed(dto.url);
     const record = await this.store.createJob({
@@ -69,6 +81,10 @@ export class JobsService {
     }
     console.log(`[JOB] ${record.id} QUEUED — ${dto.url} :: ${dto.instruction.slice(0, 80)}`);
     metrics().inc('jobs_created_total');
+    if (idempotencyKey) {
+      const cache = await getJsonCache();
+      await cache.set(`idem:${idempotencyKey}`, record.id, 24 * 3600 * 1000).catch(() => undefined);
+    }
     return record;
   }
 
@@ -76,9 +92,12 @@ export class JobsService {
     return this.store.getJob(id);
   }
 
-  list(limit?: number) {
+  list(limit?: number, opts?: { cursor?: string; status?: string }) {
     const n = Math.min(Math.max(Number(limit) || 20, 1), 100);
-    return this.store.listJobs(n);
+    return this.store.listJobs(n, opts).then((items) => ({
+      items,
+      nextCursor: items.length === n ? items[items.length - 1]!.id : null,
+    }));
   }
 
   async results(id: string) {

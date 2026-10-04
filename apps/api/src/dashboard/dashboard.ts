@@ -100,7 +100,8 @@ function loadMetrics() {
 }
 
 function loadJobs() {
-  api('jobs?limit=50').then(function(list) {
+  api('jobs?limit=50').then(function(res) {
+    var list = (res && res.items) ? res.items : res;
     document.getElementById('jobs').innerHTML = list.map(function(j) {
       return '<tr><td class="mono">' + esc(j.id) + '</td><td>' + esc((j.url || '').slice(0, 60)) + '<br/><span class="sub">' + esc((j.instruction || '').slice(0, 80)) + '</span></td>' +
         '<td>' + badge(j.status) + '</td><td class="mono">' + esc(j.aiProvider || '') + '</td><td class="mono">' + esc((j.createdAt || '').slice(0, 19).replace('T', ' ')) + '</td>' +
