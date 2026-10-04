@@ -1,4 +1,4 @@
-import { getRedisClient, Redis } from './connection';
+import { getRedisClient, probeRedis, ensureConnected, Redis } from './connection';
 
 const DEFAULT_TTL_MS = 5 * 60 * 1000; // 5 min
 const DEFAULT_MAX_ENTRIES = 1000;
@@ -129,8 +129,7 @@ let cacheInstance: RedisPageCache | MemoryPageCache | null = null;
 export async function getPageCache(opts?: { ttlMs?: number; maxEntries?: number }): Promise<RedisPageCache | MemoryPageCache> {
   if (cacheInstance) return cacheInstance;
   try {
-    const healthy = await isRedisHealthy();
-    if (healthy) {
+    if ((await isRedisHealthy()) && (await ensureConnected())) {
       cacheInstance = new RedisPageCache(opts);
       console.log('[CACHE] RedisPageCache activado');
     } else {
@@ -144,9 +143,5 @@ export async function getPageCache(opts?: { ttlMs?: number; maxEntries?: number 
 }
 
 export function isRedisHealthy(): Promise<boolean> {
-  try {
-    const c = getRedisClient();
-    if (c.status !== 'ready') return Promise.resolve(false);
-    return c.ping().then(() => true).catch(() => false);
-  } catch { return Promise.resolve(false); }
+  return probeRedis();
 }

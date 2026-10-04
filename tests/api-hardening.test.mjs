@@ -72,14 +72,16 @@ describe('API hardening ETAPA 4 (auth + allowlist + rate-limit + ai paging)', as
     if (prevKeys !== undefined) process.env.API_KEYS = prevKeys;
   });
 
-  it('CreateRateLimitGuard: permite N y rechaza N+1 por IP', () => {
-    const guard = new CreateRateLimitGuard({ max: 2, windowMs: 60_000 });
+  it('CreateRateLimitGuard: permite N y rechaza N+1 por IP (limiter inyectado)', async () => {
+    const { MemoryRateLimiter } = await import('../packages/redis/dist/ratelimit.js');
+    const limiter = new MemoryRateLimiter({ max: 2, windowMs: 60_000 });
+    const guard = new CreateRateLimitGuard({ max: 2, windowMs: 60_000, limiter });
     const ip = ctx({ ip: '1.2.3.4' });
-    assert.equal(guard.canActivate(ip), true);
-    assert.equal(guard.canActivate(ip), true);
-    assert.throws(() => guard.canActivate(ip), /Rate limit/);
+    assert.equal(await guard.canActivate(ip), true);
+    assert.equal(await guard.canActivate(ip), true);
+    await assert.rejects(() => guard.canActivate(ip), /Rate limit/);
     // Otra IP tiene su propio bucket
-    assert.equal(guard.canActivate(ctx({ ip: '5.6.7.8' })), true);
+    assert.equal(await guard.canActivate(ctx({ ip: '5.6.7.8' })), true);
   });
 
   it('aiInteractions pagina con limit', async () => {

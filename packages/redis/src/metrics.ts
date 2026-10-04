@@ -1,4 +1,4 @@
-import { getRedisClient, getRedisSubscriber, Redis } from './connection';
+import { getRedisClient, getRedisSubscriber, probeRedis, ensureConnected, Redis } from './connection';
 
 const METRICS_PREFIX = 'metrics:';
 const INSTANCE_TTL = 60; // segundos
@@ -159,8 +159,7 @@ let metricsInstance: RedisMetricsAggregator | MemoryMetricsAggregator | null = n
 export async function getMetricsAggregator(instanceId?: string): Promise<RedisMetricsAggregator | MemoryMetricsAggregator> {
   if (metricsInstance) return metricsInstance;
   try {
-    const healthy = await isRedisHealthy();
-    if (healthy) {
+    if ((await isRedisHealthy()) && (await ensureConnected())) {
       metricsInstance = new RedisMetricsAggregator(instanceId);
       console.log('[METRICS] RedisMetricsAggregator activado');
     } else throw new Error('Redis no healthy');
@@ -171,11 +170,6 @@ export async function getMetricsAggregator(instanceId?: string): Promise<RedisMe
   return metricsInstance;
 }
 
-async function isRedisHealthy(): Promise<boolean> {
-  try {
-    const c = getRedisClient();
-    if (c.status !== 'ready') await c.connect();
-    await c.ping();
-    return true;
-  } catch { return false; }
+function isRedisHealthy(): Promise<boolean> {
+  return probeRedis();
 }

@@ -1,8 +1,16 @@
 import { Injectable, CanActivate, ExecutionContext, HttpException, HttpStatus } from '@nestjs/common';
+import { getRateLimiter } from '@ai-scraper/redis';
 
 export interface RateLimitOpts {
   max?: number;
   windowMs?: number;
+  /** Inyectable en tests para evitar Redis. Por defecto: getRateLimiter (Redis con fallback a memoria). */
+  limiter?: RateLimiterLike;
+}
+
+export interface RateLimiterLike {
+  consume(identifier: string, cost?: number): Promise<{ allowed: boolean; remaining: number; resetAt: number }>;
+  reset?(identifier: string): Promise<void> | void;
 }
 
 function envMax(fallback: number): number {
@@ -11,40 +19,52 @@ function envMax(fallback: number): number {
 }
 
 /**
- * Rate-limit en memoria por IP para POST /jobs (ETAPA 4).
- * Ventana deslizante simple; suficiente para MVP single-replica.
- * Multi-réplica real iría a Redis (ETAPA 5/6).
+ * Rate-limit por IP para POST /jobs.
+ * Usa `getRateLimiter()` de @ai-scraper/redis: RedisRateLimiter (ventana deslizante
+ * distribuida, correcta con `--scale api>1`) con fallback automático a memoria si
+ * Redis no responde. En tests se inyecta un limiter de memoria.
  */
 @Injectable()
 export class CreateRateLimitGuard implements CanActivate {
-  private readonly hits = new Map<string, number[]>();
   private readonly max: number;
   private readonly windowMs: number;
+  private limiter: RateLimiterLike | null;
 
   constructor(opts?: RateLimitOpts) {
     this.max = opts?.max ?? envMax(30);
     this.windowMs = opts?.windowMs ?? 60_000;
+    this.limiter = opts?.limiter ?? null;
   }
 
-  canActivate(context: ExecutionContext): boolean {
-    const req = context.switchToHttp().getRequest() as { ip?: string };
+  private async getLimiter(): Promise<RateLimiterLike> {
+    if (this.limiter) return this.limiter;
+    this.limiter = await getRateLimiter({ max: this.max, windowMs: this.windowMs });
+    return this.limiter;
+  }
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const http = context.switchToHttp();
+    const req = http.getRequest() as { ip?: string };
     const key = req.ip ?? 'unknown';
-    const now = Date.now();
-    const window = this.hits.get(key) ?? [];
-    const fresh = window.filter((t) => now - t < this.windowMs);
-    if (fresh.length >= this.max) {
+    const limiter = await this.getLimiter();
+    const { allowed, remaining, resetAt } = await limiter.consume(key);
+    const res = http.getResponse?.() as { setHeader?: (k: string, v: number) => void } | undefined;
+    if (res?.setHeader) {
+      res.setHeader('X-RateLimit-Limit', this.max);
+      res.setHeader('X-RateLimit-Remaining', remaining);
+      res.setHeader('X-RateLimit-Reset', Math.ceil(resetAt / 1000));
+    }
+    if (!allowed) {
       throw new HttpException(
         `Rate limit excedido: máximo ${this.max} jobs/min por IP`,
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
-    fresh.push(now);
-    this.hits.set(key, fresh);
     return true;
   }
 
   /** Solo tests: limpiar estado. */
   reset(): void {
-    this.hits.clear();
+    this.limiter?.reset?.('');
   }
 }

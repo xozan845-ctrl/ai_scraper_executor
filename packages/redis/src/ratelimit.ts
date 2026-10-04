@@ -1,4 +1,4 @@
-import { getRedisClient, Redis } from './connection';
+import { getRedisClient, probeRedis, ensureConnected, Redis } from './connection';
 
 const DEFAULT_WINDOW_MS = 60_000;
 const DEFAULT_MAX = 30;
@@ -120,8 +120,7 @@ let rateLimiterInstance: RedisRateLimiter | MemoryRateLimiter | null = null;
 export async function getRateLimiter(opts?: { max?: number; windowMs?: number }): Promise<RedisRateLimiter | MemoryRateLimiter> {
   if (rateLimiterInstance) return rateLimiterInstance;
   try {
-    const healthy = await isRedisHealthy();
-    if (healthy) {
+    if ((await isRedisHealthy()) && (await ensureConnected())) {
       rateLimiterInstance = new RedisRateLimiter(opts);
       console.log('[RATELIMIT] RedisRateLimiter activado');
     } else throw new Error('Redis no healthy');
@@ -132,11 +131,6 @@ export async function getRateLimiter(opts?: { max?: number; windowMs?: number })
   return rateLimiterInstance;
 }
 
-export async function isRedisHealthy(): Promise<boolean> {
-  try {
-    const c = getRedisClient();
-    if (c.status !== 'ready') await c.connect();
-    await c.ping();
-    return true;
-  } catch { return false; }
+export function isRedisHealthy(): Promise<boolean> {
+  return probeRedis();
 }
