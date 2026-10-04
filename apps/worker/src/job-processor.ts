@@ -50,6 +50,9 @@ export async function processJob(jobId: string, deps: ProcessJobDeps): Promise<A
     };
   }
 
+  // Idempotencia ante reintentos BullMQ: limpia artefactos de intentos previos.
+  await store.clearJobArtifacts(jobId);
+
   const payload: ScrapingJobPayload = {
     jobId: record.id,
     url: record.url,
@@ -62,11 +65,13 @@ export async function processJob(jobId: string, deps: ProcessJobDeps): Promise<A
     ? deps.createOrchestrator(payload)
     : new AIOrchestrator(createAIProviderForJob(payload.ai) as never);
 
+  const isCancelled = async () => (await store.getJob(jobId))?.status === 'CANCELLED';
   const runner = new AgentRunner({
     orchestrator,
     createEngine: deps.createEngine,
     maxSteps: deps.maxSteps,
     maxRecoveryAttempts: deps.maxRecoveryAttempts,
+    isCancelled,
   });
 
   await store.updateStatus(jobId, 'PLANNING');
@@ -85,6 +90,12 @@ export async function processJob(jobId: string, deps: ProcessJobDeps): Promise<A
     await store.saveError(jobId, message);
     await store.updateStatus(jobId, 'FAILED');
     throw e;
+  }
+
+  // Si el job fue cancelado durante la ejecución, no sobrescribir el estado terminal.
+  if (await isCancelled()) {
+    await store.updateStatus(jobId, 'CANCELLED');
+    return { ...result, status: 'FAILED', error: 'Job cancelado durante la ejecución' };
   }
 
   // Persistir artefactos §40.

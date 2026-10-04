@@ -39,6 +39,8 @@ export interface JobStore {
   getPages(jobId: string): Promise<PageRow[]>;
   getErrors(jobId: string): Promise<ErrorRow[]>;
   getAIInteractions(jobId: string): Promise<AIInteractionRow[]>;
+  /** Borra plan/comandos/páginas/resultados/errores del job (idempotencia ante reintentos). */
+  clearJobArtifacts(jobId: string): Promise<void>;
   /** Agregados globales para dashboard y /metrics. */
   getStats(): Promise<StoreStats>;
 }

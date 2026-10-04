@@ -126,6 +126,14 @@ export class InMemoryJobStore implements JobStore {
       }));
   }
 
+  async clearJobArtifacts(jobId: string): Promise<void> {
+    this.plans = this.plans.filter((p) => p.jobId !== jobId);
+    this.commands.delete(jobId);
+    this.pages.delete(jobId);
+    this.results.delete(jobId);
+    this.errors.delete(jobId);
+  }
+
   async getStats(): Promise<StoreStats> {
     const jobsByStatus: Record<string, number> = {};
     for (const j of this.jobs.values()) jobsByStatus[j.status] = (jobsByStatus[j.status] ?? 0) + 1;

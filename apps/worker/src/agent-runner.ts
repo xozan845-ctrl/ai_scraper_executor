@@ -72,6 +72,8 @@ export interface RunnerDeps {
   createEngine?: () => ExecutionEngine;
   maxSteps?: number;
   maxRecoveryAttempts?: number;
+  /** Callback para abortar si el job fue cancelado (chequeo entre pasos). */
+  isCancelled?: () => Promise<boolean>;
 }
 
 const DATA_COMMANDS = new Set(['EXTRACT', 'EXTRACT_LIST', 'FOLLOW_LINKS', 'GET_ATTRIBUTE']);
@@ -115,6 +117,7 @@ export class AgentRunner {
     // Deadline global del job (§35): acota el runtime total aunque maxSteps no se alcance.
     const deadline = Date.now() + limits.maxRuntimeSec * 1000;
     const pastDeadline = () => Date.now() > deadline;
+    const checkCancel = this.deps.isCancelled ?? (async () => false);
 
     // FASE 12: obtener perfil aprendido para decisiones inteligentes
     let learnedProfile = null;
@@ -305,6 +308,11 @@ export class AgentRunner {
             : { error: `maxRuntimeSec (${limits.maxRuntimeSec}s) alcanzado sin items` }),
         };
       }
+      if (await checkCancel()) {
+        await recordResult(items.length > 0, items.length);
+        debugWarn('JOB CANCELLED (Fase A)', { items: items.length });
+        return { ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(), status: 'FAILED', error: 'Job cancelado durante la ejecución' };
+      }
       debugLog('EXECUTING PLAN ACTION', { action: action.type, step: steps.length + 1 });
       const step = await attemptStep(action as Record<string, unknown>);
       steps.push(step);
@@ -345,6 +353,11 @@ export class AgentRunner {
             ? { note: `maxRuntimeSec (${limits.maxRuntimeSec}s) alcanzado con ${items.length} items` }
             : { error: `maxRuntimeSec (${limits.maxRuntimeSec}s) alcanzado sin items` }),
         };
+      }
+      if (await checkCancel()) {
+        await recordResult(items.length > 0, items.length);
+        debugWarn('JOB CANCELLED (Fase B)', { items: items.length });
+        return { ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(), status: 'FAILED', error: 'Job cancelado durante la ejecución' };
       }
       debugLog('PHASE B ITERATION', { currentStep: steps.length + 1, maxSteps: this.maxSteps });
       const ctx = await observe();

@@ -181,6 +181,39 @@ describe('processJob del worker (FASE 7)', async () => {
     assert.equal(res.status, 'FAILED');
     assert.match(res.error, /cancelado/);
   });
+
+  it('idempotencia: reprocesar (retry) no duplica artefactos', async () => {
+    const store = new InMemoryJobStore();
+    const job = await store.createJob({ url: 'https://tienda.com/p', instruction: 'Obtén productos' });
+    const deps = {
+      store,
+      createOrchestrator: () => new AIOrchestrator(fake),
+      createEngine: () => new ExecutionEngine({ fetcher: async () => SHOP_HTML }),
+    };
+    await processJob(job.id, deps);
+    assert.equal((await store.getCommands(job.id)).length, 3);
+    // Segundo intento (simula retry BullMQ): limpia y vuelve a persistir → 3, no 6.
+    await store.updateStatus(job.id, 'QUEUED');
+    await processJob(job.id, deps);
+    assert.equal((await store.getCommands(job.id)).length, 3);
+    assert.equal((await store.getPages(job.id)).length, 1);
+    assert.equal((await store.getResults(job.id)).length, 1);
+  });
+
+  it('clearJobArtifacts borra plan/comandos/páginas/resultados/errores', async () => {
+    const store = new InMemoryJobStore();
+    const job = await store.createJob({ url: 'https://x.com', instruction: 'x' });
+    await store.savePlan(job.id, { version: '1.0', actions: [] });
+    await store.saveCommand(job.id, 'FINISH', {}, 'OK');
+    await store.savePage(job.id, 'https://x.com');
+    await store.saveResults(job.id, [{ data: { a: 1 }, sourceUrl: 'https://x.com' }]);
+    await store.saveError(job.id, 'prev');
+    await store.clearJobArtifacts(job.id);
+    assert.equal((await store.getCommands(job.id)).length, 0);
+    assert.equal((await store.getPages(job.id)).length, 0);
+    assert.equal((await store.getResults(job.id)).length, 0);
+    assert.equal((await store.getErrors(job.id)).length, 0);
+  });
 });
 
 describe('PrismaJobStore en PostgreSQL (solo con DATABASE_URL válido)', async () => {

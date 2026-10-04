@@ -161,6 +161,16 @@ export class PrismaJobStore implements JobStore {
     }));
   }
 
+  async clearJobArtifacts(jobId: string): Promise<void> {
+    await this.prisma.$transaction([
+      this.prisma.scrapingPlan.deleteMany({ where: { jobId } }),
+      this.prisma.command.deleteMany({ where: { jobId } }),
+      this.prisma.page.deleteMany({ where: { jobId } }),
+      this.prisma.result.deleteMany({ where: { jobId } }),
+      this.prisma.jobError.deleteMany({ where: { jobId } }),
+    ]);
+  }
+
   async getStats(): Promise<StoreStats> {
     const [jobsTotal, byStatus, resultsTotal, commandsTotal, commandsRecovered, pagesTotal, errorsTotal, aiCallsTotal, tokens] =
       await Promise.all([
