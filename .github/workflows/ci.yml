@@ -1,0 +1,28 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-test-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install
+        run: npm ci --ignore-scripts --legacy-peer-deps
+      - name: Prisma generate
+        run: npm run prisma:generate
+      - name: Build
+        run: npm run build --workspaces
+      - name: Lint
+        run: npm run lint
+      - name: Test
+        run: npm test
+        env:
+          MONGODB_MOCK: '1'
