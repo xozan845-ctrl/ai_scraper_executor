@@ -11,12 +11,13 @@ const SEVASA_URL = 'https://www.sevasaonline.com/';
 describe('E2E Real — SevasaOnline (memoria + scraping real)', async () => {
   let mongoConnected = false;
   let redisConnected = false;
+  let unavailable = false;
 
   before(async () => {
     // Verificar conexiones reales
     const { connectMongo, isMongoMock } = await import('../packages/mongodb/dist/connection.js');
     const { isRedisHealthy } = await import('../packages/redis/dist/connection.js');
-    
+
     try {
       await connectMongo();
       mongoConnected = !isMongoMock();
@@ -33,8 +34,8 @@ describe('E2E Real — SevasaOnline (memoria + scraping real)', async () => {
     }
 
     if (!mongoConnected || !redisConnected) {
+      unavailable = true;
       console.warn('[E2E] Saltando — requiere MongoDB y Redis reales (docker compose up -d mongodb redis)');
-      this.skip();
     }
   });
 
@@ -42,8 +43,9 @@ describe('E2E Real — SevasaOnline (memoria + scraping real)', async () => {
     // Cleanup opcional
   });
 
-  it('Radiografía real de SevasaOnline — crea perfil en MongoDB', async () => {
-    const { performRadiography } = await import('../apps/worker/dist/radiography.js');
+  it('Radiografía real de SevasaOnline — crea perfil en MongoDB', async (t) => {
+    if (unavailable) return t.skip('requiere MongoDB y Redis reales');
+    const { performRadiography } = await import('../packages/mongodb/dist/index.js');
     
     console.log('[E2E] Iniciando radiografía de', SEVASA_URL);
     const result = await performRadiography(SEVASA_URL, { 
@@ -68,10 +70,11 @@ describe('E2E Real — SevasaOnline (memoria + scraping real)', async () => {
       'Debe descubrir al menos algún selector');
   });
 
-  it('Job de scraping real con memoria — usa perfil aprendido', async () => {
+  it('Job de scraping real con memoria — usa perfil aprendido', async (t) => {
+    if (unavailable) return t.skip('requiere MongoDB y Redis reales');
     const { createProductionEngine } = await import('../apps/worker/dist/browser-engine.js');
     const { ExecutionEngine } = await import('../packages/execution-engine/dist/execution-engine.js');
-    const { getLearnedProfile } = await import('../apps/worker/dist/radiography.js');
+    const { getLearnedProfile } = await import('../packages/mongodb/dist/index.js');
     const { mongoRepo } = await import('../packages/mongodb/dist/index.js');
     const { AIOrchestrator } = await import('../packages/ai/dist/orchestrator/ai-orchestrator.js');
     const { createFallbackProvider } = await import('../packages/ai-providers/dist/index.js');
@@ -102,7 +105,7 @@ describe('E2E Real — SevasaOnline (memoria + scraping real)', async () => {
       url: SEVASA_URL,
       instruction: 'Obtén todos los productos con nombre, precio e imagen',
       useMemory: true,
-      ai: { provider: 'openrouter', model: process.env.OPENROUTER_MODEL ?? 'anthropic/claude-3.5-sonnet' },
+      ai: { provider: 'openrouter', model: process.env.OPENROUTER_MODEL ?? 'openrouter/free' },
       limits: { maxPages: 5, maxItems: 50, maxDepth: 2 }
     });
 
@@ -128,8 +131,9 @@ describe('E2E Real — SevasaOnline (memoria + scraping real)', async () => {
     assert.ok(updated.totalJobs > 0, 'totalJobs debe incrementarse');
   });
 
-  it('Segunda radiografía — usa cache Redis y es más rápida', async () => {
-    const { performRadiography } = await import('../apps/worker/dist/radiography.js');
+  it('Segunda radiografía — usa cache Redis y es más rápida', async (t) => {
+    if (unavailable) return t.skip('requiere MongoDB y Redis reales');
+    const { performRadiography } = await import('../packages/mongodb/dist/index.js');
     
     const start = Date.now();
     const result = await performRadiography(SEVASA_URL, { maxDepth: 1, maxPages: 3, forceBrowser: true });
