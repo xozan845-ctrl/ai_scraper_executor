@@ -1,4 +1,5 @@
 import { ScrapingCommandSchema, ScrapingPlanSchema, type ScrapingCommand, type ScrapingPlan } from './schemas';
+import { assertPublicUrl, isAllowedHost, normalizeDomain } from '@ai-scraper/security';
 
 /**
  * Command Validator §26 — barrera de seguridad.
@@ -32,20 +33,12 @@ export class CommandValidator {
   }
 
   private assertSameDomain(url: string) {
+    // Fuente única SSRF (§37): primero protocolo + hosts privados, luego allowlist.
+    assertPublicUrl(url);
     const target = new URL(url);
-    if (!this.isAllowedHost(target.hostname)) {
+    const allowed = normalizeDomain(this.opts.allowedDomain);
+    if (!isAllowedHost(target.hostname, allowed)) {
       throw new Error(`URL fuera del dominio permitido: ${url}`);
     }
-    if (['localhost', '127.0.0.1', '0.0.0.0'].includes(target.hostname)) {
-      // Bypass solo para tests/e2e locales. En producción siempre bloqueado (§37).
-      if (process.env.ALLOW_PRIVATE_HOSTS !== '1') {
-        throw new Error('SSRF bloqueado: host local no permitido (§37)');
-      }
-    }
-  }
-
-  private isAllowedHost(hostname: string) {
-    const allowed = this.opts.allowedDomain.replace(/^https?:\/\//, '').split('/')[0];
-    return hostname === allowed || hostname.endsWith('.' + allowed);
   }
 }
