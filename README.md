@@ -112,7 +112,6 @@ packages/
   security/      # SSRF centralizado (assertPublicUrl, isBlockedHost, createAllowlist)
   observability/ # Logger JSON + MetricsCollector (Prometheus, instance labels)
   storage/       # JobStore (Prisma + InMemory)
-  schemas/       # Stub Zod API (reservado)
 prisma/
   schema.prisma  # 8 tablas: User, Job, ScrapingPlan, Command, Page, Result, JobError, AIInteraction
 docker-compose.yml # postgres + mongodb + redis + migrate + api + worker

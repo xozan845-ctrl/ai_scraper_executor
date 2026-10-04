@@ -18,7 +18,6 @@
       "@ai-scraper/execution-engine": ["packages/execution-engine/dist"],
       "@ai-scraper/ai": ["packages/ai/dist"],
       "@ai-scraper/ai-providers": ["packages/ai-providers/dist"],
-      "@ai-scraper/schemas": ["packages/schemas/dist"],
       "@ai-scraper/storage": ["packages/storage/dist"],
       "@ai-scraper/queue": ["packages/queue/dist"],
       "@ai-scraper/security": ["packages/security/dist"],
