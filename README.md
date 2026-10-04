@@ -40,7 +40,7 @@ npm run dev:worker  # Worker consumiendo cola
 
 ```bash
 # Tests unitarios/integración (mocks, sin BD reales)
-npm test                    # 78 tests: dsl + normalize + engine + crawler + ai-providers + agent + persistence + dashboard + security + browser + api-hardening + observability + scale
+npm test                    # 89 tests: dsl + normalize + engine + crawler + ai-providers + agent + persistence + dashboard + security + browser + api-hardening + observability + scale
 MONGODB_MOCK=1 npm test     # Forzar mock MongoDB
 
 # Test E2E real contra https://www.sevasaonline.com/
@@ -144,8 +144,9 @@ GET    /api/v1/radiography/domain/:domain/stats      # Stats agregadas
 ### Métricas / Observabilidad
 ```
 GET    /api/v1/metrics                 # JSON (stats DB + process + aiRecoveryRate)
-GET    /api/v1/metrics/prometheus      # Prometheus text exposition (con label `instance`)
-GET    /api/v1/health                  # Health check
+GET    /api/v1/metrics/prometheus      # Prometheus text exposition (labels `instance` + `scraper_distributed_*`)
+GET    /api/v1/health                  # Liveness
+GET    /api/v1/health/ready            # Readiness (store + cola; 503 si fallan)
 GET    /api/v1/dashboard               # SPA dashboard (auto-refresh 5s)
 ```
 
@@ -230,17 +231,28 @@ RATE_LIMIT_CREATE_PER_MIN=60
 ## Métricas y Observabilidad
 
 - **Logs**: JSON estructurado (`{ts,level,msg,instance,jobId,provider,...}`) — Loki/ELK ready
-- **Métricas proceso**: `MetricsCollector` (counters/gauges) + `GET /metrics` + Prometheus
-- **Métricas distribuidas (Redis)**: `RedisMetricsAggregator` — `sum by (instance)` en Grafana
-- **Dashboards**: `GET /dashboard` (SPA auto-refresh) + Grafana (importar `metrics:prometheus`)
+- **Métricas proceso**: `MetricsCollector` (counters/gauges) + `GET /metrics` + `GET /metrics/prometheus`
+- **Métricas distribuidas (Redis)**: el worker publica contadores al `RedisMetricsAggregator`; `GET /metrics`
+  expone `distributed` y Prometheus añade `scraper_distributed_*` (suma global entre réplicas/workers).
+  Cada réplica expone además su `scraper_*{instance=...}` local → `sum by (instance)` en Grafana.
+- **Health**: `GET /health` (liveness) y `GET /health/ready` (readiness: comprueba store + cola; 503 si fallan)
+- **Dashboards**: `GET /dashboard` (SPA auto-refresh, pide API key) + Grafana
 
 ## Seguridad
 
-- **SSRF centralizado** (`@ai-scraper/security`): `assertPublicUrl`, `isBlockedHost`, `createAllowlist`
-- **Allowlist por job**: dominio fijado al crear job, IA no puede escalar
-- **DSL tipado**: 13 comandos Zod — la IA **nunca** ejecuta código arbitrario
-- **Rate limits**: API + Crawlee (`CRAWLEE_MAX_REQUESTS_PER_MINUTE`)
-- **Sanitización**: HTML >2MB rechazado, timeout 20s, UA propio
+- **SSRF centralizado** (`@ai-scraper/security`): `assertPublicUrl`, `assertSafeUrl` (resuelve DNS),
+  `isBlockedHost`/`isBlockedIp` (IPv4/IPv6: loopback, privadas, link-local, ULA, CGNAT, IPv4-mapped),
+  `safeFetchText` (revalida **cada redirect** y el tamaño del body), `createAllowlist`.
+  `ALLOW_PRIVATE_HOSTS=1` solo tiene efecto fuera de `NODE_ENV=production`.
+- **Allowlist por job**: dominio fijado al crear job, IA no puede escalar.
+- **Límites anti-escalada (§35)**: `PAGINATE/FOLLOW_LINKS/EXTRACT_LIST` se recortan en planner **y** en
+  cada decisión dinámica (Fase B/recovery); `maxRuntimeSec` actúa como deadline del job.
+- **Auth fail-closed**: `API_KEYS` por header `x-api-key`; en `NODE_ENV=production` sin claves, todo responde 401.
+- **DSL tipado**: 13 comandos Zod — la IA **nunca** ejecuta código arbitrario.
+- **Rate limits**: API (Redis sliding-window, fallback memoria) + Crawlee (`CRAWLEE_MAX_REQUESTS_PER_MINUTE`).
+- **Sanitización**: HTML >2MB rechazado, timeout 20s, UA propio.
+- **Idempotencia**: reintentos BullMQ limpian artefactos previos (`clearJobArtifacts`); cancelación
+  interrumpible entre pasos; apagado graceful (SIGTERM/SIGINT) cierra Prisma/Mongo/Redis/BullMQ.
 
 ## Desarrollo Local
 
