@@ -3,6 +3,7 @@ import IORedis from 'ioredis';
 import type { JobQueue } from './job-queue';
 import { SCRAPING_QUEUE } from './job-queue';
 import type { ScrapingJobPayload } from './types';
+import { normalizePriority } from './types';
 
 export function createRedisConnection(url: string): IORedis {
   return new IORedis(url, {
@@ -37,6 +38,8 @@ export class BullMQJobQueue implements JobQueue {
       backoff: { type: 'exponential', delay: 5000 },
       removeOnComplete: 100,
       removeOnFail: 500,
+      // FASE 11: 1 = máxima prioridad en BullMQ.
+      priority: normalizePriority(payload.priority),
     });
     return { id: (job.id as string) ?? payload.jobId };
   }

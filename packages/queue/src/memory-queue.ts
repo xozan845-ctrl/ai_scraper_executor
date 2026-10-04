@@ -1,6 +1,7 @@
 import type { JobQueue } from './job-queue';
 import { SCRAPING_QUEUE } from './job-queue';
 import type { ScrapingJobPayload } from './types';
+import { normalizePriority } from './types';
 
 /** Cola en memoria: tests y dev sin Redis. Misma interfaz que BullMQ. */
 export class InMemoryJobQueue implements JobQueue {
@@ -25,9 +26,15 @@ export class InMemoryJobQueue implements JobQueue {
     this.pending.clear();
   }
 
-  /** Solo tests/worker embebido: consume pendientes con un procesador. */
+  /** Solo tests/worker embebido: consume pendientes con un procesador.
+   * FASE 11: orden por prioridad ascendente (1 = máxima), FIFO ante empate.
+   */
   async drain(processor: (payload: ScrapingJobPayload) => Promise<void>): Promise<string[]> {
-    const ids = [...this.pending.keys()];
+    const ids = [...this.pending.keys()].sort((a, b) => {
+      const pa = normalizePriority(this.pending.get(a)?.priority);
+      const pb = normalizePriority(this.pending.get(b)?.priority);
+      return pa - pb;
+    });
     for (const id of ids) {
       const payload = this.pending.get(id)!;
       this.pending.delete(id);
