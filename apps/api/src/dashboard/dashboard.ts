@@ -68,7 +68,20 @@ pre { background: #0f1420; padding: 8px; border-radius: 6px; overflow: auto; max
 
 <script>
 var current = null, tab = 'execution';
-function api(p, opts) { return fetch(p, opts).then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }); }
+function apiKey() { try { return localStorage.getItem('apiKey') || ''; } catch (e) { return ''; } }
+function api(p, opts) {
+  opts = opts || {};
+  var k = apiKey();
+  opts.headers = Object.assign({}, opts.headers, k ? { 'x-api-key': k } : {});
+  return fetch(p, opts).then(function(r) {
+    if (r.status === 401) {
+      var nk = window.prompt('API key requerida:');
+      if (nk) { try { localStorage.setItem('apiKey', nk); } catch (e) {} return api(p, opts); }
+    }
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  });
+}
 function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
 function badge(s) { return '<span class="badge ' + s + '">' + s + '</span>'; }
 

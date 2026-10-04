@@ -56,7 +56,20 @@ describe('API hardening ETAPA 4 (auth + allowlist + rate-limit + ai paging)', as
     assert.throws(() => guard.canActivate(ctx({ headers: {}, query: {} })), /API key/);
     assert.throws(() => guard.canActivate(ctx({ headers: { 'x-api-key': 'wrong' }, query: {} })), /API key/);
     assert.equal(guard.canActivate(ctx({ headers: { 'x-api-key': 'k2' }, query: {} })), true);
-    assert.equal(guard.canActivate(ctx({ headers: {}, query: { apiKey: 'k1' } })), true);
+    // La clave por query string YA NO se acepta (fuga en logs/Referer).
+    assert.throws(() => guard.canActivate(ctx({ headers: {}, query: { apiKey: 'k1' } })), /API key/);
+  });
+
+  it('ApiKeyGuard fail-closed en producción sin claves', () => {
+    const prevNode = process.env.NODE_ENV;
+    const prevKeys = process.env.API_KEYS;
+    delete process.env.API_KEYS;
+    process.env.NODE_ENV = 'production';
+    assert.equal(isAuthEnforced(), true);
+    assert.throws(() => new ApiKeyGuard().canActivate(ctx({ headers: {}, query: {} })), /API_KEYS no configurado/);
+    if (prevNode === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = prevNode;
+    if (prevKeys !== undefined) process.env.API_KEYS = prevKeys;
   });
 
   it('CreateRateLimitGuard: permite N y rechaza N+1 por IP', () => {

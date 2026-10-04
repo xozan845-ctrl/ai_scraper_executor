@@ -151,7 +151,11 @@ GET    /api/v1/dashboard               # SPA dashboard (auto-refresh 5s)
 
 ## Autenticación y Rate Limiting
 
-- **API Key**: header `x-api-key` o query `?apiKey=` (config `API_KEYS` en `.env`). Sin claves = abierto (dev).
+- **API Key**: SOLO header `x-api-key` (config `API_KEYS` en `.env`, coma-separadas).
+  - Sin claves: abierto en dev/test; **en `NODE_ENV=production` se cierra (401)** por defecto.
+  - La clave por query string ya no se acepta (evita fugas en logs/Referer).
+  - Protegidos: `/jobs`, `/radiography` y `/metrics`. El dashboard SPA pide la clave y la envía por header.
+  - Prometheus debe enviar `x-api-key` al scrapear `/metrics/prometheus` si `API_KEYS` está activo.
 - **Allowlist dominios**: `ALLOWED_DOMAINS=tienda.com,otro.com` — bloquea jobs fuera de lista.
 - **Rate limit**: `RATE_LIMIT_CREATE_PER_MIN=30` por IP en `POST /jobs` (headers `X-RateLimit-*`).
 
