@@ -9,8 +9,8 @@ export class RedisPageCache {
   private readonly client: Redis;
   private readonly ttlMs: number;
   private readonly maxEntries: number;
-  private hits = 0;
-  private misses = 0;
+  hits = 0;
+  misses = 0;
 
   constructor(opts?: { ttlMs?: number; maxEntries?: number; prefix?: string }) {
     this.client = getRedisClient();

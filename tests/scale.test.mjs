@@ -97,4 +97,31 @@ describe('Escala FASE 11 ETAPA 6 (prioridades + caché + dedupe)', async () => {
     await e2.execute({ type: 'NAVIGATE', url: 'https://tienda.com/shared' });
     assert.equal(fetches, 1);
   });
+
+  it('engine acepta caché asíncrona (Redis) y la usa entre engines', async () => {
+    const store = new Map();
+    const asyncCache = {
+      async get(url) { return store.has(url) ? store.get(url) : null; },
+      async set(url, html) { store.set(url, html); },
+    };
+    let fetches = 0;
+    const fetcher = async () => `html-${++fetches}`;
+    const e1 = new ExecutionEngine({ fetcher, pageCache: asyncCache });
+    const e2 = new ExecutionEngine({ fetcher, pageCache: asyncCache });
+    await e1.execute({ type: 'NAVIGATE', url: 'https://tienda.com/redis' });
+    await e2.execute({ type: 'NAVIGATE', url: 'https://tienda.com/redis' });
+    assert.equal(fetches, 1, 'la 2ª lectura sale de la caché async');
+  });
+
+  it('caché que falla (Redis caído) no rompe el scraping', async () => {
+    const brokenCache = {
+      async get() { throw new Error('redis down'); },
+      async set() { throw new Error('redis down'); },
+    };
+    let fetches = 0;
+    const engine = new ExecutionEngine({ fetcher: async () => `html-${++fetches}`, pageCache: brokenCache });
+    const r = await engine.execute({ type: 'NAVIGATE', url: 'https://tienda.com/x' });
+    assert.equal(r.ok, true);
+    assert.equal(fetches, 1);
+  });
 });

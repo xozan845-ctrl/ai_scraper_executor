@@ -109,6 +109,15 @@ function extractFieldValue(
   return el.attr(attr)?.slice(0, 1000) ?? null;
 }
 
+/** Caché de páginas aceptada por el engine: sync (memoria) o async (Redis). */
+export interface EnginePageCache {
+  get(url: string): string | null | Promise<string | null>;
+  set(url: string, html: string): void | Promise<void>;
+  hits?: number;
+  misses?: number;
+  size?: number;
+}
+
 export class ExecutionEngine {
   private $: cheerio.CheerioAPI | null = null;
   private currentUrl: string | null = null;
@@ -121,18 +130,18 @@ export class ExecutionEngine {
       fetcher?: Fetcher;
       /** Delegado browser (CrawlerService.interact). Sin él, CLICK/SCROLL devuelven needsBrowser. */
       browserInteract?: BrowserInteract;
-      /** Caché HTML compartible (FASE 11). Por defecto, caché propia por engine. */
-      pageCache?: PageCache;
+      /** Caché HTML compartible (FASE 11/Redis). Por defecto, caché propia por engine. */
+      pageCache?: EnginePageCache;
     },
   ) {
     this.pageCache = deps?.pageCache ?? new PageCache();
   }
 
-  private readonly pageCache: PageCache;
+  private readonly pageCache: EnginePageCache;
 
-  /** Stats de caché para observabilidad. */
+  /** Stats de caché para observabilidad (solo si la caché las expone). */
   getCacheStats(): { hits: number; misses: number; size: number } {
-    return { hits: this.pageCache.hits, misses: this.pageCache.misses, size: this.pageCache.size };
+    return { hits: this.pageCache.hits ?? 0, misses: this.pageCache.misses ?? 0, size: this.pageCache.size ?? 0 };
   }
 
   getMemory(): EngineMemory {
@@ -144,8 +153,11 @@ export class ExecutionEngine {
   }
 
   private async fetchHtml(url: string): Promise<string> {
-    const cached = this.pageCache.get(url);
-    if (cached !== null) return cached;
+    // Caché (memoria o Redis). Si falla (Redis caído), se ignora sin romper el scraping.
+    try {
+      const cached = await this.pageCache.get(url);
+      if (cached !== null && cached !== undefined) return cached;
+    } catch { /* cache miss/error → fetch */ }
     let html: string;
     if (this.deps?.fetcher) {
       html = await this.deps.fetcher(url);
@@ -156,7 +168,9 @@ export class ExecutionEngine {
     } else {
       html = await defaultFetchHtml(url);
     }
-    this.pageCache.set(url, html);
+    try {
+      await this.pageCache.set(url, html);
+    } catch { /* noop */ }
     return html;
   }
 

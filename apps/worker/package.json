@@ -16,6 +16,7 @@
     "@ai-scraper/mongodb": "^0.1.0",
     "@ai-scraper/observability": "^0.1.0",
     "@ai-scraper/queue": "^0.1.0",
+    "@ai-scraper/redis": "^0.1.0",
     "@ai-scraper/storage": "^0.1.0"
   },
   "devDependencies": {

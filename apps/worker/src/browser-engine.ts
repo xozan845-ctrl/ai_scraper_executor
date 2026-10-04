@@ -1,15 +1,16 @@
 /**
- * Factoría del engine de producción (ETAPA 3, §34 + FASE 11, ETAPA 6).
+ * Factoría del engine de producción (ETAPA 3/6 + Redis).
  * HTTP primero (Cheerio); CLICK no-enlace y SCROLL escalan a Chromium real
- * vía CrawlerService.interact. La PageCache compartida evita refetchear
- * el mismo HTML entre engines de la réplica. Sin esta factoría (tests)
- * el engine sigue devolviendo { needsBrowser: true } sin lanzar browser.
+ * vía CrawlerService.interact. La caché de páginas usa Redis (compartida entre
+ * réplicas `--scale worker=N`); si Redis no responde, el engine sigue sin caché
+ * (degradación silenciosa segura, los errores de caché se ignoran).
  */
 import { CrawlerService } from '@ai-scraper/crawler';
-import { ExecutionEngine, PageCache } from '@ai-scraper/execution-engine';
+import { ExecutionEngine } from '@ai-scraper/execution-engine';
+import { RedisPageCache } from '@ai-scraper/redis';
 
 const crawler = new CrawlerService();
-const sharedCache = new PageCache();
+const sharedCache = new RedisPageCache();
 
 export function createProductionEngine(): ExecutionEngine {
   return new ExecutionEngine({

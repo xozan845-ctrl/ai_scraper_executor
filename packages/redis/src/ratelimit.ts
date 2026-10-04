@@ -26,6 +26,7 @@ export class RedisRateLimiter {
     const now = Date.now();
     const windowStart = now - this.windowMs;
     const k = this.key(identifier);
+    const member = `${now}-${Math.random()}`;
 
     const multi = this.client.multi();
     // Elimina entradas antiguas
@@ -33,7 +34,7 @@ export class RedisRateLimiter {
     // Cuenta actuales
     multi.zcard(k);
     // Añade la request actual con timestamp como score
-    multi.zadd(k, now, `${now}-${Math.random()}`);
+    multi.zadd(k, now, member);
     // Expira la key automáticamente
     multi.expire(k, Math.ceil(this.windowMs / 1000) + 1);
     const results = await multi.exec();
@@ -44,8 +45,8 @@ export class RedisRateLimiter {
     const resetAt = now + this.windowMs;
 
     if (!allowed) {
-      // Rollback: elimina la entrada que acabamos de añadir
-      await this.client.zrem(k, `${now}-${Math.random()}`);
+      // Rollback: elimina EXACTAMENTE la entrada recién insertada (mismo member).
+      await this.client.zrem(k, member);
     }
 
     return { allowed, remaining, resetAt };
