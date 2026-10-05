@@ -1119,3 +1119,32 @@ actualizar dependencias).
 La regresión de arranque de Nest 12/Express 5 **no** la detectó la suite unitaria
 (no levanta la app): la detectó el arrancar la API a mano para exportar la spec. Es
 evidencia directa de por qué `G-4`/`G-6` siguen abiertos.
+
+---
+
+# AUDIT — Front E: property-based testing real; mutation diferido (ADR-20)
+
+- **Fecha:** 2026-10-05
+
+## Qué cambió
+
+- **`fast-check`** instalado; `tests/property.test.mjs` con 6 propiedades que corren
+  dentro de `npm test` (149 tests / 37 suites): rango e idempotencia de
+  `normalizeJobLimits`, `0` que no desactiva, idempotencia de `normalizeDomain`,
+  dominio raíz/subdominios de `isAllowedHost`, y `type` siempre del DSL en
+  `normalizeRawCommand`/`normalizeRawPlan`.
+- **Dos defectos reales encontrados y corregidos** (`R-REG-1`):
+  1. `normalizeJobLimits({maxRequests: 5e-324})` → `0` (fuera de `[1, HARD]` y no
+     idempotente). Fix: `Math.max(1, Math.min(Math.floor(raw), HARD))`.
+  2. `normalizeRawCommand({type:'_ proto _'})` (y `__proto__`/`constructor`) resolvía
+     contra el prototipo del mapa de alias y colaba un comando inexistente. Fix:
+     `Object.hasOwn(ALIASES, lower)`.
+- **Mutation testing diferido a propósito** (ADR-20): Stryker 10 solo trae runners
+  jest/vitest/tap y los tests cargan `dist` con `node --test`; se reevalúa cuando
+  exista una suite con runner soportado.
+
+## Cobertura
+
+El baseline se mantiene por encima del umbral: 71.83 / 74.43 / 68.78 (ramas suben al
+ejercitar más caminos). Sin subir los umbrales todavía (el ratchet es +5/release,
+`R-COV-5`).

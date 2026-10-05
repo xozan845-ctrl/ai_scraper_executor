@@ -60,7 +60,9 @@ export function normalizeJobLimits(input?: JobLimits): Required<JobLimits> {
   const pick = (key: keyof Required<JobLimits>): number => {
     const raw = input?.[key];
     if (typeof raw !== 'number' || !Number.isFinite(raw) || raw <= 0) return DEFAULT_LIMITS[key];
-    return Math.min(Math.floor(raw), HARD_LIMITS[key]);
+    // `Math.max(1, …)`: un positivo < 1 (p. ej. 5e-324) hace floor 0; sin el tope
+    // inferior se salía de [1, HARD] y rompía la idempotencia (hallado por R-PB).
+    return Math.max(1, Math.min(Math.floor(raw), HARD_LIMITS[key]));
   };
   return {
     maxPages: pick('maxPages'),

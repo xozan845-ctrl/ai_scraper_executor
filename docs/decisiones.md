@@ -398,6 +398,30 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
 
 ---
 
+## ADR-20: Property-based con `fast-check`; mutation testing diferido a propósito
+
+- **Fecha**: 2026-10-05
+- **Estado**: Aceptado
+- **Contexto**: `R-PB-*` (property-based) y `R-MT-*` (mutation) estaban como
+  aspiracionales. Las funciones puras que procesan la entrada no confiable del
+  modelo (DSL, presupuestos) y la derivación de dominios son candidatas ideales a
+  propiedades. Para mutación, Stryker 10 solo ofrece runners jest/vitest/tap y los
+  tests cargan `dist` con `node --test` (ADR-03).
+- **Decisión**: instalar **`fast-check`** y escribir `tests/property.test.mjs`
+  dentro de `npm test` (invariantes de `normalizeJobLimits`, `normalizeRawCommand`/
+  `normalizeRawPlan` y `normalizeDomain`/`isAllowedHost`). **Diferir mutation
+  testing** de forma explícita: no se añade Stryker porque exigiría mutar `dist` o
+  un runner que el repo evita; la reevaluación se dispara cuando exista una suite con
+  runner soportado (`G-4`/`G-5`) o si el repo crece.
+- **Consecuencias**: (a) los property tests **encontraron dos defectos reales** que
+  los casos fijos no veían: `normalizeJobLimits(5e-324) → 0` (fuera de `[1, HARD]` y
+  no idempotente) y la resolución de alias contra el prototipo (`__proto__`,
+  `constructor`, `_ proto _` → `__proto__`) que colaba comandos inexistentes; ambos
+  corregidos (`R-REG-1`); (b) el ADR-03 (sin transform runner) sigue en pie; (c) la
+  mutación queda documentada, con su disparador, en `R-MT-1`.
+
+---
+
 ## Deudas que estos ADR dejan abiertas
 
 | Deuda | ADR relacionado | Dónde está registrada |
@@ -406,6 +430,7 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
 | Cobertura solo de ficheros cargados por la suite | ADR-17 | `rules/test/06-estandares-cobertura.md` (`R-COV-4`) |
 | Capas sin suite (integración, contrato, E2E) | ADR-14 | `rules/test/06-estandares-cobertura.md` (`G-4`, `G-5`, `G-6`) |
 | Almacenamiento de Crawlee impide paralelizar | ADR-04, ADR-11 | `rules/test/05-reglas-robustez.md` (`R-FL-5`) |
+| Mutation testing diferido (runner incompatible) | ADR-20 | `rules/test/05-reglas-robustez.md` (`R-MT-1`) |
 | Sin release por tag ni imágenes por digest | — | `rules/cd/01-despliegue.md` (`R-CD-1..8`) |
 
 > El estado vigente de cada deuda, con el comando que la mide, está en
