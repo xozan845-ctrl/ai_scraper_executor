@@ -1,4 +1,4 @@
-import { Injectable, CanActivate, ExecutionContext, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, HttpException, HttpStatus, Optional } from '@nestjs/common';
 import { getRateLimiter } from '@ai-scraper/redis';
 
 export interface RateLimitOpts {
@@ -30,7 +30,7 @@ export class CreateRateLimitGuard implements CanActivate {
   private readonly windowMs: number;
   private limiter: RateLimiterLike | null;
 
-  constructor(opts?: RateLimitOpts) {
+  constructor(@Optional() opts?: RateLimitOpts) {
     this.max = opts?.max ?? envMax(30);
     this.windowMs = opts?.windowMs ?? 60_000;
     this.limiter = opts?.limiter ?? null;

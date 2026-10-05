@@ -335,7 +335,16 @@ export class AgentRunner {
       const step = await attemptStep(action as Record<string, unknown>);
       steps.push(step);
       if (!step.ok) {
-        await recordResult(false, items.length);
+        // Si ya extrajimos items, un paso posterior que falla no debe tirar los resultados.
+        const partial = items.length > 0;
+        await recordResult(partial, items.length);
+        if (partial) {
+          debugWarn('PLAN STEP FAILED con items parciales', { step: step.n, items: items.length, error: step.error });
+          return {
+            ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(),
+            status: 'COMPLETED', note: `Paso ${step.n} falló pero se extrajeron ${items.length} items: ${step.error}`,
+          };
+        }
         debugError('PLAN STEP FAILED', { step: step.n, error: step.error });
         return {
           ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(),
@@ -425,7 +434,15 @@ export class AgentRunner {
       const step = await attemptStep(decision);
       steps.push(step);
       if (!step.ok) {
-        await recordResult(false, items.length);
+        const partial = items.length > 0;
+        await recordResult(partial, items.length);
+        if (partial) {
+          debugWarn('PHASE B STEP FAILED con items parciales', { step: step.n, items: items.length, error: step.error });
+          return {
+            ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(),
+            status: 'COMPLETED', note: `Paso ${step.n} falló pero se extrajeron ${items.length} items: ${step.error}`,
+          };
+        }
         debugError('PHASE B STEP FAILED', { step: step.n, error: step.error });
         return {
           ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(),

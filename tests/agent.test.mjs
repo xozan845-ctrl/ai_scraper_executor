@@ -209,6 +209,25 @@ describe('AgentRunner FASE 5 + Recovery FASE 6 (§47, §28)', async () => {
     assert.match(res.error, /maxRuntimeSec/);
   });
 
+  it('si ya hay items, un paso posterior que falla devuelve COMPLETED (parcial)', async () => {
+    const { fake } = makeFake({
+      plan: {
+        version: '1.0',
+        actions: [
+          { type: 'NAVIGATE', url: baseJob.url },
+          { ...EXTRACT_OK },
+          { type: 'EXTRACT_LIST', selector: '.no-existe', fields: { a: '.x' } },
+        ],
+      },
+      recoveries: [new Error('x'), new Error('x')],
+    });
+    const { fetcher } = makeFetcher();
+    const res = await runner(fake, fetcher).run(baseJob);
+    assert.equal(res.status, 'COMPLETED');
+    assert.equal(res.items.length, 2);
+    assert.match(res.note, /se extrajeron 2 items/);
+  });
+
   it('maxAiTokens corta la ejecución al superar el presupuesto', async () => {
     // Fake que reporta tokens altos por llamada.
     const calls = { createPlan: 0 };

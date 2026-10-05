@@ -54,4 +54,9 @@ describe('Resiliencia (Etapa 5): circuit breaker + semáforo', async () => {
     await Promise.all([task(), task(), task(), task(), task()]);
     assert.ok(max <= 2, `concurrencia ${max} <= 2`);
   });
+
+  it('nombre de la cola DLQ válido para BullMQ (sin ":")', async () => {
+    const { SCRAPING_DEAD_QUEUE } = await import('../packages/queue/dist/bullmq-queue.js');
+    assert.ok(!SCRAPING_DEAD_QUEUE.includes(':'), `BullMQ v6 no permite ":" en nombres de cola: ${SCRAPING_DEAD_QUEUE}`);
+  });
 });

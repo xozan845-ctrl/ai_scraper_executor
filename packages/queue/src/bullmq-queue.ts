@@ -5,7 +5,7 @@ import { SCRAPING_QUEUE } from './job-queue';
 import type { ScrapingJobPayload } from './types';
 import { normalizePriority } from './types';
 
-export const SCRAPING_DEAD_QUEUE = 'scraping-jobs:dead';
+export const SCRAPING_DEAD_QUEUE = 'scraping-jobs-dead';
 
 export interface DeadJob extends ScrapingJobPayload {
   reason: string;

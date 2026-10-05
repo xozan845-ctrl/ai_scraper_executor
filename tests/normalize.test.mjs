@@ -67,4 +67,14 @@ describe('Normalizador DSL (robustez LLM)', async () => {
     const fin = clampCommandLimits({ type: 'FINISH' }, caps);
     assert.deepEqual(fin, { type: 'FINISH' });
   });
+
+  it('recorta limit/maxPages/maxLinks a los topes del esquema antes de validar (regresión)', () => {
+    const r = normalizeRawCommand({ type: 'EXTRACT_LIST', selector: '.x', fields: { a: '.a' }, limit: 5000 });
+    assert.equal(r.command.limit, 1000);
+    validator.validateCommand(r.command); // no debe lanzar
+    const p = normalizeRawCommand({ type: 'PAGINATE', pattern: '?page={n}', maxPages: 9999 });
+    assert.equal(p.command.maxPages, 500);
+    const f = normalizeRawCommand({ type: 'FOLLOW_LINKS', selector: 'a', maxLinks: 9999 });
+    assert.equal(f.command.maxLinks, 500);
+  });
 });

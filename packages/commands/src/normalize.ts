@@ -130,7 +130,30 @@ export function normalizeRawCommand(raw: unknown): NormalizeResult {
     notes.push('fields array→objeto');
   }
 
+  // Recortar a los topes del esquema ANTES de validar (el LLM puede excederlos y Zod
+  // rechazaría el plan). El planner vuelve a recortar a los límites del job.
+  clampToSchemaBounds(out, notes);
+
   return { command: out, notes };
+}
+
+function clampNum(v: unknown, max: number): number | undefined {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return undefined;
+  return Math.min(Math.max(1, Math.floor(v)), max);
+}
+
+function clampToSchemaBounds(cmd: Record<string, unknown>, notes: string[]): void {
+  const type = cmd.type;
+  if (type === 'EXTRACT_LIST') {
+    const c = clampNum(cmd.limit, 1000);
+    if (c !== undefined && c !== cmd.limit) { cmd.limit = c; notes.push('limit recortado a 1000'); }
+  } else if (type === 'PAGINATE') {
+    const c = clampNum(cmd.maxPages, 500);
+    if (c !== undefined && c !== cmd.maxPages) { cmd.maxPages = c; notes.push('maxPages recortado a 500'); }
+  } else if (type === 'FOLLOW_LINKS') {
+    const c = clampNum(cmd.maxLinks, 500);
+    if (c !== undefined && c !== cmd.maxLinks) { cmd.maxLinks = c; notes.push('maxLinks recortado a 500'); }
+  }
 }
 
 /**
