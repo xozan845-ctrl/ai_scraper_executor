@@ -324,4 +324,25 @@ describe('AgentRunner FASE 5 + Recovery FASE 6 (§47, §28)', async () => {
     assert.match(res.error, /maxSteps \(4\)/);
     assert.equal(res.steps.length, 4);
   });
+
+  it('la factory recibe el hint { needsBrowser } sin mutar la instancia', async () => {
+    const { fake } = makeFake({
+      plan: {
+        version: '1.0',
+        actions: [{ type: 'NAVIGATE', url: baseJob.url }, { type: 'FINISH' }],
+      },
+    });
+    const { fetcher } = makeFetcher();
+    let received;
+    const res = await new AgentRunner({
+      orchestrator: new AIOrchestrator(fake),
+      createEngine: (hint) => {
+        received = hint;
+        return new ExecutionEngine({ fetcher });
+      },
+      maxSteps: 5,
+    }).run(baseJob);
+    assert.equal(res.status, 'COMPLETED');
+    assert.ok(received && typeof received.needsBrowser === 'boolean');
+  });
 });

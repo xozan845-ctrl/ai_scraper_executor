@@ -68,8 +68,12 @@ export interface AgentResult {
 
 export interface RunnerDeps {
   orchestrator: AIOrchestrator;
-  /** Fábrica del engine (inyectar fetcher mock en tests). */
-  createEngine?: () => ExecutionEngine;
+  /**
+   * Fábrica del engine (inyectar fetcher mock en tests). Recibe el hint del perfil
+   * aprendido (FASE 12) para que el llamador decida si arma browser; la decisión de
+   * capacidades vive en la factory, no mutando instancias.
+   */
+  createEngine?: (hint: { needsBrowser: boolean }) => ExecutionEngine;
   maxSteps?: number;
   maxRecoveryAttempts?: number;
   /** Callback para abortar si el job fue cancelado (chequeo entre pasos). */
@@ -136,13 +140,13 @@ export class AgentRunner {
       });
     }
 
-    const engine = this.deps.createEngine ? this.deps.createEngine() : new ExecutionEngine();
-    // Si el perfil dice que necesita browser, forzamos la creación con browser
-    if (learnedProfile?.shouldUseBrowser && !this.deps.createEngine) {
-      debugLog('Perfil indica needsBrowser=true, creando engine con browser...');
-      const { createProductionEngine } = await import('./browser-engine');
-      Object.assign(engine, createProductionEngine());
-    }
+    // La decisión de capacidades (browser) vive en la factory: en producción
+    // createProductionEngine ya expone browserInteract. Sin factory, el engine HTTP
+    // plano devuelve needsBrowser en CLICK/SCROLL (§34); antes se mutaba la instancia
+    // con Object.assign, frágil e incorrecto (borraba estado/deps).
+    const engine = this.deps.createEngine
+      ? this.deps.createEngine({ needsBrowser: learnedProfile?.shouldUseBrowser ?? false })
+      : new ExecutionEngine();
     const modelOpts = job.ai?.model ? { model: job.ai.model } : undefined;
     let planActions: PlanAction[];
     const visited = () => [...engine.getMemory().visited];

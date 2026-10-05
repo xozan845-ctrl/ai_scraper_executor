@@ -124,7 +124,7 @@ async function main() {
       return;
     }
     const provider = createFallbackProvider(process.env.AI_PROVIDER);
-    const runner = new AgentRunner({ orchestrator: new AIOrchestrator(withCircuitBreaker(provider as never)), createEngine: createProductionEngine });
+    const runner = new AgentRunner({ orchestrator: new AIOrchestrator(withCircuitBreaker(provider as never)), createEngine: () => createProductionEngine() });
     const result = await runner.run(job);
     console.log(
       `[JOB] ${job.id} ${result.status} :: ${result.steps.length} pasos, ` +
