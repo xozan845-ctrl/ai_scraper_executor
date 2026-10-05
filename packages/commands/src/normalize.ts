@@ -100,6 +100,21 @@ export function normalizeRawCommand(raw: unknown): NormalizeResult {
   copy('sameDomainOnly');
   copy('ms');
   copy('reason');
+  // TYPE / AUTHENTICATE (antes se perdían y la validación los rechazaba).
+  copy('text');
+  copy('credential');
+  copy('usernameSelector');
+  copy('passwordSelector');
+  copy('submitSelector');
+  copy('successSelector');
+  copy('captchaSelector');
+  copy('mfaSelector');
+
+  // Tolerancia a modelos débiles: username/password → *Selector.
+  if (type === 'AUTHENTICATE') {
+    if (out.usernameSelector === undefined && typeof obj.username === 'string') out.usernameSelector = obj.username;
+    if (out.passwordSelector === undefined && typeof obj.password === 'string') out.passwordSelector = obj.password;
+  }
 
   // Mapeos de campos comunes inventados
   if (out.selector === undefined && typeof obj.cssSelector === 'string') out.selector = obj.cssSelector;

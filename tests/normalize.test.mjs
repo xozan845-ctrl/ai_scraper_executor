@@ -77,4 +77,17 @@ describe('Normalizador DSL (robustez LLM)', async () => {
     const f = normalizeRawCommand({ type: 'FOLLOW_LINKS', selector: 'a', maxLinks: 9999 });
     assert.equal(f.command.maxLinks, 500);
   });
+
+  it('conserva los campos de TYPE/AUTHENTICATE (antes se perdían) y validan', () => {
+    const t = normalizeRawCommand({ type: 'type', selector: '#q', text: 'hola' });
+    assert.equal(t.command.type, 'TYPE');
+    assert.equal(t.command.text, 'hola');
+    validator.validateCommand(t.command);
+
+    const a = normalizeRawCommand({ action: 'login', username: '#u', password: '#p' });
+    assert.equal(a.command.type, 'AUTHENTICATE');
+    assert.equal(a.command.usernameSelector, '#u');
+    assert.equal(a.command.passwordSelector, '#p');
+    validator.validateCommand(a.command);
+  });
 });

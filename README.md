@@ -40,7 +40,7 @@ npm run dev:worker  # Worker consumiendo cola
 
 ```bash
 # Tests unitarios/integración (mocks, sin BD reales)
-npm test                    # 115 tests: dsl + normalize + engine + crawler + ai-providers + agent + persistence + dashboard + security + browser + api-hardening + observability + scale + llm-cache + interpret + resilience + sessions + credentials
+npm test                    # 142 tests: dsl + normalize + engine + crawler + ai-providers + agent + persistence + dashboard + security + browser + api-hardening + observability + scale + llm-cache + interpret + resilience + sessions + credentials + cache-isolation + limits + first-user + logging + util-unify + metrics-labels + retry-cleanup + browser-ssrf
 MONGODB_MOCK=1 npm test     # Forzar mock MongoDB
 
 # Test E2E real contra https://www.sevasaonline.com/
@@ -97,6 +97,11 @@ npm run test:api:fast       # solo los rápidos (sin radiografía/job/chat real)
 | `PAGE_CACHE_TTL_MS` | TTL cache páginas | `300000` |
 | `PAGE_CACHE_MAX_ENTRIES` | Max entradas cache | `100` |
 | `API_KEYS` | Claves API (coma-sep) | - (sin auth) |
+| `FIRST_RUN_TOKEN` | Token exigido por `/auth/register-first` en producción (header `X-First-Run`) | - |
+| `TRUST_PROXY` | Saltos de proxy de confianza (para que el rate-limit use la IP real) | - (desactivado) |
+| `CORS_ORIGINS` | Orígenes CORS permitidos (coma-sep) | - (dev abierto; prod mismo-origen) |
+| `RADIOGRAPHY_CONCURRENCY` | Radiografías simultáneas por instancia de API | `2` |
+| `RADIOGRAPHY_TIMEOUT_MS` | Timeout de una radiografía de sesión | `120000` |
 | `ALLOWED_DOMAINS` | Dominios permitidos | - (todos) |
 | `RATE_LIMIT_CREATE_PER_MIN` | Rate limit POST /jobs | `30` |
 | `INSTANCE_ID` | ID réplica métricas | `hostname-pid` |
@@ -109,7 +114,7 @@ apps/
   worker/        # Procesador de jobs (AgentRunner + browser-engine + planner)
 packages/
   core/          # Tipos compartidos (JobStatus, JobLimits, TracedValue)
-  commands/      # DSL Zod (13 comandos) + CommandValidator (SSRF/allowlist) + normalize (anti-alucinación)
+  commands/      # DSL Zod (15 comandos) + CommandValidator (SSRF/allowlist) + normalize (anti-alucinación)
   crawler/       # CrawlerService (CheerioCrawler + PlaywrightCrawler, hybrid, SessionPool)
   execution-engine/  # ExecutionEngine (HTTP/Cheerio + delegado browser CLICK/SCROLL + PageCache)
   ai/            # AIOrchestrator + prompts + context-builder
@@ -186,8 +191,13 @@ GET    /api/v1/dashboard               # SPA dashboard (auto-refresh 5s)
 - **API Key**: SOLO header `x-api-key` (config `API_KEYS` en `.env`, coma-separadas).
   - Sin claves: abierto en dev/test; **en `NODE_ENV=production` se cierra (401)** por defecto.
   - La clave por query string ya no se acepta (evita fugas en logs/Referer).
+  - También acepta claves de **usuarios registrados en BD** (hash SHA-256); la API key que
+    devuelve `/auth/register-first` autentica directamente.
   - Protegidos: `/jobs`, `/radiography` y `/metrics`. El dashboard SPA pide la clave y la envía por header.
   - Prometheus debe enviar `x-api-key` al scrapear `/metrics/prometheus` si `API_KEYS` está activo.
+- **Bootstrap (`POST /api/v1/auth/register-first`)**: crea el primer superadmin **solo si no hay usuarios**
+  (si ya hay, 409; no hay `force`). En producción exige el header `X-First-Run` = `FIRST_RUN_TOKEN`
+  (fail-closed: sin token configurado, 403). Devuelve la API key **una sola vez** (se guarda hasheada).
 - **Allowlist dominios**: `ALLOWED_DOMAINS=tienda.com,otro.com` — bloquea jobs fuera de lista.
 - **Rate limit**: `RATE_LIMIT_CREATE_PER_MIN=30` por IP en `POST /jobs` (headers `X-RateLimit-*`).
 
@@ -279,7 +289,7 @@ RATE_LIMIT_CREATE_PER_MIN=60
 - **Límites anti-escalada (§35)**: `PAGINATE/FOLLOW_LINKS/EXTRACT_LIST` se recortan en planner **y** en
   cada decisión dinámica (Fase B/recovery); `maxRuntimeSec` actúa como deadline del job.
 - **Auth fail-closed**: `API_KEYS` por header `x-api-key`; en `NODE_ENV=production` sin claves, todo responde 401.
-- **DSL tipado**: 13 comandos Zod — la IA **nunca** ejecuta código arbitrario.
+- **DSL tipado**: 15 comandos Zod — la IA **nunca** ejecuta código arbitrario.
 - **Rate limits**: API (Redis sliding-window, fallback memoria) + Crawlee (`CRAWLEE_MAX_REQUESTS_PER_MINUTE`).
 - **Sanitización**: HTML >2MB rechazado, timeout 20s, UA propio.
 - **Idempotencia**: reintentos BullMQ limpian artefactos previos (`clearJobArtifacts`); cancelación
@@ -331,7 +341,7 @@ OPENROUTER_FALLBACK_MODELS=qwen/qwen3.8-27b:free,nvidia/nemotron-3-super-120b-a1
 
 ### 2. Prompts reforzados con el esquema DSL
 
-Los prompts del planner/explorer/recovery incluyen el **esquema DSL completo** (13 comandos) y un
+Los prompts del planner/explorer/recovery incluyen el **esquema DSL completo** (15 comandos) y un
 ejemplo, exigiendo el campo `"type"` en MAYÚSCULAS y prohibiendo comandos inventados
 (`loop`, `waitForSelector`, etc.). Ver `packages/ai-providers/src/prompts.ts`.
 
