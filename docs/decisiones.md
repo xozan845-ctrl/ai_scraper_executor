@@ -1,0 +1,367 @@
+# Decisiones de arquitectura (ADR) — AI Web Scraping Executor
+
+Registro de decisiones técnicas **deliberadas**: aquellas donde había más de una
+razonable y conviene recordar por qué se eligió esta. No es un catálogo de lo que
+el código hace (eso está en [`rules/`](./rules/README.md)), sino el registro de las
+decisiones que un futuro mantenedor podría cuestionar.
+
+**Formato:** `ADR-NN`, con fecha, estado, contexto, decisión, consecuencias.
+**Regla de oro:** una decisión que se cambia no se borra — se marca `Sustituido por
+ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3`).
+
+> Este archivo se reescribió el 2026-10-05. Las 15 ADRs anteriores describían otro
+> proyecto (e-commerce con microservicios: dinero en centavos, roles logísticos,
+> Angular, Dockploy) y **no** se conservan porque no describen ninguna decisión de
+> este repositorio. No hay ninguna decisión de este repo que se haya perdido: la
+> adaptación del árbol de reglas no cambió código, solo documentación.
+
+---
+
+## ADR-01: La IA decide QUÉ, el motor decide CÓMO (DSL de 15 comandos)
+
+- **Fecha**: 2026-09-28
+- **Estado**: Aceptado
+- **Contexto**: Un agente que scrappea con un LLM tiene dos riesgos: que el modelo
+  ejecute acciones arbitrarias sobre la máquina, y que la lógica de crawling se
+  disperse entre prompts.
+- **Decisión**: El LLM emite **exclusivamente** un plan en el DSL de 15 comandos
+  (`packages/commands/src/schemas.ts`), validado con Zod después de pasar por el
+  normalizador. El motor (`ExecutionEngine`) interpreta esos comandos. La IA nunca
+  ejecuta código: no hay eval, ni shell, ni acceso a ficheros.
+- **Consecuencias**: (a) el prompt es pequeño y sus tokens son caros → presupuestados
+  (`maxAiTokens`) y cacheados; (b) el cambio de modelo no cambia el formato de
+  salida, así que el fallback entre modelos es trivial; (c) el motor es testeable sin
+  LLM; (d) el coste de cada llamada al modelo es acotable antes de pagarla.
+
+---
+
+## ADR-02: Normalizar antes de validar, y validar igualmente estricto
+
+- **Fecha**: 2026-09-28
+- **Estado**: Aceptado
+- **Contexto**: Un modelo débil no emite exactamente el esquema: pone `type` en
+  minúsculas, inventa un comando, manda números como strings, añade campos de más.
+  Rechazar el plan entero obliga a un reintento (caro); aceptarlo tal cual deja que
+  un modelo haga lo que quiera con la validación.
+- **Decisión**: Dos fases. `normalize.ts` **corrige** lo recuperable y **descarta** lo
+  irrecuperable (un comando inventado se elimina, no se "arregla"); después, Zod
+  valida el resultado con la misma dureza que si no hubiera normalizado.
+- **Consecuencias**: la normalización es el único sitio donde se perdona al modelo,
+  y es un sitio auditable y testeado (`tests/normalize.test.mjs`, `R-RB-1`). La
+  validación no se ablanda: es la frontera de seguridad, no una sugerencia.
+
+---
+
+## ADR-03: `node --test` como runner, sin framework de test
+
+- **Fecha**: 2026-09-28
+- **Estado**: Aceptado
+- **Contexto**: La suite prueba 12 paquetes y 2 apps en JavaScript plano
+  (`node_modules` con la compilación ya resuelta). Un framework (Jest/Vitest)
+  exigiría `ts-jest` o una capa de transformación, configuración de cobertura por
+  workspace, y una matriz de compatibilidades con Playwright y Crawlee.
+- **Decisión**: el runner nativo de Node ≥20, con `tests/*.test.mjs` y sin
+  dependencias. Sin `*.spec.ts`, sin `coverageThreshold` por paquete, sin `setup`
+  global, sin watch mode.
+- **Consecuencias**: (a) la suite arranca sin configuración ni transformaciones; (b)
+  la cobertura se resolvió **después** con la herramienta nativa de Node
+  (`--experimental-test-coverage`), sin añadir `c8`/`nyc` (ADR-17); al principio fue
+  deuda declarada y hoy es `G-3` ✅; (c) el descubrimiento de ficheros se
+  lista explícitamente en el script `test` de `package.json`, no por patrón
+  automático: más verboso, pero exacto; (d) menos potencia (mocks, snapshots) a
+  cambio de cero complejidad de build.
+
+---
+
+## ADR-04: La suite es serial (`--test-concurrency=1`)
+
+- **Fecha**: 2026-10-01
+- **Estado**: Aceptado
+- **Contexto**: Crawlee usa **almacenamiento local en disco** para su estado. Al
+  ejecutar los ficheros en paralelo, dos procesos escriben sobre el mismo storage y
+  los fallos son intermitentes y no reproducibles.
+- **Decisión**: `--test-concurrency=1` fijo en el script `test`, y por tanto también
+  en CI.
+- **Consecuencias**: la suite tarda ~24 s. A cambio, es determinista. Paralelizar
+  exige primero aislar el almacenamiento de Crawlee; está normado en `R-FL-5` como
+  deuda, no como mejora pendiente.
+
+---
+
+## ADR-05: Tres almacenes, cada uno para lo que mejor hace
+
+- **Fecha**: 2026-09-28
+- **Estado**: Aceptado
+- **Contexto**: El sistema tiene tres clases de datos muy distintas: **datos
+  estructurados de negocio** (jobs, sesiones, mensajes, comandos, resultados),
+  **perfiles aprendidos de sitios** (HTML, hashes, perfiles de selectores, deriva) y
+  **estado compartido y desechable** (caché de páginas, rate limit, métricas).
+- **Decisión**:
+  - **PostgreSQL + Prisma** para lo estructurado y transaccional (10 modelos, 2
+    migraciones versionadas).
+  - **MongoDB** para los perfiles de sitio y la radiografía: documentos que cambian
+    de forma con el learning, sin esquema fijo.
+  - **Redis** para caché, rate limit y agregación de métricas, con **fallback en
+    memoria** y aviso por log.
+- **Consecuencias**: (a) cada tipo de dato va a donde encaja, sin forzar un modelo
+  relacional sobre HTML ni un documento gigante sobre un esquema; (b) tres fuentes
+  de fallo más, mitigadas por fallbacks **avisados** — nunca fallos silenciosos
+  (`R-MO-5`, `R-RD-5`); (c) tres piezas que desplegar (`docker-compose.yml`), con
+  healthcheck y volúmenes nombrados.
+
+---
+
+## ADR-06: Fallback en memoria, siempre avisado
+
+- **Fecha**: 2026-09-28
+- **Estado**: Aceptado
+- **Contexto**: En desarrollo y en CI no siempre hay Mongo o Redis levantados. La
+  alternativa —fallar al arrancar— convertiría "no tengo Mongo" en "no puedo
+  ejecutar ni un test".
+- **Decisión**: MongoDB y Redis tienen implementación en memoria que se usa
+  automáticamente si la conexión real no está. **Cada fallback escribe un log
+  explícito** diciendo qué degradación ocurrió y por qué.
+- **Consecuencias**: (a) la suite corre sin Docker (`MONGODB_MOCK=1` ni siquiera es
+  imprescindible); (b) degradar nunca es silencioso — un despliegue que degradó a
+  memoria se ve en el log, que es el punto; (c) el coste es que un fallo de
+  infraestructura puede parecer un bug de lógica si solo se mira el resultado, no
+  el log.
+
+---
+
+## ADR-07: SSRF centralizado en un único paquete
+
+- **Fecha**: 2026-10-04
+- **Estado**: Aceptado
+- **Contexto**: El sistema pide URLs que **no controla el usuario**: vienen en la
+  petición y las va a(fetch. Un hostname que resuelva a `169.254.169.254` o a un
+  `localhost` del contenedor convierte la API en un proxy interno.
+- **Decisión**: todo el filtrado vive en `packages/security` (`assertPublicUrl`,
+  `isBlockedHost`, `isBlockedIp`, `isPrivateHostsAllowed`) y **ninguna otra capa
+  reimplementa esa lógica**. La validación ocurre en el borde (comando y DTO) y
+  **de nuevo** en el motor, porque entre la validación y la petición hay un LLM de por
+  medio que puede proponer otra URL. Los redirects y los subrecursos del navegador se
+  filtran igual que la navegación inicial.
+- **Consecuencias**: (a) un hueco de SSRF es imposible de tener por descuido, porque
+  no hay una segunda implementación que mantener al día; (b) el paquete no depende de
+  nada y su suite es pura y rápida (`tests/security.test.mjs`,
+  `tests/browser-ssrf.test.mjs`); (c) `ALLOW_PRIVATE_HOSTS` existe para el desarrollo
+  local y es una decisión consciente de cada entorno.
+
+---
+
+## ADR-08: `0` no desactiva un presupuesto
+
+- **Fecha**: 2026-10-02
+- **Estado**: Aceptado
+- **Contexto**: `maxAiTokens: 0` se lee intuitivamente como "sin límite". Con un
+  LLM de pago, esa lectura es un incidente de coste.
+- **Decisión**: `normalizeJobLimits` trata cualquier valor no finito o `<= 0` como
+  **ausente** y toma `DEFAULT_LIMITS`; un valor válido se recorta a
+  `[1, HARD_LIMITS[key]]`. `DEFAULT_LIMITS` y `HARD_LIMITS` viven en
+  `packages/core`, y el recorte también se aplica a los límites de un comando
+  (`clampCommandLimits`), de modo que el límite efectivo de un comando nunca supera
+  el del job.
+- **Consecuencias**: (a) los topes son del servidor, no del cliente: un DTO manipulado
+  no agota recursos; (b) la semántica está documentada en el contrato de la API
+  (`R-C-8`), porque un cliente que cree que `0` = infinito provocará el incidente;
+  (c) los extremos de la función son caso de prueba (`tests/limits.test.mjs`).
+
+---
+
+## ADR-09: Credenciales de sesión cifradas en reposo, nunca devueltas
+
+- **Fecha**: 2026-10-03
+- **Estado**: Aceptado
+- **Contexto**: Una sesión puede llevar cabeceras de autenticación del sitio objetivo
+  (`Authorization`, `Cookie`). Son el dato más sensible que maneja el sistema y viven
+  en la base de datos.
+- **Decisión**: se cifran con **AES-256-GCM** usando `CREDENTIALS_KEY` antes de
+  persistirse, y se descifran **solo en el worker**, en el momento de aplicarlas a la
+  petición HTTP y al contexto del navegador. Ningún endpoint las devuelve (ni en claro
+  ni cifradas), nunca aparecen en un log ni en una métrica, y sin `CREDENTIALS_KEY` la
+  sesión con credenciales **se rechaza** en vez de almacenarse en texto plano.
+- **Consecuencias**: (a) el secreto de un tercero no está en la base de datos de
+  forma legible; (b) perder la clave implica perder las credenciales: es el compromiso
+  explícito de no tener recuperación; (c) `CREDENTIALS_KEY` debe ser distinta por
+  entorno (R-SE-12).
+
+---
+
+## ADR-10: Autenticación fail-closed
+
+- **Fecha**: 2026-10-03
+- **Estado**: Aceptado
+- **Contexto**: `API_KEYS` es una lista separada por comas. El patrón habitual —
+  "si no hay lista configurada, no compruebes"— convierte un olvido de despliegue en
+  una API abierta.
+- **Decisión**: en `NODE_ENV=production` **sin `API_KEYS`**, todas las rutas
+  protegidas devuelven `401`. La ausencia de configuración en producción es un
+  cierre, no una excepción. El arranque escribe un `error` explícito para que el
+  operador no lo descubra en el primer `curl`. Además hay un segundo origen de claves
+  (usuarios registrados, hasheadas con SHA-256), útil para el primer usuario, y la
+  comparación es en tiempo constante (`timingSafeEqual`).
+- **Consecuencias**: (a) un despliegue mal configurado se ve ruidosamente desde el
+  primer minuto; (b) el `401` nunca dice *cuál* clave falló; (c) si la base de datos no
+  responde al verificar una clave de usuario, el resultado es **no autorizado**, no
+  una autorización por fallo.
+
+---
+
+## ADR-11: Híbrido HTTP/Cheerio primero, navegador solo si hace falta
+
+- **Fecha**: 2026-09-28
+- **Estado**: Aceptado
+- **Contexto**: Playwright es necesario para JS y para `interact()`, y es carísimo:
+  ~300 MB de navegador, ~1 s por arranque de contexto. La mayoría de las páginas se
+  leen con una petición HTTP.
+- **Decisión**: `ExecutionEngine` intenta primero `safeFetchText` + Cheerio. El
+  navegador se lanza **solo** cuando el plan lo pide (`browserInteract`/`interact`) o
+  cuando el HTML no contiene lo que el selector busca. El pool de navegadores se
+  reutiliza entre jobs, con un semáforo de concurrencia.
+- **Consecuencias**: (a) el coste por job cae drásticamente en el caso común; (b) el
+  crawler necesita un **almacenamiento en disco**, que es la razón de la decisión
+  ADR-04; (c) hay dos caminos de ejecución, y por eso el motor tiene tests
+  separados para HTTP y para navegador.
+
+---
+
+## ADR-12: Dos imágenes, dos bases, por culpa de Chromium
+
+- **Fecha**: 2026-10-01
+- **Estado**: Aceptado
+- **Contexto**: El worker necesita Chromium con sus dependencias de sistema
+  (`playwright install --with-deps`); la API no.
+- **Decisión**: `apps/api/Dockerfile` sobre `node:22-alpine` (pequeña) y
+  `apps/worker/Dockerfile` sobre `node:22-bookworm-slim` con Chromium instalado.
+  Ninguno declara `ARG`/`ENV` con credenciales: los secretos llegan en ejecución
+  (`R-CD-7`).
+- **Consecuencias**: la imagen de la API es mucho menor; la del worker es grande pero
+  es la que lo necesita. La versión de Node en CI (`22`) coincide con la de las dos
+  imágenes, así que un fallo no se debe a una diferencia de runtime.
+
+---
+
+## ADR-13: `npm ci --ignore-scripts --legacy-peer-deps`
+
+- **Fecha**: 2026-10-01
+- **Estado**: Aceptado
+- **Contexto**: El árbol de workspaces tiene conflictos de peer dependencies que
+  npm rechaza sin `--legacy-peer-deps`, y los `postinstall` de Playwright/Crawlee
+  intentan descargar navegadores durante la instalación.
+- **Decisión**: la instalación es **siempre** `npm ci --ignore-scripts
+  --legacy-peer-deps`, en CI y en los Dockerfiles. Chromium se instala
+  **explícitamente** donde hace falta (`Dockerfile` del worker, host del
+  desarrollador para el E2E), nunca como efecto colateral de un `npm install`.
+- **Consecuencias**: (a) la instalación es determinista y rápida, y no descarga
+  navegadores que la suite unitaria no usa (`R-EN-5`); (b) la bandera
+  `--legacy-peer-deps` es deuda técnica explícita: cuando los conflictos desaparezcan,
+  se quita en un commit que lo explique.
+
+---
+
+## ADR-14: La suite unitaria no toca la red, ni la BD, ni el LLM
+
+- **Fecha**: 2026-09-28
+- **Estado**: Aceptado
+- **Contexto**: Una suite que depende de la red es una suite que falla por causas que
+  no son del código, y eso entrena al equipo a ignorar fallos.
+- **Decisión**: `npm test` no abre conexión a Postgres, Mongo ni Redis, no llama a
+  `fetch` real, no invoca a un LLM ni navega a un sitio. Todo se dobla
+  (`MONGODB_MOCK=1`, proveedores falsos, `http.createServer` local para 4xx/5xx). Las
+  capas con red real viven en otros comandos: `npm run test:e2e` (E2E con LLM y
+  sitio reales) y `npm run test:api` (cliente real de la API).
+- **Consecuencias**: (a) la suite es determinista y tarda ~24 s; (b) **el CI no puede
+  comprobar nada que requiera infraestructura**, y por eso `G-4`, `G-5` y `G-6` son
+  pendientes y no "verdes por Defaults"; (c) un cambio de prompt **no** se puede
+  validar en la suite unitaria: por eso el E2E es gate de release y no de cada PR.
+
+---
+
+## ADR-15: Una rama, y la promoción declarada como deuda
+
+- **Fecha**: 2026-10-05
+- **Estado**: Aceptado (con deuda explícita)
+- **Contexto**: El modelo heredado (`develop` → `staging` → `main` con promoción y
+  smoke por entorno) describe un proceso de CD de tres etapas. Este repositorio tiene
+  **una rama**, 58 commits y **0 merge commits**.
+- **Decisión**: se norma el modelo real —`main` es la rama de integración, nada se
+  escribe a mano en ella, el historial es lineal— y la promoción entre entornos se
+  registra como **deuda declarada** (`R-GE-5`), no como norma vigente. No se inventa un
+  ritual de `staging` que no existe.
+- **Consecuencias**: (a) las reglas de git son ejecutables hoy; (b) quien quiera
+  promover entre entornos escribe primero el job y la regla, no al revés
+  (`R-CI-4`); (c) la protección de rama —que hoy no está configurada en el remoto— es
+  la parte de esta decisión que falta cerrar.
+
+---
+
+## ADR-16: Parchear transitivas con `overrides`, no forzar majors
+
+- **Fecha**: 2026-10-05
+- **Estado**: Aceptado
+- **Contexto**: `npm audit --audit-level=high` salía con código 1 (8 `high`):
+  `@nestjs/platform-express` → `multer`, `@nestjs/swagger` → `js-yaml`/`lodash`,
+  `prisma` → `deepmerge-ts`, y `http-cache-semantics`. `npm audit fix --force`
+  proponía subir `@nestjs/platform-express` a 12.x y `@nestjs/swagger` a 12.x:
+  cambios de versión **mayor** que arrastran `@nestjs/core`/`@nestjs/common` y, con
+  ellos, la API entera.
+- **Decisión**: no forzar majors. Se fija la versión parcheada de cada transitiva
+  desde el `package.json` raíz con `overrides` (`multer ^2.3.0`,
+  `http-cache-semantics ^4.2.1`, `deepmerge-ts ^8.0.0`, `js-yaml ^4.3.2`,
+  `lodash ^4.18.1`, `body-parser ^1.20.8`, `qs ^6.16.0`, `file-type ^21.3.4`),
+  todas dentro de su mismo rango mayor salvo `deepmerge-ts` (7 → 8, cuya API de
+  merge es compatible y se verificó con `prisma generate`/`validate`) y `file-type`
+  (20 → 21). Y se añade el paso **`Security audit`** (`npm audit --audit-level=high`)
+  al job `build-test-lint`, que ahora **bloquea**.
+- **Consecuencias**: (a) la puerta pasó a **exit 0** sin tocar la versión de Nest ni
+  el código de la aplicación; (b) `overrides` es una deuda viva: hay que revisarla
+  cuando las dependencias que las arrastran se actualicen, y quitarla en cuanto la
+  transitiva sana llegue por su cuenta; (c) queda **1 moderate** (`@nestjs/core`
+  `<=11.1.17`) que **sí** exige subir Nest de major; se declara, no se silencia
+  (no se sube el `--audit-level`, no se añade `continue-on-error`). Ver
+  [`rules/test/07-qa-gates.md`](./rules/test/07-qa-gates.md) (`R-QA-6`) y
+  [`rules/_meta/AUDIT.md`](./rules/_meta/AUDIT.md).
+
+---
+
+## ADR-17: Cobertura con la herramienta nativa de Node, umbral del baseline
+
+- **Fecha**: 2026-10-05
+- **Estado**: Aceptado
+- **Contexto**: `G-3` estaba `⏸` porque no había herramienta de cobertura y no se
+  quería inventar un umbral. Las opciones eran añadir `c8`/`nyc` (dependencia nueva)
+  o usar la cobertura nativa de Node ≥22 (`--experimental-test-coverage` +
+  `--test-coverage-lines/branches/functions`), que **ya falla el run** si no se
+  alcanza el umbral.
+- **Decisión**: usar la herramienta nativa, sin dependencias nuevas. El alcance es
+  el **build** (`packages/*/dist`, `apps/*/dist`), porque los tests importan `dist`
+  (ADR-03) y es un transpile 1:1 de `src`; se excluyen módulos de DI, `main` y DTOs.
+  Baseline medido: **71.59 / 73.69 / 68.90**; umbral = base redondeada a la baja con
+  1 punto de margen → **70 / 72 / 67**, fijado en el propio script `test`.
+- **Consecuencias**: (a) `G-3` pasa a ✅ y `npm test` (y por tanto el job
+  `build-test-lint`) bloquea si la cobertura baja; (b) cero dependencias nuevas y
+  cero configuración extra; (c) límite honesto: Node solo cuenta ficheros que la
+  suite **carga**, así que un fichero nunca importado no arrastra el porcentaje —
+  eso lo cubre `R-COV-2`/`R-U-17`, no el gate; (d) el umbral sube +5 por release
+  (`R-COV-5`), nunca baja.
+
+---
+
+## Deudas que estos ADR dejan abiertas
+
+| Deuda | ADR relacionado | Dónde está registrada |
+|---|---|---|
+| `@nestjs/core` moderate residual (exige salto mayor de Nest) | ADR-16 | `rules/test/07-qa-gates.md` (`R-QA-6`), `rules/_meta/AUDIT.md` |
+| `overrides` de transitivas (revisar al actualizar dependencias) | ADR-16 | `rules/ci/02-entorno.md`, `rules/_meta/AUDIT.md` |
+| Cobertura solo de ficheros cargados por la suite | ADR-17 | `rules/test/06-estandares-cobertura.md` (`R-COV-4`) |
+| Capas sin suite (integración, contrato, E2E) | ADR-14 | `rules/test/06-estandares-cobertura.md` (`G-4`, `G-5`, `G-6`) |
+| Almacenamiento de Crawlee impide paralelizar | ADR-04, ADR-11 | `rules/test/05-reglas-robustez.md` (`R-FL-5`) |
+| `--legacy-peer-deps` | ADR-13 | `rules/ci/02-entorno.md` (`R-EN-1`) |
+| Sin grupo de concurrencia en CI | — | `rules/ci/01-flujos.md` (`R-CI-2`) |
+| Sin protección de rama en el remoto | ADR-15 | `rules/git/00-entornos.md` (`R-GE-4`) |
+| Sin release por tag ni imágenes por digest | — | `rules/cd/01-despliegue.md` (`R-CD-1..8`) |
+| `scripts/` fuera del alcance del lint | — | `rules/_meta/AUDIT.md` |
+
+> El estado vigente de cada deuda, con el comando que la mide, está en
+> [`rules/_meta/AUDIT.md`](./rules/_meta/AUDIT.md).

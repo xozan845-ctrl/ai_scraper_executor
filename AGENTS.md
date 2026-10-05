@@ -14,7 +14,7 @@ npm run build                  # compila TODO en orden de dependencias (packages
 npm run build:core             # solo packages base (sin apps)
 npm run lint                   # eslint apps packages (debe quedar en 0 errors)
 npm run typecheck              # alias de build
-npm test                       # 142 tests unitarios (mocks, sin BD reales)
+npm test                       # 143 tests unitarios (mocks, sin BD reales)
 MONGODB_MOCK=1 npm test        # fuerza mock MongoDB (recomendado en local sin Docker)
 
 # E2E real (requiere Docker up + .env con OPENROUTER_API_KEY + Playwright Chromium en host)
