@@ -40,7 +40,7 @@ npm run dev:worker  # Worker consumiendo cola
 
 ```bash
 # Tests unitarios/integración (mocks, sin BD reales)
-npm test                    # 142 tests: dsl + normalize + engine + crawler + ai-providers + agent + persistence + dashboard + security + browser + api-hardening + observability + scale + llm-cache + interpret + resilience + sessions + credentials + cache-isolation + limits + first-user + logging + util-unify + metrics-labels + retry-cleanup + browser-ssrf
+npm test                    # 143 tests: dsl + normalize + engine + crawler + ai-providers + agent + persistence + dashboard + security + browser + api-hardening + observability + scale + llm-cache + interpret + resilience + sessions + credentials + cache-isolation + limits + first-user + logging + util-unify + metrics-labels + retry-cleanup + browser-ssrf
 MONGODB_MOCK=1 npm test     # Forzar mock MongoDB
 
 # Test E2E real contra https://www.sevasaonline.com/
