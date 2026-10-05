@@ -1,0 +1,74 @@
+name: e2e
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: scraper
+          POSTGRES_PASSWORD: scraper
+          POSTGRES_DB: scraper
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U scraper"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      mongodb:
+        image: mongo:7-jammy
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install
+        run: npm ci --ignore-scripts
+      - name: Prisma generate
+        run: npm run prisma:generate
+      - name: Apply migrations
+        run: npx prisma migrate deploy --schema=prisma/schema.prisma
+        env:
+          DATABASE_URL: postgresql://scraper:scraper@localhost:5432/scraper?schema=public
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Build
+        run: npm run build
+      - name: E2E
+        run: npm run test:e2e
+        env:
+          DATABASE_URL: postgresql://scraper:scraper@localhost:5432/scraper?schema=public
+          MONGODB_URI: mongodb://localhost:27017/scraper
+          REDIS_URL: redis://localhost:6379
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_MODEL: ${{ vars.OPENROUTER_MODEL || 'openrouter/free' }}
+          TEST_URL: https://negocio360oficial.com/dashboard.html

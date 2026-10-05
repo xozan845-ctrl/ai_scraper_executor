@@ -413,25 +413,39 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
   testing** de forma explícita: no se añade Stryker porque exigiría mutar `dist` o
   un runner que el repo evita; la reevaluación se dispara cuando exista una suite con
   runner soportado (`G-4`/`G-5`) o si el repo crece.
-- **Consecuencias**: (a) los property tests **encontraron dos defectos reales** que
+- **Consecuencias**: (a) los property tests **encontraron tres defectos reales** que
   los casos fijos no veían: `normalizeJobLimits(5e-324) → 0` (fuera de `[1, HARD]` y
-  no idempotente) y la resolución de alias contra el prototipo (`__proto__`,
-  `constructor`, `_ proto _` → `__proto__`) que colaba comandos inexistentes; ambos
-  corregidos (`R-REG-1`); (b) el ADR-03 (sin transform runner) sigue en pie; (c) la
+  no idempotente), la resolución de alias contra el prototipo (`__proto__`,
+  `constructor`, `_ proto _` → `__proto__`) que colaba comandos inexistentes, y
+  `normalizeDomain` no idempotente (dejaba un espacio); los tres corregidos
+  (`R-REG-1`); (b) el ADR-03 (sin transform runner) sigue en pie; (c) la
   mutación queda documentada, con su disparador, en `R-MT-1`.
 
 ---
 
-## Deudas que estos ADR dejan abiertas
+## ADR-21: Capas de test completas — contrato e integración en CI, E2E de release
 
-| Deuda | ADR relacionado | Dónde está registrada |
-|---|---|---|
-| `overrides` de transitivas (revisar al actualizar dependencias) | ADR-16, ADR-18 | `rules/ci/02-entorno.md`, `rules/_meta/AUDIT.md` |
-| Cobertura solo de ficheros cargados por la suite | ADR-17 | `rules/test/06-estandares-cobertura.md` (`R-COV-4`) |
-| Capas sin suite (integración, contrato, E2E) | ADR-14 | `rules/test/06-estandares-cobertura.md` (`G-4`, `G-5`, `G-6`) |
-| Almacenamiento de Crawlee impide paralelizar | ADR-04, ADR-11 | `rules/test/05-reglas-robustez.md` (`R-FL-5`) |
-| Mutation testing diferido (runner incompatible) | ADR-20 | `rules/test/05-reglas-robustez.md` (`R-MT-1`) |
-| Sin release por tag ni imágenes por digest | — | `rules/cd/01-despliegue.md` (`R-CD-1..8`) |
+- **Fecha**: 2026-10-05
+- **Estado**: Aceptado
+- **Contexto**: `G-4` (integración), `G-5` (contrato) y `G-6` (E2E) eran las capas
+  que faltaban. El E2E ya existía (`tests/e2e-sevasa.test.mjs`) pero solo se corría a
+  mano.
+- **Decisión**:
+  - **`G-5` contrato**: `tests/contract.test.mjs` arranca la API compilada (memoria,
+    sin infra) y valida las formas de `/api/v1/**`; es el paso `Contract` de
+    `build-test-lint`.
+  - **`G-4` integración**: `tests/integration.test.mjs` con Postgres/Mongo/Redis
+    reales (job `integration` del `ci.yml`, con servicios efímeros); cubre el ciclo
+    de vida del job, la idempotencia, la persistencia real y una escritura/lectura
+    en Mongo. Se **salta** si no hay infra, para que `npm test` no dependa de Docker.
+  - **`G-6` E2E**: workflow [`e2e.yml`](../.github/workflows/e2e.yml) en
+    `release`/`workflow_dispatch`, con servicios reales, Chromium y el secret
+    `OPENROUTER_API_KEY`; es el segundo workflow aceptado por `R-CI-4`.
+- **Consecuencias**: (a) `G-4`/`G-5`/`G-6` pasan a ✅ (configurados y verificados
+  localmente; su evidencia de run verde de CI llega con el primer push, `R-COV-3`);
+  (b) `npm test` sigue siendo rápido y sin infra (`R-QA-2`) porque contrato e
+  integración son comandos aparte; (c) el E2E cubre lo que ninguna otra capa puede:
+  que el modelo siga emitiendo el DSL contra un sitio real (ADR-14).
 
 > El estado vigente de cada deuda, con el comando que la mide, está en
 > [`rules/_meta/AUDIT.md`](./rules/_meta/AUDIT.md).

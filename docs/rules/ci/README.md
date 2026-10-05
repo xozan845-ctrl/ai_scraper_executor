@@ -5,30 +5,29 @@ dependencias y con qué evidencia. **Los gates de calidad (`G-1`…`G-9`) no viv
 aquí**: son reglas de testing y siguen en
 [`../test/06-estandares-cobertura.md`](../test/06-estandares-cobertura.md).
 
-> ## La realidad: un workflow, un job
->
-> `.github/workflows/ci.yml` tiene **un solo job**, `build-test-lint`:
+> ## La realidad: `ci.yml` (2 jobs) + `e2e.yml` (release)
 >
 > ```yaml
-> on: { push: { branches: [main] }, pull_request: }
+> # ci.yml — push a main y pull_request
 > concurrency: { group: ci-${{ github.ref }}, cancel-in-progress: true }
 > jobs.build-test-lint:
->   ubuntu-latest · node 22 · cache npm
->   services: postgres:16-alpine (solo para validar schema y deriva)
->   npm ci --ignore-scripts
->   npm audit --audit-level=high
->   npm run prisma:generate
->   npx prisma validate
->   npx prisma migrate deploy → npx prisma migrate diff --exit-code
->   npm run build → npm run openapi:check → npm run lint → npm test
->   env: MONGODB_MOCK: '1'
+>   services: postgres:16-alpine (schema/deriva + contrato + unit)
+>   npm ci --ignore-scripts → npm audit --audit-level=high → prisma generate
+>   prisma validate → migrate deploy → migrate diff --exit-code
+>   build → openapi:check → lint → test → contract
 >   artifact: test-results.xml (if: always())
+> jobs.integration:
+>   services: postgres + mongodb + redis
+>   migrate deploy → build → test:integration
+>
+> # e2e.yml — release / workflow_dispatch (no en PR)
+>   services: postgres + mongodb + redis · Chromium · OPENROUTER_API_KEY
+>   migrate deploy → build → test:e2e
 > ```
 >
-> No hay `security-gate`, ni jobs de lint/test/build separados, ni artifacts, ni caché
-> de `~/.cache` aparte de la de npm. Las reglas de este archivo **norman** ese
-> workflow; donde describen algo que no existe, lo marcan como deuda en vez de
-> fingir que corre.
+> No hay `security-gate` como job separado (el audit es un paso del job), ni jobs de
+> lint/test/build separados. Las reglas de este archivo **norman** ese workflow; donde
+> describen algo que no existe, lo marcan como deuda en vez de fingir que corre.
 
 ## Archivos
 
@@ -56,9 +55,9 @@ aquí**: son reglas de testing y siguen en
 | `G-7` | Build y lint sin errores | ✅ pasos `Build` y `Lint` |
 | `G-9` | Migraciones sin deriva | ✅ `prisma validate` + `prisma migrate deploy` + `prisma migrate diff --exit-code` sobre un Postgres efímero |
 | `G-3` | Cobertura ≥ umbral | ✅ el propio `npm test` (nativo de Node; 70/72/67) |
-| `G-4` | Integración con BD real | ⏸ sin servicios ni suite |
-| `G-5` | Contrato de API | ⏸ sin suite |
-| `G-6` | E2E antes de release | ⏸ sin job |
+| `G-4` | Integración con BD real | ✅ job `integration` (Postgres/Mongo/Redis efímeros) |
+| `G-5` | Contrato de API | ✅ paso `Contract` (`npm run test:contract`) |
+| `G-6` | E2E antes de release | ✅ workflow `e2e.yml` (`release`/`workflow_dispatch`) |
 | `G-8` | Swagger sincronizado | ✅ `npm run openapi:check` sobre `docs/openapi.json` (paso `OpenAPI spec in sync`) |
 | `R-QA-6` | `npm audit --audit-level=high` bloqueante | ✅ paso `Security audit` (0 vulnerabilidades, high y moderate) |
 | `R-FL-1` | Tests intermitentes en cuarentena con fecha | ⏸ no hay herramienta que los detecte |

@@ -76,24 +76,24 @@ Marcar las capas ✅ que apliquen y **justificar las que no**.
 - [ ] **R-C-4/5** — La respuesta sale de un DTO (nunca de la fila cruda) y su forma es estable (lista vacía = `[]`).
 - [ ] **R-C-7/8** — Fechas ISO 8601 UTC con `Z`; la semántica de `maxRuntimeSec` y `maxAiTokens: 0` está documentada.
 - [ ] **R-C-11** — Campo nuevo ⇒ DTO + Swagger + test de forma + quien lo consume, en el mismo cambio.
+- [ ] **R-C-12** — Si cambias un DTO o una ruta: `npm run openapi:export` y commit de `docs/openapi.json` (el paso `OpenAPI spec in sync` falla si no está en sync).
 - [ ] **R-DS-4** — El payload tiene DTO con `class-validator` (el `ValidationPipe` global recorta campos extra).
 
-## 8. Capas sin suite hoy — se declaran, no se inventan
+## 8. Integración y E2E ([`02-reglas-integracion.md`](../test/02-reglas-integracion.md), [`03-reglas-e2e.md`](../test/03-reglas-e2e.md))
 
-> Integración (`G-4`), contrato (`G-5`) y E2E (`G-6`) **no son checks**. Si el PR toca esas capas, el cuerpo dice qué se ejecutó a mano.
+> `G-4` (contrato de integración con almacenes reales) y `G-6` (E2E) ya son gates: el PR que toca esas capas debe dejar los comandos en verde.
 
-- [ ] **R-I-1..13** — Si toca integración: BD real, datos limpios, filtros exactos, `401/400/404/409` comprobados.
-- [ ] **R-C-12** — Si toca un endpoint crítico: su aserción de forma está en el fichero de test que le corresponde.
-- [ ] **R-E-1..13** — Si toca el scraping de verdad: `npm run test:e2e` o `npm run test:api:fast` ejecutado y adjunto, con `TEST_URL` como objetivo.
+- [ ] **R-I-1..13** — Si toca integración: BD real, datos limpios, filtros exactos, `401/400/404/409` comprobados (`npm run test:integration`).
+- [ ] **R-E-1..13** — Si toca el scraping de verdad: `npm run test:e2e` (release) o `npm run test:api:fast`, ejecutado y adjunto, con `TEST_URL` como objetivo.
 
 ## 9. Antes de mergear (CI)
 
 - [ ] **G-1** suite unitaria (`npm test` con `MONGODB_MOCK=1`) ✅
 - [ ] **G-2** unit frontend — **N/A** (sin frontend; ID reservado, nunca reutilizar)
 - [ ] **G-3** cobertura ≥ 70 / 72 / 67 (líneas/ramas/funciones) — el propio `npm test` falla si baja
-- [ ] **G-4** integración — ⏸ sin suite
-- [ ] **G-5** contrato — ⏸ sin suite
-- [ ] **G-6** E2E — ⏸ sin job; manual antes de release
+- [ ] **G-4** integración — ✅ paso `integration` (`npm run test:integration`, servicios reales)
+- [ ] **G-5** contrato — ✅ paso `Contract` (`npm run test:contract`)
+- [ ] **G-6** E2E — ✅ workflow `e2e.yml` (release)
 - [ ] **G-7** lint + build ✅
 - [ ] **G-8** Swagger export — ✅ `npm run openapi:check` (si cambias DTO/ruta, `npm run openapi:export` y commit de `docs/openapi.json`)
 - [ ] **G-9** deriva de migraciones — ✅ (`prisma validate` + `migrate deploy` + `migrate diff --exit-code`); si el PR toca `schema.prisma`, `prisma/migrations/` trae la migración

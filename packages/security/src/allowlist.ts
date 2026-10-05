@@ -15,7 +15,8 @@ export function normalizeDomain(input: string, opts?: { stripWww?: boolean }): s
     .toLowerCase()
     .replace(/^https?:\/\//, '')
     .split('/')[0]!
-    .split(':')[0]!;
+    .split(':')[0]!
+    .trim();
   if (!d) throw new Error(`Dominio vacío: ${input}`);
   return opts?.stripWww ? d.replace(/^www\./, '') : d;
 }

@@ -1148,3 +1148,33 @@ evidencia directa de por qué `G-4`/`G-6` siguen abiertos.
 El baseline se mantiene por encima del umbral: 71.83 / 74.43 / 68.78 (ramas suben al
 ejercitar más caminos). Sin subir los umbrales todavía (el ratchet es +5/release,
 `R-COV-5`).
+
+---
+
+# AUDIT — Front B: contrato (G-5), integración (G-4) y E2E de release (G-6)
+
+- **Fecha:** 2026-10-05
+
+## Qué cambió
+
+- **`G-5` contrato**: `tests/contract.test.mjs` arranca la API compilada (memoria,
+  sin infra) y valida formas de `/api/v1/**` (8 tests). Es el paso `Contract` de
+  `build-test-lint`.
+- **`G-4` integración**: `tests/integration.test.mjs` con Postgres/Mongo/Redis reales
+  (4 tests: lifecycle del job, idempotencia, persistencia y Mongo). Job `integration`
+  con servicios efímeros. Se salta sin infra para no romper `npm test`.
+- **`G-6` E2E**: workflow `e2e.yml` en `release`/`workflow_dispatch` con servicios,
+  Chromium y `OPENROUTER_API_KEY`. `test:e2e` usa `--env-file-if-exists`.
+- **Helper** `scripts/api-server.mjs` para arrancar la API en tests.
+
+## Tercer defecto de las propiedades
+
+Al re-ejecutar la suite apareció un tercer defecto real en el alcance de `R-PB`:
+`normalizeDomain` no era idempotente (`'; /'` → `'; '` → `';'`, por un espacio
+colgando). Fix: `.trim()` en la forma canónica. Corregido con `R-REG-1`.
+
+## Gates
+
+`G-4`, `G-5` y `G-6` pasan a ✅. Total: **8 ✅ · 1 N/A · 0 ⏸**. Los tres están
+verificados en local; la evidencia de run verde de CI llega con el primer push
+(`R-COV-3`).

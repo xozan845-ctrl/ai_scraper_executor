@@ -12,11 +12,11 @@ fecha filtrada como UTC en vez del día configurado).
 > | | Reality |
 > |---|---|
 > | Runner | `node --test --test-concurrency=1` (el nativo de Node ≥20, sin dependencias) |
-> | Ficheros | `tests/*.test.mjs` — **27 en disco, 26 en `npm test`** (el E2E va en otro comando, `R-FL-4`), JavaScript con import assertions, **no** `*.spec.ts` de Jest |
-> | Ejecución | `npm test` (unit/integración con dobles) · `npm run test:e2e` (E2E real) · `npm run test:api` (cliente real de la API) |
+> | Ficheros | `tests/*.test.mjs` — **30 en disco, 27 en `npm test`** (contrato, integración y E2E van en otros comandos, `R-FL-4`), JavaScript, **no** `*.spec.ts` de Jest |
+> | Ejecución | `npm test` (unit + propiedades, con dobles) · `npm run test:contract` · `npm run test:integration` (Docker) · `npm run test:e2e` (release) · `npm run test:api` (cliente real) |
 > | Cobertura | **Nativa de Node** (`--experimental-test-coverage`), umbrales en el script `test`: **70 / 72 / 67** (líneas/ramas/funciones). Sin `c8`/`nyc` |
 > | Concurrencia | Fija a **1**: Crawlee usa almacenamiento local y en paralelo los tests se contaminan (`R-FL-5`) |
-> | Estado hoy | **143 tests / 36 suites**, todos en verde con `MONGODB_MOCK=1` |
+> | Estado hoy | **149 tests / 37 suites** en `npm test` + **8 de contrato** + **4 de integración**, todos en verde |
 >
 > Los identificadores heredados que hablaban de Jest (`jest.coverageThreshold`,
 > `*.spec.ts`, `setup de Jest`) se conservan **sin renumerar** y su texto apunta al
@@ -112,6 +112,12 @@ npm test
 # Un solo fichero (sin cobertura)
 node --test tests/dsl.test.mjs
 
+# Contrato de la API (G-5): arranca la API y valida formas
+npm run test:contract
+
+# Integración con almacenes reales (G-4): requiere Docker
+npm run test:integration
+
 # Lint y build (job `build-test-lint`, gate G-7)
 npm run lint
 npm run build
@@ -128,12 +134,15 @@ npm run test:api:fast
 
 ## Pendientes (deuda abierta)
 
-- **G-4/G-5/G-6 sin paso en CI**: no hay suite de integración con almacén real, ni de
-  contrato, ni job E2E (el E2E real existe pero se ejecuta a mano).
 - **Mutation testing diferido a propósito** (`R-MT-1`, ADR-20): Stryker 10 no tiene
   runner para `node --test` y los tests cargan `dist`; se reevalúa cuando exista una
   suite con runner soportado. Los property tests (`tests/property.test.mjs`,
-  `fast-check`) cubren el riesgo mientras tanto y ya encontraron dos defectos reales.
+  `fast-check`) cubren el riesgo mientras tanto y ya encontraron tres defectos reales.
+- **Cliente real de la API (`npm run test:api`) no es un gate**: es un smoke de flujos
+  completos que se ejecuta a mano contra una API levantada.
+- **Evidencia de CI pendiente**: los gates nuevos (`G-4`/`G-5`/`G-6`) están
+  configurados y verificados localmente; `R-COV-3` exige además un run verde de CI,
+  que llegará con el primer push de la rama.
 
 ## Cerrado en la 1ª auditoría de este repo (2026-10-05)
 
@@ -155,6 +164,12 @@ Y **`G-3` (cobertura) quedó activo** con la herramienta nativa de Node
 dentro del propio `npm test` (`R-COV-4/5`, ADR-17).
 
 Y el **property-based testing (`R-PB`) es real**: `tests/property.test.mjs` con
-`fast-check` dentro de `npm test`, que ya encontró y dejó corregidos dos defectos
-(`normalizeJobLimits(5e-324) → 0` y la resolución de alias contra el prototipo).
-La mutación (`R-MT`) queda diferida a propósito con su disparador (ADR-20).
+`fast-check` dentro de `npm test`, que ya encontró y dejó corregidos tres defectos
+(`normalizeJobLimits(5e-324) → 0`, la resolución de alias contra el prototipo y
+`normalizeDomain` no idempotente). La mutación (`R-MT`) queda diferida a propósito
+con su disparador (ADR-20).
+
+Y las **capas de test que faltaban ya existen**: `G-5` (contrato) es el paso
+`Contract` de CI; `G-4` (integración con Postgres/Mongo/Redis reales) es el job
+`integration`; `G-6` (E2E) es el workflow [`e2e.yml`](../../../.github/workflows/e2e.yml)
+de release. ADR-21.
