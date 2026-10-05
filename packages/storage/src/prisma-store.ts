@@ -176,6 +176,7 @@ export class PrismaJobStore implements JobStore {
       this.prisma.page.deleteMany({ where: { jobId } }),
       this.prisma.result.deleteMany({ where: { jobId } }),
       this.prisma.jobError.deleteMany({ where: { jobId } }),
+      this.prisma.aIInteraction.deleteMany({ where: { jobId } }),
     ]);
   }
 

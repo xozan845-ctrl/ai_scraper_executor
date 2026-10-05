@@ -50,18 +50,55 @@ export class SessionsService {
     return this.view(session);
   }
 
+  private readonly radiographyConcurrency = Math.max(1, Number(process.env.RADIOGRAPHY_CONCURRENCY ?? 2));
+  private activeRadiographies = 0;
+  private radiographyQueue: Array<() => void> = [];
+
+  private acquireSlot(): Promise<void> {
+    if (this.activeRadiographies < this.radiographyConcurrency) {
+      this.activeRadiographies += 1;
+      return Promise.resolve();
+    }
+    return new Promise<void>((resolve) => this.radiographyQueue.push(resolve));
+  }
+
+  private releaseSlot(): void {
+    const next = this.radiographyQueue.shift();
+    if (next) next(); // el slot se transfiere al siguiente en cola
+    else this.activeRadiographies -= 1;
+  }
+
   private async runRadiography(sessionId: string, url: string, headers?: Record<string, string>): Promise<void> {
+    await this.acquireSlot();
     try {
-      if (this.radiographer) {
-        await this.radiographer(url, headers);
-      } else {
-        const { performRadiography } = await import('@ai-scraper/mongodb');
-        await performRadiography(url, { maxDepth: 2, maxPages: 10, forceBrowser: true, ...(headers ? { headers } : {}) });
-      }
+      const timeoutMs = Number(process.env.RADIOGRAPHY_TIMEOUT_MS ?? 120000);
+      await this.withTimeout(this.performRadiography(url, headers), timeoutMs, `Radiografía no completada en ${timeoutMs}ms`);
       await this.sessions.updateSessionStatus(sessionId, 'READY');
     } catch (e) {
       await this.sessions.updateSessionStatus(sessionId, 'FAILED', (e as Error).message);
+    } finally {
+      this.releaseSlot();
     }
+  }
+
+  private async performRadiography(url: string, headers?: Record<string, string>): Promise<void> {
+    if (this.radiographer) {
+      await this.radiographer(url, headers);
+      return;
+    }
+    const { performRadiography } = await import('@ai-scraper/mongodb');
+    await performRadiography(url, { maxDepth: 2, maxPages: 10, forceBrowser: true, ...(headers ? { headers } : {}) });
+  }
+
+  private withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+    if (!Number.isFinite(ms) || ms <= 0) return promise;
+    return new Promise<T>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error(message)), ms);
+      promise.then(
+        (v) => { clearTimeout(timer); resolve(v); },
+        (e) => { clearTimeout(timer); reject(e); },
+      );
+    });
   }
 
   async list() {
