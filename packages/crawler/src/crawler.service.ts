@@ -294,6 +294,7 @@ export class CrawlerService {
       const browser = await this.pool.acquire();
       context = await browser.newContext(headers ? { extraHTTPHeaders: headers } : {});
       const page = await context.newPage();
+      await installNavigationGuard(page);
       await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
       if (action.kind === 'click' && action.selector) {
         await page.click(action.selector, { timeout: 10000 });
@@ -391,16 +392,15 @@ export class CrawlerService {
       maxRequestRetries: input.maxRetries ?? 2,
       navigationTimeoutSecs: input.requestTimeoutSecs ?? 30,
       requestHandlerTimeoutSecs: (input.requestTimeoutSecs ?? 30) + 30,
-      ...(input.headers
-        ? {
-            preNavigationHooks: [
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              async ({ page }: any) => {
-                await page.setExtraHTTPHeaders(input.headers as Record<string, string>).catch(() => undefined);
-              },
-            ],
+      preNavigationHooks: [
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        async ({ page }: any) => {
+          if (input.headers) {
+            await page.setExtraHTTPHeaders(input.headers as Record<string, string>).catch(() => undefined);
           }
-        : {}),
+          await installNavigationGuard(page);
+        },
+      ],
       useSessionPool: true,
       sessionPoolOptions: { maxPoolSize: 10 },
       async requestHandler({ request, page, enqueueLinks, log }) {
