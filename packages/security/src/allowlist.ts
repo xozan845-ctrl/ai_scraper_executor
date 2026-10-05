@@ -4,7 +4,12 @@
  */
 import { assertPublicUrl } from './ssrf';
 
-export function normalizeDomain(input: string): string {
+/**
+ * Normaliza un dominio a su forma canónica: minúsculas, sin esquema, sin path ni puerto.
+ * `stripWww` elimina el prefijo `www.` (para claves de perfil/sitio); por defecto NO se
+ * elimina, de modo que la allowlist de un job no se amplía silenciosamente.
+ */
+export function normalizeDomain(input: string, opts?: { stripWww?: boolean }): string {
   const d = input
     .trim()
     .toLowerCase()
@@ -12,7 +17,7 @@ export function normalizeDomain(input: string): string {
     .split('/')[0]!
     .split(':')[0]!;
   if (!d) throw new Error(`Dominio vacío: ${input}`);
-  return d;
+  return opts?.stripWww ? d.replace(/^www\./, '') : d;
 }
 
 export function isAllowedHost(hostname: string, allowedDomain: string): boolean {
