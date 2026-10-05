@@ -12,15 +12,17 @@ npm install                    # instalar (si algún día hay conflicto de peers
 
 npm run build                  # compila TODO en orden de dependencias (packages → apps)
 npm run build:core             # solo packages base (sin apps)
-npm run lint                   # eslint apps packages (debe quedar en 0 errors)
+npm run lint                   # eslint apps packages scripts (debe quedar en 0 errors/0 warnings)
 npm run typecheck              # alias de build
-npm test                       # 143 tests unitarios (mocks, sin BD reales)
+npm test                       # 149 tests unitarios + propiedades (mocks, sin BD reales)
 MONGODB_MOCK=1 npm test        # fuerza mock MongoDB (recomendado en local sin Docker)
+npm run test:contract          # contrato de la API /api/v1 (G-5), sin infra
+npm run test:integration       # integración con Postgres/Mongo/Redis reales (G-4)
 
 # E2E real (requiere Docker up + .env con OPENROUTER_API_KEY + Playwright Chromium en host)
 npx playwright install --with-deps chromium   # una sola vez en host
 npm run dev:e2e                # levanta BDs + migra + build + test E2E
-npm run test:e2e               # solo el E2E (carga .env vía node --env-file)
+npm run test:e2e               # solo el E2E (env con --env-file-if-exists=.env)
 
 # Cliente real de la API (Node, universal). Requiere API up. Ver scripts/README.md
 npm run test:api               # todos los flujos (chat/sesiones, jobs, radiografía, errores)
@@ -42,7 +44,8 @@ Siempre ejecutar y dejar verdes:
 npm run build && npm run lint && MONGODB_MOCK=1 npm test
 ```
 
-`lint` debe reportar **0 errors** (los `no-explicit-any` en mocks/fallbacks son warnings aceptados).
+`lint` debe reportar **0 errors y 0 warnings**. Antes del push también conviene
+`npm run test:contract` (sin infra) y, con Docker, `npm run test:integration`.
 No commitear ni hacer push salvo que el usuario lo pida explícitamente.
 
 ## Arquitectura (dónde vive cada cosa)

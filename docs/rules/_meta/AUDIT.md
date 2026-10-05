@@ -34,7 +34,7 @@
 | Comandos del DSL | **15** literales Zod | `packages/commands/src/schemas.ts` |
 | Git | **1 rama** (`main`), **58 commits, 0 merge commits** | `git branch -a`, `git rev-list` |
 | Workflows | **1** (`ci.yml`), **1 job** (`build-test-lint`) | `.github/workflows/` |
-| Suites | `npm test` 26 ficheros · `npm run test:e2e` 1 (`tests/e2e-sevasa.test.mjs`) · `npm run test:api` → `scripts/run-all.mjs` | `package.json` |
+| Suites | `npm test` 27 ficheros · `test:contract` 1 (8 tests) · `test:integration` 1 (4 tests) · `test:e2e` 1 | `package.json` |
 
 ## Estado por capa
 
@@ -42,9 +42,9 @@
 |---|---|---|
 | Unit / integración con dobles | 🟢 | **143 tests / 36 suites** en verde, sin red y sin Docker (`MONGODB_MOCK=1`) |
 | Frontend | **N/A** | No hay `frontend/` en el monorepo. `G-2` y `R-COV-5` quedan **reservados, nunca reutilizados** |
-| Integración con almacén real | 🔴 | **0 tests** con Postgres/Mongo/Redis reales. Deuda `G-4` (reglas `R-I-*` exigibles cuando toque) |
-| Contrato de API | 🔴 | **0 tests** de forma. Deuda `G-5` (`R-C-12`) |
-| E2E real | 🔴 | El fichero existe (`tests/e2e-sevasa.test.mjs`) y se ejecuta **a mano** (`npm run test:e2e`); no hay job. Deuda `G-6` |
+| Integración con almacén real | 🟢 | `tests/integration.test.mjs` (4 tests con Postgres/Mongo/Redis reales); job `integration` (`G-4` ✅) |
+| Contrato de API | 🟢 | `tests/contract.test.mjs` (8 tests de forma de `/api/v1/**`); paso `Contract` (`G-5` ✅) |
+| E2E real | 🟢 | workflow [`e2e.yml`](../../../.github/workflows/e2e.yml) en `release` (`G-6` ✅); necesita Chromium + `OPENROUTER_API_KEY` |
 | OpenAPI | 🟢 | `docs/openapi.json` versionada; `npm run openapi:check` como paso `OpenAPI spec in sync` (`G-8` ✅) |
 | Cobertura | 🟢 | **Nativa de Node** (`--experimental-test-coverage`), umbrales 70/72/67 en el script `test`. Baseline medido 71.59/73.69/68.90; `G-3` ✅ |
 | Property-based | 🟢 | `fast-check` en `tests/property.test.mjs` (6 propiedades, dentro de `npm test`). Encontró 2 defectos reales (`R-PB-*`) |
@@ -63,14 +63,16 @@ Verificado contra `.github/workflows/ci.yml`.
 | `G-1` suite unitaria | ✅ | paso `Test`: `npm test` con `MONGODB_MOCK: '1'` → 143/143 |
 | `G-2` unit frontend | **N/A** | sin frontend (ID reservado) |
 | `G-3` cobertura | ✅ | `npm test` con `--experimental-test-coverage` + `--test-coverage-lines=70 --test-coverage-branches=72 --test-coverage-functions=67`; baseline 71.59/73.69/68.90 |
-| `G-4` integración | ⏸ | sin suite ni servicios efímeros en CI |
-| `G-5` contrato | ⏸ | sin suite |
-| `G-6` E2E | ⏸ | sin job; `npm run test:e2e` es manual |
+| `G-4` integración | ✅ | job `integration`: Postgres/Mongo/Redis efímeros + `npm run test:integration` (4/4) |
+| `G-5` contrato | ✅ | paso `Contract`: `npm run test:contract` (8/8) |
+| `G-6` E2E | ✅ | workflow `e2e.yml` (release); requiere servicios reales + Chromium + `OPENROUTER_API_KEY` |
 | `G-7` lint + build | ✅ | pasos `Build` y `Lint` del mismo job |
 | `G-8` Swagger sync | ✅ | paso `OpenAPI spec in sync`: `npm run openapi:check` sobre `docs/openapi.json` |
 | `G-9` deriva de migraciones | ✅ | `prisma validate` + `prisma migrate deploy` + `prisma migrate diff --exit-code` sobre Postgres efímero |
 
-**Total: 5 ✅ · 1 N/A · 3 ⏸.**
+**Total: 8 ✅ · 1 N/A · 0 ⏸.** Los ✅ de `G-4`/`G-5`/`G-6` están configurados y
+verificados localmente; su evidencia de run verde de CI llega con el primer push
+(`R-COV-3`).
 
 Controles que **no** llevan ID `G-*` (pero pueden bloquear igual): la puerta de
 seguridad es un **paso del job** y se norma como `R-QA-6`/`R-SE-16`, no como gate
@@ -79,13 +81,14 @@ autoexcluye en `npm test` si `DATABASE_URL` no responde no bloquean.
 
 ## Deudas abiertas (orden de ataque)
 
-1. **Capas de test enteras sin suite**: integración (`G-4`), contrato (`G-5`) y
-   E2E como gate de release (`G-6`).
-2. **Sin protección de rama en el remoto (bloqueada por el plan)**: el intento de
+1. **Sin protección de rama en el remoto (bloqueada por el plan)**: el intento de
    aplicarla con `gh api` devuelve `403 Upgrade to GitHub Pro or make this repository
    public` — es una función de pago en repos privados, no deuda de este repo. Hasta
    activar Pro o hacerlo público, `R-GE-4` se cumple por disciplina (rama + PR +
    merge), no por enforcement.
+2. **Evidencia de CI pendiente para los gates nuevos**: `G-4`/`G-5`/`G-6` están
+   configurados y verdes en local; falta el run verde de CI (`R-COV-3`) que llegará
+   con el primer push de la rama.
 3. **Promoción entre entornos sin implementar** (`R-GE-5`): una sola rama, un solo
    juego de secretos. Deuda asumida, no norma.
 4. **Mutation testing diferido a propósito** (`R-MT-1`, ADR-20), no por descuido:
@@ -142,6 +145,11 @@ autoexcluye en `npm test` si `DATABASE_URL` no responde no bloquean.
   `normalizeJobLimits(5e-324) → 0` (fuera de `[1, HARD]`, no idempotente) y la
   resolución de alias contra el prototipo (`__proto__`/`constructor`/`_ proto _`).
   La mutación (`R-MT`) queda diferida a propósito (ADR-20).
+- **Capas de test completas** (ADR-21): `G-5` contrato (paso `Contract`,
+  `tests/contract.test.mjs`, 8/8), `G-4` integración (job `integration`,
+  `tests/integration.test.mjs`, 4/4 con Postgres/Mongo/Redis reales) y `G-6` E2E
+  (workflow `e2e.yml` de release). Los tres verificados en local; la evidencia de CI
+  llega con el primer push.
 
 ## Cómo re-auditar
 
@@ -175,9 +183,18 @@ node --test --test-concurrency=1 --experimental-test-coverage \
 git branch -a && git rev-list --count main && git rev-list --merges --count main
 ls .github/workflows/ && grep -c "jobs:" .github/workflows/ci.yml
 
-# Capas sin gate: se ejecutan a mano
-npm run test:api:fast
+# Contrato de la API (G-5, paso de CI)
+npm run test:contract
+
+# Integración con almacenes reales (G-4, job de CI)
+docker compose up -d postgres mongodb redis
+DATABASE_URL='postgresql://scraper:scraper@localhost:5432/scraper?schema=public' \
+MONGODB_URI='mongodb://localhost:27017/scraper' REDIS_URL='redis://localhost:6379' \
+  npm run test:integration
+
+# E2E de release (G-6) y cliente real (a mano)
 npm run test:e2e      # requiere Docker + OPENROUTER_API_KEY + Chromium
+npm run test:api:fast
 
 # Evidencia de CI (R-COV-3: un gate ✅ solo con run verde)
 gh run list --limit 5

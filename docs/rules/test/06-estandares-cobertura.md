@@ -13,7 +13,7 @@ tocar cada tipo de cambio** y **qué pasos bloquean el merge hoy**.
 > | Pasos | `npm ci` → `Security audit` → `prisma:generate` → schema/deriva → `build` → OpenAPI → `lint` → `test` → artifact |
 > | Suite | `npm test` = `node --test --test-concurrency=1 --experimental-test-coverage …` sobre 26 ficheros, con `MONGODB_MOCK: '1'` |
 > | Cobertura | **Nativa de Node** (`--experimental-test-coverage`): sin `c8` ni `nyc`. Umbrales en el propio script `test`: **70 % líneas / 72 % ramas / 67 % funciones** |
-> | Jobs ausentes | No hay job de integración, ni job E2E, ni export de Swagger |
+> | Jobs | `build-test-lint` (unit, cobertura, lint, build, contrato, OpenAPI) + `integration` (Postgres/Mongo/Redis) + [`e2e.yml`](../../../.github/workflows/e2e.yml) (release) |
 >
 > Las tablas siguientes **norman**; la columna de estado dice qué está realmente
 > configurado. Un gate ⏸ es una regla vigente con el paso pendiente, y su deuda vive
@@ -80,9 +80,9 @@ no existe (deuda) · N/A = no aplica a este repo, **ID reservado, nunca se reuti
 | **G-1** | Suite unitaria completa en verde (100 %) | paso `Test` del job `build-test-lint`: `npm test` con `MONGODB_MOCK=1` | ✅ |
 | **G-2** | Suite unitaria de frontend en verde | — | **N/A** — no hay frontend en el monorepo; ID reservado |
 | **G-3** | Cobertura ≥ umbral vigente (70 / 72 / 67) | el propio `npm test` (`--experimental-test-coverage` + `--test-coverage-lines/branches/functions`); Node falla el run si no se alcanza | ✅ |
-| **G-4** | Suite de integración (API + Postgres/Mongo/Redis reales) en verde | `docker compose up -d postgres mongodb redis` + suite propia | ⏸ no hay suite de integración; lo exigible está en `R-I-*` y el hook existe en `npm run dev:e2e` |
-| **G-5** | Tests de contrato en verde | recorrido de `/api/v1/**` validando cada DTO | ⏸ no hay suite de contrato; cada endpoint debe traer su aserción de forma (R-C-12) |
-| **G-6** | E2E de flujos críticos en verde **antes de release** (no en cada PR) | `npm run test:e2e` (necesita Docker + `OPENROUTER_API_KEY` + Chromium) | ⏸ no hay job; hoy es un comando manual de release |
+| **G-4** | Suite de integración (API + Postgres/Mongo/Redis reales) en verde | job `integration` de `ci.yml` con servicios efímeros: `npm run test:integration` | ✅ |
+| **G-5** | Tests de contrato en verde | paso `Contract` de `ci.yml`: `npm run test:contract` (arranca la API y valida formas de `/api/v1/**`) | ✅ |
+| **G-6** | E2E de flujos críticos en verde **antes de release** (no en cada PR) | workflow [`e2e.yml`](../../../.github/workflows/e2e.yml) (`release`/`workflow_dispatch`): `npm run test:e2e` con servicios reales + Chromium + `OPENROUTER_API_KEY` | ✅ |
 | **G-7** | **Lint y build sin errores** | pasos `Build` (`npm run build`) y `Lint` (`npm run lint`, ESLint sobre `apps` y `packages`) del mismo job | ✅ |
 | **G-8** | Swagger sincronizado | `npm run openapi:check` (exporta `docs/openapi.json` desde la API y compara) | ✅ |
 | **G-9** | Deriva de migraciones = 0 | `prisma validate` + `prisma migrate deploy` sobre Postgres efímero + `prisma migrate diff --from-url … --to-schema-datamodel … --exit-code` | ✅ |
@@ -111,17 +111,28 @@ job es efímero y se descarta; la BD de desarrollo nunca se toca (`R-EN-2`).
 1. ✅ Cobertura con la herramienta nativa de Node y umbral del baseline (`G-3`).
 2. ✅ Schema validado y deriva de migraciones detectada con Postgres efímero (`G-9`).
 3. ✅ Spec OpenAPI versionada y verificada en cada run (`G-8`).
-4. Job de integración con `docker compose` en GitHub Actions (services) → `G-4`.
-5. Contrato de la API (`G-5`) y E2E como job de **release**, con secretos (`G-6`).
+4. ✅ Job `integration` con Postgres/Mongo/Redis efímeros (`G-4`).
+5. ✅ Contrato de la API (`G-5`) y E2E como workflow de **release** (`G-6`).
 
 ## Verificación
 
 ```bash
-# Lo que hoy bloquea el merge (G-1 + G-3 + G-7 + G-8), tal cual lo corre CI
+# Lo que bloquea el merge (G-1 + G-3 + G-5 + G-7 + G-8), tal cual lo corre CI
 MONGODB_MOCK=1 npm test      # incluye cobertura nativa y falla si baja del umbral
 npm run lint
 npm run build
 npm run openapi:check        # falla si docs/openapi.json no coincide con la API
+npm run test:contract        # arranca la API y valida las formas de /api/v1/**
+
+# G-4: integración con almacenes reales (requiere Docker)
+docker compose up -d postgres mongodb redis
+npm run prisma:migrate:deploy
+DATABASE_URL='postgresql://scraper:scraper@localhost:5432/scraper?schema=public' \
+MONGODB_URI='mongodb://localhost:27017/scraper' REDIS_URL='redis://localhost:6379' \
+  npm run test:integration
+
+# G-6: E2E real (release; requiere Chromium + OPENROUTER_API_KEY)
+npm run test:e2e
 
 # Cobertura sola, con el reporte por fichero
 MONGODB_MOCK=1 npm test 2>&1 | sed -n '/start of coverage report/,/end of coverage report/p'
