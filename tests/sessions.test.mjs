@@ -72,6 +72,8 @@ describe('Sesiones tipo chat (Etapa A)', async () => {
     assert.equal(detail.messages.length, 2);
     assert.equal(detail.messages[0].role, 'user');
     assert.equal(detail.messages[1].role, 'assistant');
+    assert.equal(detail.messages[1].jobId, r.jobId);
+    assert.equal(detail.messages[1].jobStatus, 'QUEUED', 'historial enriquecido con estado del job');
     void sessions;
   });
 

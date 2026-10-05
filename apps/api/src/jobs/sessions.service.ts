@@ -66,13 +66,32 @@ export class SessionsService {
 
   async list() {
     const rows = await this.sessions.listSessions(100);
-    return rows.map((s) => this.view(s));
+    return Promise.all(rows.map(async (s) => this.view(await this.reconcileStale(s))));
+  }
+
+  /** Si la radiografía quedó colgada (p. ej. reinicio de API), la marca FAILED. */
+  private async reconcileStale(s: SessionRecord, maxAgeMs = 5 * 60 * 1000): Promise<SessionRecord> {
+    if (s.status === 'RADIOGRAPHY' && Date.now() - new Date(s.updatedAt).getTime() > maxAgeMs) {
+      const updated = await this.sessions.updateSessionStatus(s.id, 'FAILED', 'Radiografía no completada (timeout)');
+      return updated ?? s;
+    }
+    return s;
   }
 
   async get(id: string) {
-    const s = await this.sessions.getSession(id);
-    if (!s) return null;
+    const found = await this.sessions.getSession(id);
+    if (!found) return null;
+    const s = await this.reconcileStale(found);
     const messages = await this.sessions.getMessages(id);
+    // Enriquece los mensajes del asistente con estado/resultados del job (historial autocontenido).
+    const enriched = await Promise.all(
+      messages.map(async (m) => {
+        if (m.role !== 'assistant' || !m.jobId) return m;
+        const job = await this.jobs.findOne(m.jobId).catch(() => null);
+        const res = job ? await this.jobs.results(m.jobId).catch(() => null) : null;
+        return { ...m, jobStatus: job?.status ?? null, results: res?.items ?? null };
+      }),
+    );
     let profile: Record<string, unknown> | null;
     try {
       const { getLearnedProfile } = await import('@ai-scraper/mongodb');
@@ -91,12 +110,13 @@ export class SessionsService {
     } catch {
       profile = null;
     }
-    return { ...this.view(s), messages, profile };
+    return { ...this.view(s), messages: enriched, profile };
   }
 
   async status(id: string) {
-    const s = await this.sessions.getSession(id);
-    if (!s) return null;
+    const found = await this.sessions.getSession(id);
+    if (!found) return null;
+    const s = await this.reconcileStale(found);
     return { id: s.id, status: s.status, error: s.error ?? null };
   }
 

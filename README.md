@@ -141,6 +141,29 @@ GET    /api/v1/radiography/page/:url                 # Radiografía cacheada
 GET    /api/v1/radiography/domain/:domain/stats      # Stats agregadas
 ```
 
+### Sesiones tipo "chat" (una URL = un chat)
+
+Backend listo para consumir desde cualquier cliente web (sin frontend incluido).
+Flujo recomendado del cliente: **crear → poll status hasta READY → enviar mensajes → poll del job**.
+
+```
+POST   /api/v1/sessions                # {url, credentials?: {headers: {Authorization|Cookie|...}}}
+                                       # → {id, url, domain, status:"RADIOGRAPHY", ...} y lanza la radiografía
+GET    /api/v1/sessions                # Historial: [{id, url, domain, status, error, createdAt, updatedAt}]
+GET    /api/v1/sessions/:id            # Detalle: {..., messages:[{role,content,jobId,jobStatus,results}], profile}
+GET    /api/v1/sessions/:id/status     # {id, status:"RADIOGRAPHY|READY|FAILED", error}
+POST   /api/v1/sessions/:id/messages   # {instruction} → {message, jobId, jobStatus}  (solo si status=READY)
+```
+
+Reglas para el cliente:
+- Tras crear la sesión, el **input debe bloquearse** hasta que `status === "READY"` (poll cada ~2-3s a `/sessions/:id/status`).
+- Si `status === "FAILED"`, mostrar `error` (p.ej. radiografía no completada por timeout).
+- Al enviar un mensaje, se crea un **job** con el contexto/perfil de la URL; el cliente hace polling de
+  `GET /api/v1/jobs/:jobId` y `GET /api/v1/jobs/:jobId/results` para renderizar la respuesta.
+- `GET /sessions/:id` ya incluye `messages[].jobStatus` y `messages[].results` (historial autocontenido).
+- `credentials.headers` se **cifran** (AES-256-GCM, `CREDENTIALS_KEY`) y se aplican a HTTP y browser; nunca se devuelven.
+- Todas las rutas requieren `x-api-key` (ver Autenticación).
+
 ### Métricas / Observabilidad
 ```
 GET    /api/v1/metrics                 # JSON (stats DB + process + aiRecoveryRate)
