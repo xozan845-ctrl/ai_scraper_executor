@@ -40,6 +40,8 @@ jobs:
         run: npm run prisma:generate
       - name: Prisma schema valid
         run: npx prisma validate --schema=prisma/schema.prisma
+        env:
+          DATABASE_URL: postgresql://scraper:scraper@localhost:5432/scraper?schema=public
       - name: Apply migrations to service DB
         run: npx prisma migrate deploy --schema=prisma/schema.prisma
         env:
