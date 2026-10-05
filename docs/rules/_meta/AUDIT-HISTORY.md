@@ -1089,3 +1089,33 @@ integración (`G-4`).
 `R-EN-3` (artifacts), `G-4`/`G-5`/`G-6`/`G-8`, `scripts/` fuera del lint, protección de
 rama y robustez. El `overrides` de transitivas sigue siendo deuda viva (revisar al
 actualizar dependencias).
+
+---
+
+# AUDIT — Front C: lint de scripts, warnings a cero, G-8 y artifacts
+
+- **Fecha:** 2026-10-05
+
+## Qué cambió
+
+- **Lint**: `eslint apps packages scripts` (antes sin `scripts/`), con globals de
+  Node para los `.mjs`. Corregidas las findings reales (`no-useless-assignment`,
+  `preserve-caught-error`) y los `any`/variables sin usar con tipos estructurales.
+  Resultado: **0 errores / 0 warnings**.
+- **G-8 (OpenAPI)**: `docs/openapi.json` versionada; `scripts/check-openapi.mjs` la
+  exporta/compara arrancando la API y CI ejecuta `npm run openapi:check`
+  (paso `OpenAPI spec in sync`).
+- **R-EN-3 (artifacts)**: el reporter JUnit de Node escribe `test-results.xml`,
+  subido como artifact en todos los runs (`if: always()`).
+- **Runtime Nest 12/Express 5**: adaptador `ExpressAdapter` explícito y comodín
+  `*url` (commit propio `fix(api): ...`).
+
+## Gates
+
+`G-8` pasa a ✅. Total: **5 ✅ · 1 N/A · 3 ⏸**.
+
+## Detalle que deja constancia
+
+La regresión de arranque de Nest 12/Express 5 **no** la detectó la suite unitaria
+(no levanta la app): la detectó el arrancar la API a mano para exportar la spec. Es
+evidencia directa de por qué `G-4`/`G-6` siguen abiertos.

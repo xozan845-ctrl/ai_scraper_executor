@@ -367,7 +367,34 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
   una resolución de peers honesta; (c) Nest 12 trae **Express 5** (routing con
   `path-to-regexp` 8), así que cualquier `@Get`/`@Post` nuevo debe usar la sintaxis
   de Express 5; la API actual (solo controllers Nest, sin rutas comodín raras) migra
-  sin cambios; (d) `eslint` 10 no cambió el resultado: 0 errores, 20 warnings.
+  sin cambios; (d) `eslint` 10 no cambió el resultado en ese momento: 0 errores,
+  20 warnings (los warnings se limpiaron después, al incluir `scripts/` en el lint).
+
+  > **Nota (2026-10-05):** Nest 12 trajo dos regresiones de runtime que la suite
+  > unitaria no veía (no levanta la app): el driver HTTP no se autodetectaba y el
+  > comodín `:url(*)` ya no valía en Express 5. Se corrigieron en
+  > `fix(api): arrancar con Nest 12/Express 5` (adaptador explícito y `*url`). Es la
+  > razón por la que `G-4`/`G-6` importan.
+
+---
+
+## ADR-19: Spec OpenAPI versionada y artifact de test
+
+- **Fecha**: 2026-10-05
+- **Estado**: Aceptado
+- **Contexto**: `G-8` (Swagger sincronizado) estaba `⏸` y `R-EN-3` (artifacts) no
+  tenía nada que subir. La spec se generaba solo en runtime en `/api/v1/docs`.
+- **Decisión**: versionar la spec en `docs/openapi.json` y verificarla en CI con
+  `npm run openapi:check`: el script `scripts/check-openapi.mjs` **arranca la API
+  compilada**, pide `/api/v1/docs-json`, canonicaliza (claves ordenadas) y compara;
+  `npm run openapi:export` la reescribe. Además, el reporter JUnit de Node escribe
+  `test-results.xml` (gitignorado) en cada `npm test`, y CI lo sube como artifact en
+  todos los runs (`if: always()`).
+- **Consecuencias**: (a) `G-8` pasa a ✅: un DTO o ruta cambiada sin re-exportar la
+  spec falla el job; (b) `R-EN-3` pasa a ✅; (c) el check ejercita el **arranque real**
+  de la API, que es justo lo que la regresión de Nest 12/Express 5 puso de relieve;
+  (d) la comparación es de la spec canonicalizada, así que no hay falsos positivos
+  por orden de claves.
 
 ---
 
@@ -380,7 +407,6 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
 | Capas sin suite (integración, contrato, E2E) | ADR-14 | `rules/test/06-estandares-cobertura.md` (`G-4`, `G-5`, `G-6`) |
 | Almacenamiento de Crawlee impide paralelizar | ADR-04, ADR-11 | `rules/test/05-reglas-robustez.md` (`R-FL-5`) |
 | Sin release por tag ni imágenes por digest | — | `rules/cd/01-despliegue.md` (`R-CD-1..8`) |
-| `scripts/` fuera del alcance del lint | — | `rules/_meta/AUDIT.md` |
 
 > El estado vigente de cada deuda, con el comando que la mide, está en
 > [`rules/_meta/AUDIT.md`](./rules/_meta/AUDIT.md).

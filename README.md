@@ -150,7 +150,7 @@ POST   /api/v1/jobs/:id/cancel         # Cancelar (terminal seguro)
 POST   /api/v1/radiography             # Radiografía real {url, maxDepth?, maxPages?, forceBrowser?}
 GET    /api/v1/radiography/profile/:domain           # Perfil aprendido
 GET    /api/v1/radiography/profile/:domain/selectors # Selectores listos para usar
-GET    /api/v1/radiography/page/:url                 # Radiografía cacheada
+GET    /api/v1/radiography/page/*url                # Radiografía cacheada (comodín Express 5)
 GET    /api/v1/radiography/domain/:domain/stats      # Stats agregadas
 ```
 

@@ -50,9 +50,18 @@ jobs:
           DATABASE_URL: postgresql://scraper:scraper@localhost:5432/scraper?schema=public
       - name: Build
         run: npm run build
+      - name: OpenAPI spec in sync
+        run: npm run openapi:check
       - name: Lint
         run: npm run lint
       - name: Test
         run: npm test
         env:
           MONGODB_MOCK: '1'
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: test-results.xml
+          if-no-files-found: warn
