@@ -3,7 +3,7 @@
 Guía para agentes de IA que trabajen en **ai-scraping-executor**. Monorepo npm workspaces
 (`apps/*` + `packages/*`), TypeScript, Node ≥20.6, Vitest no: usa el runner nativo `node --test`.
 
-`LA IA ES EL CEREBRO. CRAWLEE ES EL MOTOR.` La IA decide QUÉ (DSL de 13 comandos); el motor decide CÓMO.
+`LA IA ES EL CEREBRO. CRAWLEE ES EL MOTOR.` La IA decide QUÉ (DSL de 15 comandos); el motor decide CÓMO.
 
 ## Comandos esenciales
 
@@ -14,7 +14,7 @@ npm run build                  # compila TODO en orden de dependencias (packages
 npm run build:core             # solo packages base (sin apps)
 npm run lint                   # eslint apps packages (debe quedar en 0 errors)
 npm run typecheck              # alias de build
-npm test                       # 115 tests unitarios (mocks, sin BD reales)
+npm test                       # 142 tests unitarios (mocks, sin BD reales)
 MONGODB_MOCK=1 npm test        # fuerza mock MongoDB (recomendado en local sin Docker)
 
 # E2E real (requiere Docker up + .env con OPENROUTER_API_KEY + Playwright Chromium en host)
@@ -71,7 +71,7 @@ packages/storage          JobStore (Prisma + InMemory)
    (NO a `src`). Cada paquete tiene su propio `tsconfig.json` con `rootDir: src` y `outDir: dist`.
 2. **Seguridad**: toda validación de URL pasa por `@ai-scraper/security` (`assertPublicUrl`). La IA nunca
    ejecuta código arbitrario. SSRF/allowlist en `CommandValidator`. No duplicar lógica SSRF.
-3. **DSL**: los 13 comandos están en `packages/commands/src/schemas.ts` (Zod). La IA solo emite estos.
+3. **DSL**: los 15 comandos están en `packages/commands/src/schemas.ts` (Zod). La IA solo emite estos.
    Los modelos débiles se corrigen en `normalize.ts` ANTES de validar; la validación sigue estricta.
 4. **Trazabilidad §33**: cada item extraído lleva `_source { url, selector, scrapedAt }`.
 5. **Fallbacks**: Mongo/Redis/Prisma tienen fallback en memoria avisado por log. Nunca fallar en silencio.

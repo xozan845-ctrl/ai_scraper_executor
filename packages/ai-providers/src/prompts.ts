@@ -22,8 +22,10 @@ export const DSL_SPEC = `DSL DE COMANDOS (usa EXACTAMENTE el campo "type" EN MAY
 10. {"type":"CLICK","selector":"<css>"}
 11. {"type":"GET_ATTRIBUTE","selector":"<css>","attribute":"<href|src|...>"}
 12. {"type":"WAIT","ms":<n>}
-13. {"type":"SCROLL"}
-14. {"type":"FINISH"}
+13. {"type":"TYPE","selector":"<css input>","text":"<texto>"}
+14. {"type":"AUTHENTICATE","usernameSelector":"<css>","passwordSelector":"<css>","submitSelector":"<css>"}
+15. {"type":"SCROLL"}
+16. {"type":"FINISH"}
 
 REGLAS ESTRICTAS:
 - TODOS los comandos van dentro de {"version":"1.0","actions":[ ... ]}.

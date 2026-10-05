@@ -156,12 +156,30 @@ export class AgentRunner {
     let recoveryCount = 0;
     let browserEscalationSuggested = false;
 
-    /** Helper para registrar resultado en MongoDB si hay perfil */
-    const recordResult = async (success: boolean, itemCount: number) => {
-      if (learnedProfile?.profile) {
-        debugLog('Registrando resultado en MongoDB', { success, itemCount });
-        await mongoRepo.recordJobResult(learnedProfile.profile.id!, success, itemCount, 0);
+    /**
+     * Registra el resultado del job en el perfil del sitio (FASE 12). Si el dominio
+     * aún no tiene perfil, lo crea; así cualquier job alimenta la memoria (antes
+     * solo se registraba cuando ya existía un perfil de una radiografía previa).
+     */
+    let profileIdPromise: Promise<string | null> | null = null;
+    const resolveProfileId = async (): Promise<string | null> => {
+      if (learnedProfile?.profile?.id) return learnedProfile.profile.id;
+      if (job.useMemory === false) return null;
+      if (!profileIdPromise) {
+        profileIdPromise = mongoRepo
+          .getOrCreateProfile(domain, job.url)
+          .then((p) => p.id ?? null)
+          .catch(() => null);
       }
+      return profileIdPromise;
+    };
+
+    /** Helper para registrar resultado en MongoDB (creando perfil si hace falta). */
+    const recordResult = async (success: boolean, itemCount: number) => {
+      const profileId = await resolveProfileId();
+      if (!profileId) return;
+      debugLog('Registrando resultado en MongoDB', { success, itemCount, profileId });
+      await mongoRepo.recordJobResult(profileId, success, itemCount, 0).catch(() => undefined);
     };
 
     const observe = async (): Promise<{
