@@ -68,7 +68,7 @@ pre { background: #0f1420; padding: 8px; border-radius: 6px; overflow: auto; max
 
 <script>
 var current = null, tab = 'execution';
-function apiKey() { try { return localStorage.getItem('apiKey') || ''; } catch (e) { return ''; } }
+function apiKey() { try { return sessionStorage.getItem('apiKey') || ''; } catch (e) { return ''; } }
 function api(p, opts) {
   opts = opts || {};
   var k = apiKey();
@@ -76,7 +76,7 @@ function api(p, opts) {
   return fetch(p, opts).then(function(r) {
     if (r.status === 401) {
       var nk = window.prompt('API key requerida:');
-      if (nk) { try { localStorage.setItem('apiKey', nk); } catch (e) {} return api(p, opts); }
+      if (nk) { try { sessionStorage.setItem('apiKey', nk); } catch (e) {} return api(p, opts); }
     }
     if (!r.ok) throw new Error('HTTP ' + r.status);
     return r.json();

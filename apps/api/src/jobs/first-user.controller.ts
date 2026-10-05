@@ -4,107 +4,87 @@ import {
   Body,
   HttpCode,
   HttpStatus,
-  Get,
-  Patch,
-  Param,
-  UseGuards,
   Req,
-  Query,
+  UseGuards,
+  UnauthorizedException,
+  ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
-import { UserService } from './user.service';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { Request } from 'express';
-import { hashPassword } from '../jobs/password.util';
+import { timingSafeEqual } from 'node:crypto';
+import type { Request } from 'express';
+import { UserService, hashApiKey } from './user.service';
+import { CreateRateLimitGuard } from './rate-limit.guard';
+import { hashPassword } from './password.util';
+import { RegisterFirstDto } from './dto/register-first.dto';
 
+/** Comparación de secretos en tiempo constante (evita timing attacks). */
+function safeEqual(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ab.length !== bb.length) return false;
+  return timingSafeEqual(ab, bb);
+}
+
+/**
+ * Registro del primer superadmin (bootstrap).
+ *
+ * Política de seguridad:
+ * - Solo funciona si NO hay usuarios (si ya hay, 409; sin `force`).
+ * - En producción exige el header `X-First-Run` igual a `FIRST_RUN_TOKEN`
+ *   (fail-closed: sin token configurado, 403). En dev/test se permite si la BD está vacía.
+ * - La contraseña se hashea (bcrypt) y la API key se guarda **hasheada**; en claro
+ *   solo se devuelve una vez. Nunca se loguea el valor completo.
+ * - Rate-limited como el resto de POST.
+ */
 @ApiTags('auth')
 @Controller('auth')
 export class FirstUserController {
   constructor(private readonly userService: UserService) {}
 
-  /**
-   * Registro del primer usuario (solo en despliegue sin usuarios previos).
-   *
-   * Política de seguridad "ningún dato se siembre":
-   * - Solo accesible si NO hay usuarios en la BD (idempotencia: si ya hay usuario, 409).
-   * - Requiere header `X-First-Run: true` en producción (o sin restricción en dev/test).
-   * - La contraseña nunca se registra en logs; se hashea y se descarta el plaintext.
-   * - Devuelve una API key válida para el nuevo superadmin.
-   *
-   * En producción: `X-First-Run: true` + IP allowlist temporal (configurable via env).
-   * En desarrollo/test: opcional, permite probar el flujo.
-   */
   @Post('register-first')
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Registro del primer superadmin' })
-  @ApiResponse({
-    status: 201,
-    description: 'Primer usuario creado con API key y role superadmin',
-  })
-  @ApiResponse({ status: 409, description: 'Ya existe un usuario en la BD' })
-  @ApiResponse({ status: 401, description: 'No autorizado: headers faltantes o en producción sin X-First-Run' })
-  async registerFirst(@Body() body: { email: string; password: string }, @Req() req: Request, @Query('force') force = false) {
-    // Verificar si ya hay usuarios
-    const existingCount = await this.userService.countUsers();
-    if (existingCount > 0 && !force) {
-      return {
-        statusCode: HttpStatus.CONFLICT,
-        message: 'Ya existe un usuario en la BD. Use force=true para sobrescribir (solo en desarrollo).',
-      };
+  @UseGuards(CreateRateLimitGuard)
+  @ApiOperation({ summary: 'Registro del primer superadmin (solo con BD vacía)' })
+  @ApiResponse({ status: 201, description: 'Primer usuario creado; devuelve API key (una sola vez)' })
+  @ApiResponse({ status: 409, description: 'Ya existe un usuario' })
+  @ApiResponse({ status: 401, description: 'X-First-Run inválido o ausente (producción)' })
+  @ApiResponse({ status: 403, description: 'FIRST_RUN_TOKEN no configurado (producción)' })
+  async registerFirst(@Body() dto: RegisterFirstDto, @Req() req: Request) {
+    if ((await this.userService.countUsers()) > 0) {
+      throw new ConflictException('Ya existe un usuario; el registro inicial está cerrado.');
     }
+    this.assertBootstrapAllowed(req);
 
-    // Verificar header de primer solo en producción
-    const env = process.env.NODE_ENV ?? 'development';
-    const firstRunHeader = req.headers['x-first-run'] as string | undefined;
-
-    if (env === 'production' && !firstRunHeader) {
-      return {
-        statusCode: HttpStatus.UNAUTHORIZED,
-        message:
-          'En producción requiere header X-First-Run=true para registro inicial. Véase scripts/README.md.',
-      };
-    }
-
-    const { email, password } = body;
-
-    // Hashear contraseña (solo este request la tiene en claro)
-    const passwordHash = await hashPassword(password);
-
-    // Crear usuario
+    const passwordHash = await hashPassword(dto.password);
+    const apiKey = this.userService.generateApiKey();
     const user = await this.userService.createUser({
-      email,
+      email: dto.email,
       passwordHash,
-      role: 'superadmin' as const,
+      role: 'superadmin',
+      apiKeyHash: hashApiKey(apiKey),
     });
 
-    // Generar API key para este usuario (usando utilidad existente)
-    const apiKey = this.userService.generateApiKey();
-
-    // Registrar acción (solo metadata, sin contraseña en logs)
-    // eslint-disable-next-line no-console
-    console.log(`[FIRST_USER] superadmin creado: ${email} role=superadmin apiKey=${apiKey.substring(0, 8)}...`);
-
+    console.log(`[FIRST_USER] superadmin creado: ${user.email} apiKey=${apiKey.slice(0, 8)}...`);
     return {
       email: user.email,
       role: user.role,
       createdAt: user.createdAt,
       apiKey,
-      note: 'Guarde la API key mostrada; la contraseña no se volverá a mostrar.',
+      note: 'Guarde la API key mostrada; no se volverá a mostrar.',
     };
   }
 
-  /**
-   * Forzar registro incluso si ya hay usuarios (solo desarrollo).
-   * Use con extremo cuidado en producción.
-   */
-  @Post('register-first/force')
-  @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Forzar registro del primer usuario' })
-  @ApiResponse({
-    status: 201,
-    description: 'Usuario creado forzadamente (solo desarrollo)',
-  })
-  @ApiResponse({ status: 401, description: 'No autorizado' })
-  async registerFirstForce(@Body() body: { email: string; password: string }, @Req() req: Request) {
-    return this.registerFirst(body, req, true);
+  private assertBootstrapAllowed(req: Request): void {
+    const env = process.env.NODE_ENV ?? 'development';
+    if (env !== 'production') return; // dev/test: solo con BD vacía (ya validado arriba)
+    const token = (process.env.FIRST_RUN_TOKEN ?? '').trim();
+    if (!token) {
+      throw new ForbiddenException('FIRST_RUN_TOKEN no configurado: registro inicial deshabilitado en producción');
+    }
+    const provided = String(req.headers['x-first-run'] ?? '');
+    if (!provided || !safeEqual(provided, token)) {
+      throw new UnauthorizedException('X-First-Run inválido o ausente');
+    }
   }
 }
