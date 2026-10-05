@@ -20,6 +20,8 @@
     "prisma:migrate:deploy": "prisma migrate deploy --schema=prisma/schema.prisma",
     "test": "node --test --test-concurrency=1 tests/dsl.test.mjs tests/engine.test.mjs tests/crawler.test.mjs tests/ai-providers.test.mjs tests/agent.test.mjs tests/persistence.test.mjs tests/dashboard.test.mjs tests/security.test.mjs tests/browser.test.mjs tests/api-hardening.test.mjs tests/observability.test.mjs tests/scale.test.mjs tests/normalize.test.mjs tests/llm-cache.test.mjs tests/interpret.test.mjs tests/resilience.test.mjs tests/sessions.test.mjs tests/credentials.test.mjs",
     "test:e2e": "node --env-file=.env --test --test-concurrency=1 tests/e2e-sevasa.test.mjs",
+    "test:api": "node scripts/run-all.mjs",
+    "test:api:fast": "node scripts/run-all.mjs --skip-slow",
     "dev:e2e": "docker compose up -d postgres mongodb redis && sleep 10 && npm run prisma:migrate:deploy && npm run build && npm run test:e2e",
     "lint": "eslint apps packages",
     "typecheck": "npm run build"

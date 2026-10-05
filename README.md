@@ -40,7 +40,7 @@ npm run dev:worker  # Worker consumiendo cola
 
 ```bash
 # Tests unitarios/integración (mocks, sin BD reales)
-npm test                    # 89 tests: dsl + normalize + engine + crawler + ai-providers + agent + persistence + dashboard + security + browser + api-hardening + observability + scale
+npm test                    # 115 tests: dsl + normalize + engine + crawler + ai-providers + agent + persistence + dashboard + security + browser + api-hardening + observability + scale + llm-cache + interpret + resilience + sessions + credentials
 MONGODB_MOCK=1 npm test     # Forzar mock MongoDB
 
 # Test E2E real contra https://www.sevasaonline.com/
@@ -48,10 +48,18 @@ MONGODB_MOCK=1 npm test     # Forzar mock MongoDB
 # ⚠️ Para E2E local (fuera de Docker): `npx playwright install --with-deps chromium`
 npm run dev:e2e             # levanta BDs + migra + build + test
 npm run test:e2e            # solo el test (carga .env automáticamente vía node --env-file)
+
+# Cliente real de la API (Node, universal macOS/Windows/Linux). Requiere API + worker up.
+# Ver scripts/README.md para TEST_HEADERS_JSON y TEST_PROMPTS_JSON.
+npm run test:api            # todos los flujos, incluido chat real y credenciales
+npm run test:api:fast       # solo los rápidos (sin radiografía/job/chat real)
 ```
 
 > `test:e2e` usa `node --env-file=.env` (Node ≥20.6), así que la `OPENROUTER_API_KEY` y los modelos
 > se toman del `.env` sin exportarlos manualmente.
+> `test:api` (en `scripts/`) es un **cliente real**: recorre todos los endpoints y verifica que un
+> frontend tipo chat pueda funcionar. Configura `API_URL`, `API_KEY`, `TEST_URL`,
+> `TEST_HEADERS_JSON` (credenciales opcionales) y `TEST_PROMPTS_JSON` (conversación continua).
 
 **Variables de test:**
 - `ALLOW_PRIVATE_HOSTS=1` — permite localhost/127.0.0.1 en tests (SSRF sigue bloqueado en prod)

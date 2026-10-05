@@ -14,7 +14,7 @@ npm run build                  # compila TODO en orden de dependencias (packages
 npm run build:core             # solo packages base (sin apps)
 npm run lint                   # eslint apps packages (debe quedar en 0 errors)
 npm run typecheck              # alias de build
-npm test                       # 89 tests unitarios (mocks, sin BD reales)
+npm test                       # 115 tests unitarios (mocks, sin BD reales)
 MONGODB_MOCK=1 npm test        # fuerza mock MongoDB (recomendado en local sin Docker)
 
 # E2E real (requiere Docker up + .env con OPENROUTER_API_KEY + Playwright Chromium en host)
@@ -22,9 +22,9 @@ npx playwright install --with-deps chromium   # una sola vez en host
 npm run dev:e2e                # levanta BDs + migra + build + test E2E
 npm run test:e2e               # solo el E2E (carga .env vía node --env-file)
 
-# Casos de uso de la API en PowerShell (requiere pwsh + API up). Ver scripts/README.md
-pwsh ./scripts/run-all.ps1     # todos los flujos (chat/sesiones, jobs, radiografía, errores)
-pwsh ./scripts/run-all.ps1 -SkipSlow   # sin flujos con radiografía/job real
+# Cliente real de la API (Node, universal). Requiere API up. Ver scripts/README.md
+npm run test:api               # todos los flujos (chat/sesiones, jobs, radiografía, errores)
+npm run test:api:fast          # sin flujos con radiografía/job real
 
 # Infra
 docker compose up -d postgres mongodb redis
