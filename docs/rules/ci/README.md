@@ -20,8 +20,9 @@ aquí**: son reglas de testing y siguen en
 >   npm run prisma:generate
 >   npx prisma validate
 >   npx prisma migrate deploy → npx prisma migrate diff --exit-code
->   npm run build → npm run lint → npm test
+>   npm run build → npm run openapi:check → npm run lint → npm test
 >   env: MONGODB_MOCK: '1'
+>   artifact: test-results.xml (if: always())
 > ```
 >
 > No hay `security-gate`, ni jobs de lint/test/build separados, ni artifacts, ni caché
@@ -58,7 +59,7 @@ aquí**: son reglas de testing y siguen en
 | `G-4` | Integración con BD real | ⏸ sin servicios ni suite |
 | `G-5` | Contrato de API | ⏸ sin suite |
 | `G-6` | E2E antes de release | ⏸ sin job |
-| `G-8` | Swagger sincronizado | ⏸ la spec se genera en runtime, no se versiona |
+| `G-8` | Swagger sincronizado | ✅ `npm run openapi:check` sobre `docs/openapi.json` (paso `OpenAPI spec in sync`) |
 | `R-QA-6` | `npm audit --audit-level=high` bloqueante | ✅ paso `Security audit` (0 vulnerabilidades, high y moderate) |
 | `R-FL-1` | Tests intermitentes en cuarentena con fecha | ⏸ no hay herramienta que los detecte |
 | `R-COV-3` | Un gate ✅ solo con run verde de CI | sí, es el criterio de esta área |
@@ -92,9 +93,9 @@ La importancia es cerrar la evidencia: un cambio terminado es un commit con
   `postgres:16-alpine` para validar el schema y detectar deriva de migraciones
   (`G-9`). El día que exista suite de integración (`G-4`), ese mismo servicio se
   ampliará a `mongo:7-jammy` y `redis:7-alpine`.
-- **Sin artifacts**: `R-EN-3` no tiene hoy qué subir (no hay informe de cobertura ni
-  reporte de test que valga la pena conservar más que el log del run). Se activa si
-  algún día hace falta como evidencia de auditoría.
+- **Artifacts (deuda cerrada)**: `R-EN-3` ya sube `test-results.xml` (reporter JUnit de
+  Node) como artifact en todos los runs (`if: always()`). Sirve de evidencia de la
+  suite sin depender del log del job.
 - **Sin protección de rama configurada en el remoto**: el workflow dispara en
   `pull_request`, pero nada impide un push directo a `main` mientras no se configure
   branch protection. `R-GE-4` lo norma; el enforcement es de GitHub, no del repo.

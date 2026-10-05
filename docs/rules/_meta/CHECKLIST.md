@@ -38,7 +38,7 @@ Marcar las capas ✅ que apliquen y **justificar las que no**.
 - [ ] **R-QA-2** — Nada de red, BD real ni LLM en `npm test`: todo doblado.
 - [ ] **R-FL-4/5** — Suite serial (`--test-concurrency=1`) a propósito; sin `sleep` arbitrario.
 - [ ] **R-GC-5** — `npm run build && npm run lint && MONGODB_MOCK=1 npm test` en verde **antes** del commit.
-- [ ] **G-7** — Build y lint sin errores (0 errores; los warnings de `no-explicit-any` no bloquean).
+- [ ] **G-7** — Build y lint sin errores (0 errores y **0 warnings**: el alcance incluye `scripts/`).
 
 ## 3. Unit ([`01-reglas-unit.md`](../test/01-reglas-unit.md))
 
@@ -93,7 +93,7 @@ Marcar las capas ✅ que apliquen y **justificar las que no**.
 - [ ] **G-5** contrato — ⏸ sin suite
 - [ ] **G-6** E2E — ⏸ sin job; manual antes de release
 - [ ] **G-7** lint + build ✅
-- [ ] **G-8** Swagger export — ⏸ sin spec versionada
+- [ ] **G-8** Swagger export — ✅ `npm run openapi:check` (si cambias DTO/ruta, `npm run openapi:export` y commit de `docs/openapi.json`)
 - [ ] **G-9** deriva de migraciones — ✅ (`prisma validate` + `migrate deploy` + `migrate diff --exit-code`); si el PR toca `schema.prisma`, `prisma/migrations/` trae la migración
 
 ## 10. Git ([`rules/git/`](../git/README.md))
@@ -123,6 +123,7 @@ Marcar las capas ✅ que apliquen y **justificar las que no**.
 - [ ] **R-CI-1/2/3/4/5** — Cambiar gatillos, concurrencia, filtrado o añadir workflow, es enmienda explícita de la regla, no edición silenciosa del YAML; los comandos del workflow son verificables en local.
 - [ ] **R-EN-1** — Node fijo (`"22"`) y `npm ci --ignore-scripts` intactos (sin `--legacy-peer-deps` desde Nest 12).
 - [ ] **R-EN-4** — Secretos solo en GitHub Secrets, nunca impresos.
+- [ ] **R-EN-3** — Si el job genera reportes (p. ej. `test-results.xml`), se suben como artifact en todos los runs (`if: always()`).
 - [ ] **R-CD-9/10** — El grafo de arranque se respeta: `migrate` one-shot con `migrate deploy` bloquea a `api`/`worker`; no se arranca la API saltándoselo.
 - [ ] **R-CD-7/11** — Cero secretos en la imagen (ni `ARG` ni `ENV`); los secretos llegan en runtime por `env_file`/`environment`.
 - [ ] **R-CD-12** — Smoke tras la entrega: `/api/v1/health` y `/api/v1/health/ready` en verde; si se revertiría, se revierte por commit, nunca por migración.

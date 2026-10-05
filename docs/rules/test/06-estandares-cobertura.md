@@ -10,7 +10,7 @@ tocar cada tipo de cambio** y **qué pasos bloquean el merge hoy**.
 > | Workflow | **Uno solo**: `ci.yml`, un job `build-test-lint` |
 > | Node | 22 en CI (el `engines` del repo pide `>=20`); trae cobertura nativa |
 > | Instalación | `npm ci --ignore-scripts` (sin `--legacy-peer-deps` desde Nest 12, ADR-18) |
-> | Pasos | `npm ci` → `Security audit` → `prisma:generate` → `build` → `lint` → `test` |
+> | Pasos | `npm ci` → `Security audit` → `prisma:generate` → schema/deriva → `build` → OpenAPI → `lint` → `test` → artifact |
 > | Suite | `npm test` = `node --test --test-concurrency=1 --experimental-test-coverage …` sobre 26 ficheros, con `MONGODB_MOCK: '1'` |
 > | Cobertura | **Nativa de Node** (`--experimental-test-coverage`): sin `c8` ni `nyc`. Umbrales en el propio script `test`: **70 % líneas / 72 % ramas / 67 % funciones** |
 > | Jobs ausentes | No hay job de integración, ni job E2E, ni export de Swagger |
@@ -84,7 +84,7 @@ no existe (deuda) · N/A = no aplica a este repo, **ID reservado, nunca se reuti
 | **G-5** | Tests de contrato en verde | recorrido de `/api/v1/**` validando cada DTO | ⏸ no hay suite de contrato; cada endpoint debe traer su aserción de forma (R-C-12) |
 | **G-6** | E2E de flujos críticos en verde **antes de release** (no en cada PR) | `npm run test:e2e` (necesita Docker + `OPENROUTER_API_KEY` + Chromium) | ⏸ no hay job; hoy es un comando manual de release |
 | **G-7** | **Lint y build sin errores** | pasos `Build` (`npm run build`) y `Lint` (`npm run lint`, ESLint sobre `apps` y `packages`) del mismo job | ✅ |
-| **G-8** | Swagger sincronizado | export de la spec y `git diff --exit-code` sobre el fichero versionado | ⏸ no hay spec versionada ni paso de export; la spec se genera en runtime en `/api/v1/docs` |
+| **G-8** | Swagger sincronizado | `npm run openapi:check` (exporta `docs/openapi.json` desde la API y compara) | ✅ |
 | **G-9** | Deriva de migraciones = 0 | `prisma validate` + `prisma migrate deploy` sobre Postgres efímero + `prisma migrate diff --from-url … --to-schema-datamodel … --exit-code` | ✅ |
 
 Sobre `G-9`: el job valida el schema (`prisma validate`), aplica las migraciones
@@ -108,23 +108,22 @@ job es efímero y se descarta; la BD de desarrollo nunca se toca (`R-EN-2`).
 
 ## Orden de activación recomendado
 
-Los pasos de cobertura (1–2) ya están hechos; quedan los demás:
-
 1. ✅ Cobertura con la herramienta nativa de Node y umbral del baseline (`G-3`).
 2. ✅ Schema validado y deriva de migraciones detectada con Postgres efímero (`G-9`).
-3. Job de integración con `docker compose` en GitHub Actions (services) → `G-4`.
-4. Versionar la spec de Swagger y exportarla en el job → `G-8`.
-5. E2E como job de **release**, con secretos → `G-6`.
+3. ✅ Spec OpenAPI versionada y verificada en cada run (`G-8`).
+4. Job de integración con `docker compose` en GitHub Actions (services) → `G-4`.
+5. Contrato de la API (`G-5`) y E2E como job de **release**, con secretos (`G-6`).
 
 ## Verificación
 
 ```bash
-# Lo que hoy bloquea el merge (G-1 + G-3 + G-7), tal cual lo corre CI
+# Lo que hoy bloquea el merge (G-1 + G-3 + G-7 + G-8), tal cual lo corre CI
 MONGODB_MOCK=1 npm test      # incluye cobertura nativa y falla si baja del umbral
 npm run lint
 npm run build
+npm run openapi:check        # falla si docs/openapi.json no coincide con la API
 
-# Solo la cobertura, con su reporte completo
+# Cobertura sola, con el reporte por fichero
 MONGODB_MOCK=1 npm test 2>&1 | sed -n '/start of coverage report/,/end of coverage report/p'
 
 # Ejemplo mínimo (un fichero) para ver el mecanismo de umbral
@@ -132,9 +131,9 @@ node --test --test-concurrency=1 --experimental-test-coverage \
   --test-coverage-lines=99 --test-coverage-include='packages/*/dist/**/*.js' \
   tests/dsl.test.mjs      # debe fallar: exit 1 + "does not meet threshold"
 
-# G-9: validez del schema (lo que CI comprueba hoy, vía prisma:generate)
+# G-9: validez del schema y deriva
 npx prisma validate --schema=prisma/schema.prisma
-ls prisma/migrations
+npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --exit-code
 
 # Suites que existen pero no son gates
 npm run test:api:fast

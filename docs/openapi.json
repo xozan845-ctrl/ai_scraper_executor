@@ -1,0 +1,747 @@
+{
+  "components": {
+    "schemas": {
+      "CreateJobDto": {
+        "properties": {
+          "ai": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/JobAiDto"
+              }
+            ],
+            "description": "Proveedor/modelo IA"
+          },
+          "instruction": {
+            "example": "Obtén todos los productos con nombre, precio e imagen",
+            "minLength": 3,
+            "type": "string"
+          },
+          "limits": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/JobLimitsDto"
+              }
+            ],
+            "description": "Límites del job (§35)"
+          },
+          "priority": {
+            "description": "FASE 11: 1 = máxima, 10 = mínima, 5 = defecto",
+            "maximum": 10,
+            "minimum": 1,
+            "type": "number"
+          },
+          "url": {
+            "description": "URL inicial (http/https)",
+            "example": "https://www.sevasaonline.com/",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "instruction"
+        ],
+        "type": "object"
+      },
+      "CreateSessionDto": {
+        "properties": {
+          "credentials": {
+            "$ref": "#/components/schemas/CredentialsDto"
+          },
+          "url": {
+            "example": "https://www.sevasaonline.com/",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "type": "object"
+      },
+      "CredentialsDto": {
+        "properties": {
+          "headers": {
+            "description": "Headers a enviar (Authorization/Cookie/...)",
+            "example": {
+              "Authorization": "Bearer x"
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "JobAiDto": {
+        "properties": {
+          "model": {
+            "example": "openrouter/free",
+            "type": "string"
+          },
+          "provider": {
+            "enum": [
+              "openrouter",
+              "custom"
+            ],
+            "example": "openrouter",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "JobLimitsDto": {
+        "properties": {
+          "maxAiTokens": {
+            "description": "Presupuesto de tokens IA (0/vacío = presupuesto por defecto del servidor)",
+            "example": 200000,
+            "maximum": 5000000,
+            "minimum": 1,
+            "type": "number"
+          },
+          "maxDepth": {
+            "example": 2,
+            "maximum": 10,
+            "minimum": 1,
+            "type": "number"
+          },
+          "maxItems": {
+            "example": 50,
+            "maximum": 100000,
+            "minimum": 1,
+            "type": "number"
+          },
+          "maxPages": {
+            "example": 5,
+            "maximum": 1000,
+            "minimum": 1,
+            "type": "number"
+          },
+          "maxRequests": {
+            "example": 100,
+            "maximum": 100000,
+            "minimum": 1,
+            "type": "number"
+          },
+          "maxRuntimeSec": {
+            "example": 300,
+            "maximum": 3600,
+            "minimum": 1,
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
+      "RegisterFirstDto": {
+        "properties": {
+          "email": {
+            "example": "admin@miempresa.com",
+            "type": "string"
+          },
+          "password": {
+            "example": "una-clave-larga-y-segura",
+            "minLength": 8,
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "type": "object"
+      },
+      "SendMessageDto": {
+        "properties": {
+          "instruction": {
+            "example": "Obtén todos los productos con nombre, precio e imagen",
+            "minLength": 2,
+            "type": "string"
+          }
+        },
+        "required": [
+          "instruction"
+        ],
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "api-key": {
+        "in": "header",
+        "name": "x-api-key",
+        "type": "apiKey"
+      }
+    }
+  },
+  "info": {
+    "contact": {},
+    "description": "LA IA ES EL CEREBRO. CRAWLEE ES EL MOTOR.",
+    "title": "AI Scraping Executor API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/auth/register-first": {
+      "post": {
+        "operationId": "FirstUserController_registerFirst",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterFirstDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Primer usuario creado; devuelve API key (una sola vez)"
+          },
+          "401": {
+            "description": "X-First-Run inválido o ausente (producción)"
+          },
+          "403": {
+            "description": "FIRST_RUN_TOKEN no configurado (producción)"
+          },
+          "409": {
+            "description": "Ya existe un usuario"
+          }
+        },
+        "summary": "Registro del primer superadmin (solo con BD vacía)",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/dashboard": {
+      "get": {
+        "operationId": "DashboardController_page",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Dashboard"
+        ]
+      }
+    },
+    "/api/v1/health": {
+      "get": {
+        "operationId": "HealthController_check",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Health"
+        ]
+      }
+    },
+    "/api/v1/health/ready": {
+      "get": {
+        "operationId": "HealthController_ready",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Health"
+        ]
+      }
+    },
+    "/api/v1/jobs": {
+      "get": {
+        "operationId": "JobsController_list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Lista jobs (paginación por cursor + filtro por estado)",
+        "tags": [
+          "jobs"
+        ]
+      },
+      "post": {
+        "operationId": "JobsController_create",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "idempotency-key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Reutiliza el job si se repite la clave",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateJobDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Crea un job de scraping (idempotente con Idempotency-Key)",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/api/v1/jobs/{id}": {
+      "get": {
+        "operationId": "JobsController_findOne",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/api/v1/jobs/{id}/ai": {
+      "get": {
+        "operationId": "JobsController_ai",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/api/v1/jobs/{id}/cancel": {
+      "post": {
+        "operationId": "JobsController_cancel",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/api/v1/jobs/{id}/execution": {
+      "get": {
+        "operationId": "JobsController_execution",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/api/v1/jobs/{id}/results": {
+      "get": {
+        "operationId": "JobsController_results",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/api/v1/jobs/{id}/retry": {
+      "post": {
+        "operationId": "JobsController_retry",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/api/v1/metrics": {
+      "get": {
+        "operationId": "MetricsController_overview",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Metrics"
+        ]
+      }
+    },
+    "/api/v1/metrics/prometheus": {
+      "get": {
+        "operationId": "MetricsController_prometheus",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Metrics"
+        ]
+      }
+    },
+    "/api/v1/radiography": {
+      "post": {
+        "operationId": "RadiographyController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Radiography"
+        ]
+      }
+    },
+    "/api/v1/radiography/domain/{domain}/stats": {
+      "get": {
+        "operationId": "RadiographyController_getDomainStats",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "domain",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Radiography"
+        ]
+      }
+    },
+    "/api/v1/radiography/page/{url}": {
+      "get": {
+        "operationId": "RadiographyController_getPageRadiography",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "maxAgeHours",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Radiography"
+        ]
+      }
+    },
+    "/api/v1/radiography/profile/{domain}": {
+      "get": {
+        "operationId": "RadiographyController_getProfile",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "domain",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Radiography"
+        ]
+      }
+    },
+    "/api/v1/radiography/profile/{domain}/selectors": {
+      "get": {
+        "operationId": "RadiographyController_getSelectors",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "domain",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Radiography"
+        ]
+      }
+    },
+    "/api/v1/sessions": {
+      "get": {
+        "operationId": "SessionsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Historial de sesiones",
+        "tags": [
+          "sessions"
+        ]
+      },
+      "post": {
+        "operationId": "SessionsController_create",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSessionDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Crea una sesión (URL + credenciales) y lanza la radiografía",
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
+    "/api/v1/sessions/{id}": {
+      "get": {
+        "operationId": "SessionsController_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Detalle de la sesión (mensajes + perfil aprendido)",
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
+    "/api/v1/sessions/{id}/messages": {
+      "post": {
+        "operationId": "SessionsController_message",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendMessageDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Envía una instrucción (crea un job con el contexto de la sesión)",
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
+    "/api/v1/sessions/{id}/status": {
+      "get": {
+        "operationId": "SessionsController_status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Estado de la radiografía (RADIOGRAPHY|READY|FAILED)",
+        "tags": [
+          "sessions"
+        ]
+      }
+    }
+  },
+  "servers": [],
+  "tags": []
+}

@@ -7,3 +7,5 @@ postgres-data/
 redis-data/
 crawlee-storage/
 /storage/
+test-results.xml
+*.tsbuildinfo
