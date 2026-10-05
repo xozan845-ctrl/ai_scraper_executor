@@ -245,7 +245,7 @@ export class ExecutionEngine {
           if (!cmd.url) return { ok: false, commandType: 'NAVIGATE', error: 'NAVIGATE requiere url' };
           await this.loadUrl(cmd.url);
           const title = this.$!('title').first().text().trim().slice(0, 200);
-          console.log(`[NAVIGATE] url=${cmd.url} title=${title} htmlLength=${this.currentHtmlLength}`);
+          logger.debug('navigate', { url: cmd.url, title, htmlLength: this.currentHtmlLength });
           return { ok: true, commandType: 'NAVIGATE', count: this.currentHtmlLength, nextHint: title || cmd.url };
         }
 
@@ -321,7 +321,7 @@ export class ExecutionEngine {
             };
           }
           this.memory.lastItems = 1;
-          console.log(`[EXTRACT] fields=${JSON.stringify(Object.keys(cmd.fields))} items=${JSON.stringify(obj)} url=${this.currentUrl}`);
+          logger.debug('extract', { fields: Object.keys(cmd.fields), url: this.currentUrl });
           return { ok: true, commandType: 'EXTRACT', items: [obj], count: 1 };
         }
 
@@ -332,7 +332,7 @@ export class ExecutionEngine {
           const limit = Math.min(cmd.limit ?? 100, 1000);
           const items: Record<string, unknown>[] = [];
           const cards = $(cmd.selector);
-          console.log(`[EXTRACT_LIST] selector="${cmd.selector}" limit=${limit} cardsFound=${cards.length} fields=${JSON.stringify(Object.keys(cmd.fields))} url=${this.currentUrl}`);
+          logger.debug('extract_list.start', { selector: cmd.selector, limit, cardsFound: cards.length, fields: Object.keys(cmd.fields), url: this.currentUrl });
           if (cards.length === 0) {
             return {
               ok: false,
@@ -362,7 +362,7 @@ export class ExecutionEngine {
             items.push(row);
           });
           this.memory.lastItems = items.length;
-          console.log(`[EXTRACT_LIST] extracted=${items.length} url=${this.currentUrl} firstItem=${JSON.stringify(items[0] ?? {})}`);
+          logger.debug('extract_list.done', { extracted: items.length, url: this.currentUrl });
           return { ok: true, commandType: 'EXTRACT_LIST', items, count: items.length };
         }
 
@@ -415,7 +415,7 @@ export class ExecutionEngine {
         case 'WAIT': {
           const ms = Math.min(Number(cmd.ms ?? 1000), 5000);
           await new Promise((r) => setTimeout(r, ms));
-          console.log(`[WAIT] esperados ${ms}ms`);
+          logger.debug('wait', { ms });
           return { ok: true, commandType: 'WAIT', nextHint: `esperados ${ms}ms` };
         }
 
