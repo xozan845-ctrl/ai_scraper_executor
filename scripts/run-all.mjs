@@ -14,9 +14,10 @@ import credentials from './flows/03-credentials.mjs';
 import jobs from './flows/04-jobs.mjs';
 import radiography from './flows/05-radiography.mjs';
 import errors from './flows/06-errors.mjs';
+import productosStockVentas from './flows/07-productos-stock-ventas.mjs';
 
 const skipSlow = process.argv.includes('--skip-slow');
-const all = [health, sessionChat, sessionsHistory, credentials, jobs, radiography, errors];
+const all = [health, sessionChat, sessionsHistory, credentials, jobs, radiography, errors, productosStockVentas];
 const flows = skipSlow ? all.filter((f) => !f.slow) : all;
 
 const client = createClient();

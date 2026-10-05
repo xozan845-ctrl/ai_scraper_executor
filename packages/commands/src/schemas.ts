@@ -10,6 +10,8 @@ export const CommandType = {
   INSPECT_LINKS: 'INSPECT_LINKS',
   INSPECT_ELEMENTS: 'INSPECT_ELEMENTS',
   CLICK: 'CLICK',
+  TYPE: 'TYPE',
+  AUTHENTICATE: 'AUTHENTICATE',
   WAIT: 'WAIT',
   SCROLL: 'SCROLL',
   EXTRACT: 'EXTRACT',
@@ -35,6 +37,23 @@ const NavigateCommand = BaseCommand.extend({
 const ClickCommand = BaseCommand.extend({
   type: z.literal(CommandType.CLICK),
   selector: z.string().min(1).max(500),
+});
+
+const TypeCommand = BaseCommand.extend({
+  type: z.literal(CommandType.TYPE),
+  selector: z.string().min(1).max(500),
+  text: z.string().max(5000).optional(),
+  credential: z.enum(['username', 'password']).optional(),
+});
+
+const AuthenticateCommand = BaseCommand.extend({
+  type: z.literal(CommandType.AUTHENTICATE),
+  usernameSelector: z.string().min(1).max(500),
+  passwordSelector: z.string().min(1).max(500),
+  submitSelector: z.string().min(1).max(500).optional(),
+  successSelector: z.string().min(1).max(500).optional(),
+  captchaSelector: z.string().min(1).max(500).optional(),
+  mfaSelector: z.string().min(1).max(500).optional(),
 });
 
 const ExtractField = z.union([
@@ -71,6 +90,8 @@ const FollowLinksCommand = BaseCommand.extend({
 export const ScrapingCommandSchema = z.discriminatedUnion('type', [
   NavigateCommand,
   ClickCommand,
+  TypeCommand,
+  AuthenticateCommand,
   ExtractListCommand,
   ExtractCommand,
   PaginateCommand,

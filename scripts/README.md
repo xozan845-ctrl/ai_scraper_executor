@@ -17,7 +17,7 @@ Usa el `fetch` nativo de Node ≥20 — **sin dependencias**.
 |---|---|---|
 | `API_URL` | `http://localhost:3000/api/v1` | Base URL de la API |
 | `API_KEY` | *(vacío)* | Valor para el header `x-api-key` (si el server tiene `API_KEYS`) |
-| `TEST_URL` | `https://www.sevasaonline.com/` | URL a analizar en los flujos |
+| `TEST_URL` | `https://negocio360oficial.com/dashboard.html` | URL a analizar en los flujos (estándar MVP) |
 | `TEST_HEADERS_JSON` | *(vacío)* | Headers reales de sesión, por ejemplo `{"Authorization":"Bearer ..."}` |
 | `TEST_PROMPTS_JSON` | un prompt de productos | Array JSON de prompts para continuar el mismo chat |
 | `TEST_CREDENTIAL_PROMPT` | datos disponibles | Prompt usado por el flujo autenticado |

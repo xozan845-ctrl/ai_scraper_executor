@@ -27,6 +27,7 @@ const ALIASES: Record<string, string> = {
   paginate: 'PAGINATE',
   pagination: 'PAGINATE',
   click: 'CLICK',
+  type: 'TYPE',
   wait: 'WAIT',
   scroll: 'SCROLL',
   get_attribute: 'GET_ATTRIBUTE',
@@ -35,6 +36,8 @@ const ALIASES: Record<string, string> = {
   done: 'FINISH',
   stop: 'FINISH',
   end: 'FINISH',
+  authenticate: 'AUTHENTICATE',
+  login: 'AUTHENTICATE',
 };
 
 const KNOWN_TYPES = new Set(Object.values(ALIASES));

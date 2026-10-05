@@ -92,6 +92,7 @@ packages/storage          JobStore (Prisma + InMemory)
 
 - `.env` está en `.gitignore` y `.dockerignore` — **nunca** commitear secretos. Solo `.env.example`.
 - `test:e2e` usa `node --env-file=.env`, por eso no hace falta exportar variables manualmente.
+- **URL de pruebas estándar**: `TEST_URL=https://negocio360oficial.com/dashboard.html` (usada por `npm run test:api` y todos los flujos de validación MVP).
 - Dockerfiles usan `npm ci --ignore-scripts --legacy-peer-deps` (conflicto de peer deps de eslint).
 
 ## Gotchas conocidos

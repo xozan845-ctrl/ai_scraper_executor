@@ -17,7 +17,7 @@ export class CommandValidator {
 
   validateCommand(raw: unknown): ScrapingCommand {
     const cmd = ScrapingCommandSchema.parse(raw);
-    if (this.opts.allowedTypes && !this.opts.allowedTypes.includes(cmd.type)) {
+    if (this.opts.allowedTypes && typeof cmd.type === 'string' && !this.opts.allowedTypes.includes(cmd.type)) {
       throw new Error(`Command type not allowed: ${cmd.type}`);
     }
     if ('url' in cmd && typeof (cmd as { url?: string }).url === 'string') {

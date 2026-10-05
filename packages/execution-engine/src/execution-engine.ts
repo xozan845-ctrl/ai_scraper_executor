@@ -211,6 +211,7 @@ export class ExecutionEngine {
           if (!cmd.url) return { ok: false, commandType: 'NAVIGATE', error: 'NAVIGATE requiere url' };
           await this.loadUrl(cmd.url);
           const title = this.$!('title').first().text().trim().slice(0, 200);
+          console.log(`[NAVIGATE] url=${cmd.url} title=${title} htmlLength=${this.currentHtmlLength}`);
           return { ok: true, commandType: 'NAVIGATE', count: this.currentHtmlLength, nextHint: title || cmd.url };
         }
 
@@ -286,6 +287,7 @@ export class ExecutionEngine {
             };
           }
           this.memory.lastItems = 1;
+          console.log(`[EXTRACT] fields=${JSON.stringify(Object.keys(cmd.fields))} items=${JSON.stringify(obj)} url=${this.currentUrl}`);
           return { ok: true, commandType: 'EXTRACT', items: [obj], count: 1 };
         }
 
@@ -296,6 +298,7 @@ export class ExecutionEngine {
           const limit = Math.min(cmd.limit ?? 100, 1000);
           const items: Record<string, unknown>[] = [];
           const cards = $(cmd.selector);
+          console.log(`[EXTRACT_LIST] selector="${cmd.selector}" limit=${limit} cardsFound=${cards.length} fields=${JSON.stringify(Object.keys(cmd.fields))} url=${this.currentUrl}`);
           if (cards.length === 0) {
             return {
               ok: false,
@@ -325,6 +328,7 @@ export class ExecutionEngine {
             items.push(row);
           });
           this.memory.lastItems = items.length;
+          console.log(`[EXTRACT_LIST] extracted=${items.length} url=${this.currentUrl} firstItem=${JSON.stringify(items[0] ?? {})}`);
           return { ok: true, commandType: 'EXTRACT_LIST', items, count: items.length };
         }
 
@@ -377,6 +381,7 @@ export class ExecutionEngine {
         case 'WAIT': {
           const ms = Math.min(Number(cmd.ms ?? 1000), 5000);
           await new Promise((r) => setTimeout(r, ms));
+          console.log(`[WAIT] esperados ${ms}ms`);
           return { ok: true, commandType: 'WAIT', nextHint: `esperados ${ms}ms` };
         }
 
@@ -465,6 +470,35 @@ export class ExecutionEngine {
             return { ok: true, commandType: 'PAGINATE', items: [toAbs(href, this.currentUrl!)], count: 1 };
           }
           return { ok: false, commandType: 'PAGINATE', error: 'PAGINATE requiere pattern o selector' };
+        }
+
+        case 'TYPE': {
+          const $ = this.requirePage();
+          if (!cmd.selector) return { ok: false, commandType: 'TYPE', error: 'selector requerido' };
+          const text = (cmd as { text?: string }).text;
+          if (!text) return { ok: false, commandType: 'TYPE', error: 'text requerido' };
+          const el = $(cmd.selector).first();
+          if (el.length === 0) {
+            return { ok: false, commandType: 'TYPE', error: `selector no encontrado: ${cmd.selector}` };
+          }
+          // Establecer valor en input/textarea (Cheerio .val() es suficiente para el engine).
+          if (el.is('input') || el.is('textarea')) {
+            el.val(text);
+          } else {
+            // Para lectura/debug: almacenar texto en un elemento visible o ignorado.
+            el.text(text);
+          }
+          return { ok: true, commandType: 'TYPE', nextHint: `valor establecido en ${cmd.selector}` };
+        }
+
+        case 'AUTHENTICATE': {
+          const $ = this.requirePage();
+          if (!cmd.usernameSelector || !cmd.passwordSelector) {
+            return { ok: false, commandType: 'AUTHENTICATE', error: 'usernameSelector y passwordSelector requeridos' };
+          }
+          // TYPE AUTHENTICATE: en HTTP solo registramos la intención.
+          // El motor completará el login cuando ejecute el job con browserInteract (ETAPA 3).
+          return { ok: true, commandType: 'AUTHENTICATE', nextHint: 'credentials intentadas, awaiting next page' };
         }
 
         case 'FINISH':

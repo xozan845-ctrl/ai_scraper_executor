@@ -22,6 +22,28 @@ export interface PaginationPattern {
   confidence: number;
 }
 
+/** Perfil de usuario del sistema */
+export interface IUser extends Document {
+  email: string;
+  passwordHash: string;
+  role: 'superadmin' | 'user';
+  createdAt: Date;
+  lastLoginAt?: Date;
+}
+
+/** Tipo de documento de usuario para TypeScript */
+export type UserDocument = IUser;
+
+/** Modelo de usuario de MongoDB */
+export const User = model<IUser>('User', new Schema<IUser>(
+  {
+    email: { type: String, required: true, unique: true, lowercase: true },
+    passwordHash: { type: String, required: true },
+    role: { type: String, enum: ['superadmin', 'user'], default: 'user' },
+  },
+  { timestamps: true }
+));
+
 /** Perfil de un sitio/dominio aprendido con el tiempo */
 export interface ISiteProfile extends Document {
   domain: string;               // clave única: "tienda.com"
