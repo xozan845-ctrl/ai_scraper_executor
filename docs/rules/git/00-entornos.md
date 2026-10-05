@@ -51,6 +51,14 @@ git status --short --untracked-files=all | head
 ```
 
 > Nota sobre `.gitignore`: cubre `node_modules/`, `dist/`, `*.log`, `.env`,
-> `.env.local`, `postgres-data/`, `redis-data/`, `crawlee-storage/` y `/storage/`.
-> Un artefacto que aparezca como untracked es porque el patrón falta, no porque el
-> artefacto deba versionarse (`R-GA-4`).
+> `.env.local`, `postgres-data/`, `redis-data/`, `crawlee-storage/`, `/storage/` y
+> `test-results.xml`. Un artefacto que aparezca como untracked es porque el patrón
+> falta, no porque el artefacto deba versionarse (`R-GA-4`).
+
+> **Protección de rama (R-GE-4): bloqueada por el plan.** El intento de aplicarla
+> con `gh api -X PUT …/branches/main/protection` devuelve
+> `403 Upgrade to GitHub Pro or make this repository public`. Es una función
+> **de pago en repos privados**: no es deuda de este repo, es un límite externo.
+> Para cerrarla hay dos caminos: activar GitHub Pro, o hacer el repo público. Hasta
+> entonces, `R-GE-4` se cumple **por disciplina** (rama + PR + merge, no push directo)
+> y no por enforcement. Ver [`../_meta/AUDIT.md`](../_meta/AUDIT.md).
