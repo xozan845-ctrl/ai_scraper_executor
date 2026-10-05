@@ -33,7 +33,7 @@ export function instanceId(): string {
 
 export class MetricsCollector {
   private counters = new Map<string, Counter[]>();
-  private gauges = new Map<string, { value: number; labels: MetricLabels }>();
+  private gauges = new Map<string, Counter[]>();
   private readonly prefix: string;
   private readonly startedAt = Date.now();
   readonly instance: string;
@@ -57,8 +57,14 @@ export class MetricsCollector {
     this.counters.set(key, list);
   }
 
+  /** Gauge con soporte de labels: cada combinación de labels es una serie independiente. */
   gauge(name: string, value: number, labels: MetricLabels = {}): void {
-    this.gauges.set(`${this.prefix}_${name}`, { value, labels: { ...labels } });
+    const key = `${this.prefix}_${name}`;
+    const list = this.gauges.get(key) ?? [];
+    const slot = list.find((c) => shallowEqual(c.labels, labels));
+    if (slot) slot.value = value;
+    else list.push({ value, labels: { ...labels } });
+    this.gauges.set(key, list);
   }
 
   snapshot(): Record<string, number> {
@@ -66,7 +72,7 @@ export class MetricsCollector {
     for (const [name, list] of this.counters) {
       out[name] = list.reduce((acc, c) => acc + c.value, 0);
     }
-    for (const [name, g] of this.gauges) out[name] = g.value;
+    for (const [name, list] of this.gauges) out[name] = list.reduce((acc, g) => acc + g.value, 0);
     return out;
   }
 
@@ -83,9 +89,9 @@ export class MetricsCollector {
       lines.push(`# TYPE ${name} counter`);
       for (const c of list) lines.push(`${name}${withInstance(c.labels)} ${c.value}`);
     }
-    for (const [name, g] of this.gauges) {
+    for (const [name, list] of this.gauges) {
       lines.push(`# TYPE ${name} gauge`);
-      lines.push(`${name}${withInstance(g.labels)} ${g.value}`);
+      for (const g of list) lines.push(`${name}${withInstance(g.labels)} ${g.value}`);
     }
     lines.push(`# TYPE ${this.prefix}_instance_info gauge`);
     lines.push(`${this.prefix}_instance_info${renderLabels({ instance: this.instance })} 1`);

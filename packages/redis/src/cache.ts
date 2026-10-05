@@ -59,8 +59,12 @@ export class RedisPageCache {
   }
 
   async clear(): Promise<void> {
-    const keys = await this.client.keys(`${this.prefix}*`);
-    if (keys.length) await this.client.del(...keys);
+    let cursor = '0';
+    do {
+      const [next, batch] = await this.client.scan(cursor, 'MATCH', `${this.prefix}*`, 'COUNT', 100);
+      cursor = next;
+      if (batch.length) await this.client.del(...batch);
+    } while (cursor !== '0');
   }
 
   getStats(): { hits: number; misses: number; hitRate: number } {
