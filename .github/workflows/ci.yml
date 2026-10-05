@@ -5,9 +5,27 @@ on:
     branches: [main]
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-test-lint:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: scraper
+          POSTGRES_PASSWORD: scraper
+          POSTGRES_DB: scraper
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U scraper"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -16,8 +34,20 @@ jobs:
           cache: npm
       - name: Install
         run: npm ci --ignore-scripts --legacy-peer-deps
+      - name: Security audit
+        run: npm audit --audit-level=high
       - name: Prisma generate
         run: npm run prisma:generate
+      - name: Prisma schema valid
+        run: npx prisma validate --schema=prisma/schema.prisma
+      - name: Apply migrations to service DB
+        run: npx prisma migrate deploy --schema=prisma/schema.prisma
+        env:
+          DATABASE_URL: postgresql://scraper:scraper@localhost:5432/scraper?schema=public
+      - name: Migrations have no drift
+        run: npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --exit-code
+        env:
+          DATABASE_URL: postgresql://scraper:scraper@localhost:5432/scraper?schema=public
       - name: Build
         run: npm run build
       - name: Lint
