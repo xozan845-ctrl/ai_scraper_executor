@@ -10,7 +10,7 @@
  */
 import { AIOrchestrator } from '@ai-scraper/ai';
 import { CommandValidator, normalizeRawPlan, clampCommandLimits } from '@ai-scraper/commands';
-import { DEFAULT_LIMITS } from '@ai-scraper/core';
+import { normalizeJobLimits, type JobLimits } from '@ai-scraper/core';
 import { createAIProviderForJob } from '@ai-scraper/ai-providers';
 import { getLearnedProfile } from '@ai-scraper/mongodb';
 import type { PlanningContext } from '@ai-scraper/ai';
@@ -29,18 +29,10 @@ function debugWarn(...args: unknown[]) {
   if (DEBUG) console.warn('[PLANNER WARN]', new Date().toISOString(), ...args);
 }
 
-export interface PlanLimits {
-  maxPages?: number;
-  maxDepth?: number;
-  maxItems?: number;
-  maxRuntimeSec?: number;
-  maxRequests?: number;
-}
-
 export interface PlanJobInput {
   url: string;
   instruction: string;
-  limits?: PlanLimits;
+  limits?: JobLimits;
   ai?: { provider?: string; model?: string };
   /** FASE 12: usar memoria aprendida (default true) */
   useMemory?: boolean;
@@ -60,10 +52,6 @@ export interface PlannerDeps {
   defaultModel?: string;
 }
 
-function mergeLimits(input?: PlanLimits): Required<PlanLimits> {
-  return { ...DEFAULT_LIMITS, ...input };
-}
-
 
 export async function generatePlan(input: PlanJobInput, deps?: PlannerDeps): Promise<GeneratedPlan> {
   debugLog('=== GENERATE PLAN START ===', { url: input.url, instruction: input.instruction, useMemory: input.useMemory !== false });
@@ -74,7 +62,7 @@ export async function generatePlan(input: PlanJobInput, deps?: PlannerDeps): Pro
     throw new Error(`URL inicial inválida: ${input.url}`);
   }
 
-  const limits = mergeLimits(input.limits);
+  const limits = normalizeJobLimits(input.limits);
   const validator = new CommandValidator({
     allowedDomain: domain,
     maxDepth: limits.maxDepth,

@@ -14,7 +14,7 @@
  */
 import { AIOrchestrator } from '@ai-scraper/ai';
 import { CommandValidator, normalizeRawCommand, clampCommandLimits } from '@ai-scraper/commands';
-import { DEFAULT_LIMITS } from '@ai-scraper/core';
+import { normalizeJobLimits } from '@ai-scraper/core';
 import { ExecutionEngine } from '@ai-scraper/execution-engine';
 import { generatePlan, type PlanJobInput, type PlanAction } from './planner';
 import { getLearnedProfile, mongoRepo } from '@ai-scraper/mongodb';
@@ -108,7 +108,7 @@ export class AgentRunner {
       return { ...base, status: 'FAILED', error: `URL inicial inválida: ${job.url}` };
     }
 
-    const limits = { ...DEFAULT_LIMITS, ...job.limits };
+    const limits = normalizeJobLimits(job.limits);
     const validator = new CommandValidator({
       allowedDomain: domain,
       maxDepth: limits.maxDepth,
