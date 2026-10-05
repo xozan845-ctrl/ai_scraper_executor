@@ -3,6 +3,16 @@ import { getRedisClient, getRedisSubscriber, probeRedis, ensureConnected, Redis 
 const METRICS_PREFIX = 'metrics:';
 const INSTANCE_TTL = 60; // segundos
 
+/**
+ * Separa `instance:labels` por el PRIMER ':'. El instanceId nunca contiene ':'
+ * (host-pid), pero el JSON de labels sí; `split(':', 2)` lo rompía.
+ */
+export function parseGaugeField(field: string): { instance: string; labels: string } {
+  const idx = field.indexOf(':');
+  if (idx === -1) return { instance: field, labels: '' };
+  return { instance: field.slice(0, idx), labels: field.slice(idx + 1) };
+}
+
 /** Agregador de métricas distribuidas (Redis) */
 export class RedisMetricsAggregator {
   private readonly client: Redis;
@@ -50,9 +60,21 @@ export class RedisMetricsAggregator {
     return Object.values(all).reduce((sum: number, v: string) => sum + parseInt(v, 10), 0);
   }
 
+  /** Itera claves con SCAN (no bloquea Redis como KEYS en producción). */
+  private async scanKeys(pattern: string): Promise<string[]> {
+    const found: string[] = [];
+    let cursor = '0';
+    do {
+      const [next, batch] = await this.client.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+      cursor = next;
+      if (batch.length) found.push(...batch);
+    } while (cursor !== '0');
+    return found;
+  }
+
   /** Obtiene todos los contadores para Prometheus */
   async getAllCounters(): Promise<Record<string, number>> {
-    const keys = await this.client.keys(`${METRICS_PREFIX}*`);
+    const keys = await this.scanKeys(`${METRICS_PREFIX}*`);
     const result: Record<string, number> = {};
     for (const key of keys) {
       if (key.endsWith(':gauge')) continue;
@@ -65,14 +87,14 @@ export class RedisMetricsAggregator {
 
   /** Obtiene todos los gauges (último valor por instance) */
   async getAllGauges(): Promise<Record<string, Record<string, number>>> {
-    const keys = await this.client.keys(`${METRICS_PREFIX}*:gauge`);
+    const keys = await this.scanKeys(`${METRICS_PREFIX}*:gauge`);
     const result: Record<string, Record<string, number>> = {};
     for (const key of keys) {
       const all = await this.client.hgetall(key) as Record<string, string>;
       const metricName = key.replace(METRICS_PREFIX, '').replace(':gauge', '');
       result[metricName] = {};
       for (const [field, value] of Object.entries(all)) {
-        const [instance, labels] = field.split(':', 2);
+        const { instance, labels } = parseGaugeField(field);
         result[metricName][`${instance}:${labels}`] = parseFloat(value);
       }
     }
@@ -90,14 +112,13 @@ export class RedisMetricsAggregator {
 
   /** Lista instancias vivas */
   async getLiveInstances(): Promise<string[]> {
-    const keys = await this.client.keys(`${METRICS_PREFIX}instances:*`);
+    const keys = await this.scanKeys(`${METRICS_PREFIX}instances:*`);
     return keys.map((k: string) => k.split(':').pop()!).filter(Boolean);
   }
 
-  /** Limpia instancias muertas */
+  /** Limpia instancias muertas (las expiradas ya no aparecen en Redis). */
   async cleanupDeadInstances(): Promise<void> {
-    const instances = await this.getLiveInstances();
-    // Las que no están en Redis (expiraron) ya no aparecen
+    await this.getLiveInstances();
   }
 }
 
