@@ -29,12 +29,38 @@ model Job {
   updatedAt   DateTime  @updatedAt
   userId      String?
   user        User?     @relation(fields: [userId], references: [id])
+  sessionId   String?
+  session     Session?  @relation(fields: [sessionId], references: [id], onDelete: SetNull)
   plans       ScrapingPlan[]
   commands    Command[]
   pages       Page[]
   results     Result[]
   errors      JobError[]
   aiRequests  AIInteraction[]
+}
+
+// Sesión tipo "chat": una URL a analizar con su contexto (radiografía) e historial.
+model Session {
+  id          String   @id @default(cuid())
+  url         String
+  domain      String
+  status      String   @default("RADIOGRAPHY") // RADIOGRAPHY | READY | FAILED
+  credentials String?  // JSON cifrado (AES-256-GCM)
+  error       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  messages    SessionMessage[]
+  jobs        Job[]
+}
+
+model SessionMessage {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role      String // user | assistant
+  content   String
+  jobId     String?
+  createdAt DateTime @default(now())
 }
 
 model ScrapingPlan {
