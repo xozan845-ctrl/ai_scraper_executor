@@ -135,6 +135,7 @@ export class InMemoryJobStore implements JobStore {
     this.pages.delete(jobId);
     this.results.delete(jobId);
     this.errors.delete(jobId);
+    this.interactions = this.interactions.filter((i) => i.jobId !== jobId);
   }
 
   async getStats(): Promise<StoreStats> {

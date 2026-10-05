@@ -40,11 +40,13 @@ export class JobsService {
     @Inject(JOB_QUEUE) private readonly queue: JobQueue,
   ) {}
 
-  async create(dto: CreateJobDto, idempotencyKey?: string, sessionId?: string) {
-    // Idempotencia: si la clave ya existe, devuelve el job previo (no duplica).
-    if (idempotencyKey) {
-      const cache = await getJsonCache();
-      const existingId = await cache.get<string>(`idem:${idempotencyKey}`);
+  async create(dto: CreateJobDto, idempotencyKey?: string, sessionId?: string, scope = 'anon') {
+    // Idempotencia con ámbito (scope = hash de API key/sesión): evita que la
+    // misma clave de dos clientes distintos devuelva el job de otro.
+    const idemKey = idempotencyKey ? `idem:${scope}:${idempotencyKey}` : null;
+    const cache = idemKey ? await getJsonCache() : null;
+    if (idemKey && cache) {
+      const existingId = await cache.get<string>(idemKey);
       if (existingId) {
         const existing = await this.store.getJob(existingId);
         if (existing) {
@@ -82,9 +84,8 @@ export class JobsService {
     }
     console.log(`[JOB] ${record.id} QUEUED — ${dto.url} :: ${dto.instruction.slice(0, 80)}`);
     metrics().inc('jobs_created_total');
-    if (idempotencyKey) {
-      const cache = await getJsonCache();
-      await cache.set(`idem:${idempotencyKey}`, record.id, 24 * 3600 * 1000).catch(() => undefined);
+    if (idemKey && cache) {
+      await cache.set(idemKey, record.id, 24 * 3600 * 1000).catch(() => undefined);
     }
     return record;
   }
@@ -95,10 +96,14 @@ export class JobsService {
 
   list(limit?: number, opts?: { cursor?: string; status?: string }) {
     const n = Math.min(Math.max(Number(limit) || 20, 1), 100);
-    return this.store.listJobs(n, opts).then((items) => ({
-      items,
-      nextCursor: items.length === n ? items[items.length - 1]!.id : null,
-    }));
+    return this.store.listJobs(n + 1, opts).then((rows) => {
+      const hasMore = rows.length > n;
+      const items = hasMore ? rows.slice(0, n) : rows;
+      return {
+        items,
+        nextCursor: hasMore ? items[items.length - 1]!.id : null,
+      };
+    });
   }
 
   async results(id: string) {
