@@ -46,27 +46,27 @@ describe('API hardening ETAPA 4 (auth + allowlist + rate-limit + ai paging)', as
     );
   });
 
-  it('ApiKeyGuard: abierto sin API_KEYS, estricto con claves', () => {
+  it('ApiKeyGuard: abierto sin API_KEYS, estricto con claves', async () => {
     assert.equal(isAuthEnforced(), false);
-    assert.equal(new ApiKeyGuard().canActivate(ctx({ headers: {}, query: {} })), true);
+    assert.equal(await new ApiKeyGuard().canActivate(ctx({ headers: {}, query: {} })), true);
 
     process.env.API_KEYS = 'k1,k2';
     assert.equal(isAuthEnforced(), true);
     const guard = new ApiKeyGuard();
-    assert.throws(() => guard.canActivate(ctx({ headers: {}, query: {} })), /API key/);
-    assert.throws(() => guard.canActivate(ctx({ headers: { 'x-api-key': 'wrong' }, query: {} })), /API key/);
-    assert.equal(guard.canActivate(ctx({ headers: { 'x-api-key': 'k2' }, query: {} })), true);
+    await assert.rejects(() => guard.canActivate(ctx({ headers: {}, query: {} })), /API key/);
+    await assert.rejects(() => guard.canActivate(ctx({ headers: { 'x-api-key': 'wrong' }, query: {} })), /API key/);
+    assert.equal(await guard.canActivate(ctx({ headers: { 'x-api-key': 'k2' }, query: {} })), true);
     // La clave por query string YA NO se acepta (fuga en logs/Referer).
-    assert.throws(() => guard.canActivate(ctx({ headers: {}, query: { apiKey: 'k1' } })), /API key/);
+    await assert.rejects(() => guard.canActivate(ctx({ headers: {}, query: { apiKey: 'k1' } })), /API key/);
   });
 
-  it('ApiKeyGuard fail-closed en producción sin claves', () => {
+  it('ApiKeyGuard fail-closed en producción sin claves', async () => {
     const prevNode = process.env.NODE_ENV;
     const prevKeys = process.env.API_KEYS;
     delete process.env.API_KEYS;
     process.env.NODE_ENV = 'production';
     assert.equal(isAuthEnforced(), true);
-    assert.throws(() => new ApiKeyGuard().canActivate(ctx({ headers: {}, query: {} })), /API_KEYS no configurado/);
+    await assert.rejects(() => new ApiKeyGuard().canActivate(ctx({ headers: {}, query: {} })), /API_KEYS/);
     if (prevNode === undefined) delete process.env.NODE_ENV;
     else process.env.NODE_ENV = prevNode;
     if (prevKeys !== undefined) process.env.API_KEYS = prevKeys;

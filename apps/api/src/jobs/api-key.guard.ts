@@ -1,13 +1,20 @@
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, UnauthorizedException, Optional } from '@nestjs/common';
+import { timingSafeEqual } from 'node:crypto';
+import { UserService } from './user.service';
 
 /**
  * Auth por API key.
- * Lee claves de `API_KEYS` (coma-separadas) y acepta SOLO el header `x-api-key`
- * (no query string, para no filtrar la clave en logs/Referer).
+ *
+ * Acepta dos fuentes, en este orden:
+ * 1. Claves de entorno `API_KEYS` (coma-separadas), por header `x-api-key`.
+ * 2. Claves de usuario registradas en BD (hash SHA-256), vía `UserService`.
+ *    Esto permite que la API key devuelta por `/auth/register-first` autentique.
  *
  * Política:
- * - Con claves configuradas: exige una válida (401 si no).
- * - Sin claves: abierto en dev/test; en producción **deniega** (fail-closed).
+ * - Con claves de entorno configuradas: exige una válida.
+ * - Sin claves de entorno: abierto en dev/test; en producción, solo claves de BD;
+ *   si no hay ninguna → 401 (fail-closed).
+ * - Solo header `x-api-key` (nunca query string: evita fugas en logs/Referer).
  */
 function configuredKeys(): string[] {
   return (process.env.API_KEYS ?? '')
@@ -16,24 +23,43 @@ function configuredKeys(): string[] {
     .filter(Boolean);
 }
 
+function safeEqual(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ab.length !== bb.length) return false;
+  return timingSafeEqual(ab, bb);
+}
+
 export function isAuthEnforced(): boolean {
   return configuredKeys().length > 0 || process.env.NODE_ENV === 'production';
 }
 
 @Injectable()
 export class ApiKeyGuard implements CanActivate {
-  canActivate(context: ExecutionContext): boolean {
+  constructor(@Optional() private readonly userService?: UserService) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const keys = configuredKeys();
-    if (keys.length === 0) {
-      // Sin claves: en producción se cierra por defecto; en dev/test se permite.
-      if (process.env.NODE_ENV === 'production') {
-        throw new UnauthorizedException('API_KEYS no configurado en producción (auth deshabilitada por seguridad)');
-      }
-      return true;
-    }
+    // Dev/test sin claves de entorno: abierto (comportamiento histórico).
+    if (keys.length === 0 && process.env.NODE_ENV !== 'production') return true;
+
     const req = context.switchToHttp().getRequest() as { headers?: Record<string, unknown> };
     const presented = ((req.headers?.['x-api-key'] as string) ?? '').trim();
-    if (presented && keys.includes(presented)) return true;
+
+    if (keys.length > 0 && presented && keys.some((k) => safeEqual(k, presented))) return true;
+
+    // Clave de usuario en BD (sin romper si Mongo no responde: no autoriza).
+    if (presented && this.userService) {
+      try {
+        if (await this.userService.verifyApiKey(presented)) return true;
+      } catch {
+        /* Mongo caído → se trata como no autorizado */
+      }
+    }
+
+    if (keys.length === 0) {
+      throw new UnauthorizedException('API_KEYS/FIRST_RUN_TOKEN no configurados en producción (auth fail-closed)');
+    }
     throw new UnauthorizedException('API key inválida o ausente (header x-api-key)');
   }
 }

@@ -13,7 +13,27 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix('api/v1');
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
-  app.enableCors();
+  // CORS: allowlist explícita por CORS_ORIGINS. En producción sin allowlist NO se
+  // emiten cabeceras CORS (mismo origen); en dev/test se mantiene abierto.
+  const corsOrigins = (process.env.CORS_ORIGINS ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (corsOrigins.length > 0) app.enableCors({ origin: corsOrigins });
+  else if (process.env.NODE_ENV !== 'production') app.enableCors();
+  // trust proxy: necesario detrás de LB/reverse proxy para que req.ip (rate-limit) sea real.
+  const trustProxy = (process.env.TRUST_PROXY ?? '').trim();
+  if (trustProxy) {
+    const instance = app.getHttpAdapter().getInstance() as { set?: (k: string, v: unknown) => void };
+    instance.set?.('trust proxy', /^\d+$/.test(trustProxy) ? Number(trustProxy) : trustProxy);
+  }
+  // Cabeceras de seguridad básicas (sin dependencias externas).
+  app.use((_req: unknown, res: { setHeader: (k: string, v: string) => void }, next: () => void) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    next();
+  });
   app.enableShutdownHooks();
   // OpenAPI/Swagger en /api/v1/docs
   const swaggerConfig = new DocumentBuilder()
