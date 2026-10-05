@@ -203,8 +203,13 @@ describe('AgentRunner FASE 5 + Recovery FASE 6 (§47, §28)', async () => {
     const { fake } = makeFake({
       plan: { version: '1.0', actions: [{ type: 'NAVIGATE', url: baseJob.url }] },
     });
-    const { fetcher } = makeFetcher();
-    const res = await runner(fake, fetcher).run({ ...baseJob, limits: { maxRuntimeSec: 0 } });
+    // Fetch más lento que el deadline para que el job lo supere (maxRuntimeSec: 0
+    // ya no es válido: la normalización lo convierte en el default del servidor).
+    const slowFetcher = async () => {
+      await new Promise((r) => setTimeout(r, 1100));
+      return SHOP_HTML;
+    };
+    const res = await runner(fake, slowFetcher).run({ ...baseJob, limits: { maxRuntimeSec: 1 } });
     assert.equal(res.status, 'FAILED');
     assert.match(res.error, /maxRuntimeSec/);
   });
