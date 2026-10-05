@@ -51,8 +51,8 @@ package nunca importa de `apps/*`; `apps/*` compone packages.
 
 ## Pendientes
 
-- La puerta de seguridad (`npm audit --audit-level=high`) ya es un paso de CI y sale
-  en 0; queda 1 moderate de `@nestjs/core` como deuda declarada. Detalle en
+- La puerta de seguridad (`npm audit`) ya es un paso de CI y reporta **0
+  vulnerabilidades** (high y moderate). Detalle en
   [`../_meta/AUDIT.md`](../_meta/AUDIT.md) y
   [`../test/07-qa-gates.md`](../test/07-qa-gates.md).
 - La suite corre con `--test-concurrency=1` porque Crawlee usa storage local; si

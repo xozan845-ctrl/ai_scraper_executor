@@ -33,7 +33,7 @@ jobs:
           node-version: 22
           cache: npm
       - name: Install
-        run: npm ci --ignore-scripts --legacy-peer-deps
+        run: npm ci --ignore-scripts
       - name: Security audit
         run: npm audit --audit-level=high
       - name: Prisma generate

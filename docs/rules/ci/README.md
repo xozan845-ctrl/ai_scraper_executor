@@ -15,7 +15,7 @@ aquí**: son reglas de testing y siguen en
 > jobs.build-test-lint:
 >   ubuntu-latest · node 22 · cache npm
 >   services: postgres:16-alpine (solo para validar schema y deriva)
->   npm ci --ignore-scripts --legacy-peer-deps
+>   npm ci --ignore-scripts
 >   npm audit --audit-level=high
 >   npm run prisma:generate
 >   npx prisma validate
@@ -59,7 +59,7 @@ aquí**: son reglas de testing y siguen en
 | `G-5` | Contrato de API | ⏸ sin suite |
 | `G-6` | E2E antes de release | ⏸ sin job |
 | `G-8` | Swagger sincronizado | ⏸ la spec se genera en runtime, no se versiona |
-| `R-QA-6` | `npm audit --audit-level=high` bloqueante | ✅ paso `Security audit` (high = 0; queda 1 moderate de `@nestjs/core`) |
+| `R-QA-6` | `npm audit --audit-level=high` bloqueante | ✅ paso `Security audit` (0 vulnerabilidades, high y moderate) |
 | `R-FL-1` | Tests intermitentes en cuarentena con fecha | ⏸ no hay herramienta que los detecte |
 | `R-COV-3` | Un gate ✅ solo con run verde de CI | sí, es el criterio de esta área |
 | `R-GP-2/6` | Push con checks verdes; rojo ⇒ fix-forward | sí, con `gh` (R-CI-6) |
@@ -85,9 +85,8 @@ La importancia es cerrar la evidencia: un cambio terminado es un commit con
 ## Pendientes (deuda recogida aquí)
 
 - **Puerta de seguridad ya en CI (deuda cerrada)**: la puerta de `R-QA-6` /
-  `R-SE-16` **ya es un paso** (`Security audit`) y sale en 0. Queda 1 moderate
-  (`@nestjs/core`) como deuda residual, que exige un salto mayor de Nest. Ver
-  [`../_meta/AUDIT.md`](../_meta/AUDIT.md).
+  `R-SE-16` **ya es un paso** (`Security audit`) y reporta **0 vulnerabilidades**
+  (high y moderate). Ver [`../_meta/AUDIT.md`](../_meta/AUDIT.md).
 - **Concurrencia y servicios efímeros (deuda cerrada)**: `R-CI-2` ya declara
   `concurrency` con `cancel-in-progress`, y `R-EN-2` ya usa un servicio
   `postgres:16-alpine` para validar el schema y detectar deriva de migraciones

@@ -55,7 +55,7 @@ Marcar las capas ✅ que apliquen y **justificar las que no**.
 - [ ] **R-SE-9/10** — Fail-closed sin `API_KEYS` en producción; `x-api-key` con `timingSafeEqual`; el `401` no dice cuál falló.
 - [ ] **R-SE-11/12/13** — Credenciales cifradas con AES-256-GCM, nunca devueltas, aplicadas solo en HTTP y navegador.
 - [ ] **R-SE-17** — `.env` sigue en `.gitignore` **y** `.dockerignore`; nada de secretos versionados.
-- [ ] **R-QA-6** — `npm audit --audit-level=high` sale en 0 (es paso de CI). Si el PR toca dependencias, adjuntar el resultado; el residuo moderate conocido (`@nestjs/core`) está declarado en [`AUDIT.md`](./AUDIT.md).
+- [ ] **R-QA-6** — `npm audit --audit-level=high` sale en 0 (**0 vulnerabilidades**, high y moderate). Si el PR toca dependencias, adjuntar el resultado.
 
 ## 5. IA y DSL ([`ai/`](../ai/README.md)) — si el PR toca planes, prompts o modelos
 
@@ -121,7 +121,7 @@ Marcar las capas ✅ que apliquen y **justificar las que no**.
 ## 12. CI/CD — si el PR toca `.github/`, `docker-compose.yml` o un `Dockerfile`
 
 - [ ] **R-CI-1/2/3/4/5** — Cambiar gatillos, concurrencia, filtrado o añadir workflow, es enmienda explícita de la regla, no edición silenciosa del YAML; los comandos del workflow son verificables en local.
-- [ ] **R-EN-1** — Node fijo (`"22"`) y `npm ci --ignore-scripts --legacy-peer-deps` intactos.
+- [ ] **R-EN-1** — Node fijo (`"22"`) y `npm ci --ignore-scripts` intactos (sin `--legacy-peer-deps` desde Nest 12).
 - [ ] **R-EN-4** — Secretos solo en GitHub Secrets, nunca impresos.
 - [ ] **R-CD-9/10** — El grafo de arranque se respeta: `migrate` one-shot con `migrate deploy` bloquea a `api`/`worker`; no se arranca la API saltándoselo.
 - [ ] **R-CD-7/11** — Cero secretos en la imagen (ni `ARG` ni `ENV`); los secretos llegan en runtime por `env_file`/`environment`.

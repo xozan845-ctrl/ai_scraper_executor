@@ -9,7 +9,7 @@ tocar cada tipo de cambio** y **qué pasos bloquean el merge hoy**.
 > |---|---|
 > | Workflow | **Uno solo**: `ci.yml`, un job `build-test-lint` |
 > | Node | 22 en CI (el `engines` del repo pide `>=20`); trae cobertura nativa |
-> | Instalación | `npm ci --ignore-scripts --legacy-peer-deps` |
+> | Instalación | `npm ci --ignore-scripts` (sin `--legacy-peer-deps` desde Nest 12, ADR-18) |
 > | Pasos | `npm ci` → `Security audit` → `prisma:generate` → `build` → `lint` → `test` |
 > | Suite | `npm test` = `node --test --test-concurrency=1 --experimental-test-coverage …` sobre 26 ficheros, con `MONGODB_MOCK: '1'` |
 > | Cobertura | **Nativa de Node** (`--experimental-test-coverage`): sin `c8` ni `nyc`. Umbrales en el propio script `test`: **70 % líneas / 72 % ramas / 67 % funciones** |
@@ -98,8 +98,8 @@ job es efímero y se descarta; la BD de desarrollo nunca se toca (`R-EN-2`).
 - **`npm audit`** es la puerta de seguridad y **ya es un paso del job** `build-test-lint`
   (`Security audit`), no un `G-*`: se norma en
   [`07-qa-gates.md`](./07-qa-gates.md) (`R-QA-6`) y también en
-  [`../security/`](../security/README.md) (`R-SE-16`). `--audit-level=high` sale en 0;
-  queda 1 moderate de `@nestjs/core` declarado como deuda.
+  [`../security/`](../security/README.md) (`R-SE-16`). `npm audit` sale en **0
+  vulnerabilidades** (high y moderate).
 - **La suite de `npm run test:api`** (cliente real contra la API levantada) no es un
   gate: es un smoke de flujos que hoy se ejecuta a mano.
 - **El smoke de Prisma en `npm test`** se autoexcluye si `DATABASE_URL` no responde.

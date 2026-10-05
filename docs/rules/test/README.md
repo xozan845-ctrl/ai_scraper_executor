@@ -130,10 +130,6 @@ npm run test:api:fast
 
 - **G-4/G-5/G-6 sin paso en CI**: no hay suite de integración con almacén real, ni de
   contrato, ni job E2E (el E2E real existe pero se ejecuta a mano).
-- **1 moderate residual de dependencias**: `npm audit --audit-level=high` ya sale en
-  0 (es paso de CI), pero `--audit-level=moderate` sigue en 1
-  (`@nestjs/core <=11.1.17`), porque cerrarlo exige subir Nest de major. Ver
-  `07-qa-gates.md` (`R-QA-6`) y `../_meta/AUDIT.md`.
 - **`scripts/` sin lintear**: el lint cubre `apps packages`; `scripts/` (el cliente real
   de la API) queda fuera del alcance de `G-7`.
 
@@ -147,9 +143,10 @@ heredados que describían otro proyecto: los ficheros `*.spec.ts`, los workspace
 Además, **la puerta de seguridad quedó cerrada el mismo día**: `npm audit
 --audit-level=high` pasó de exit 1 (8 high) a **exit 0**, mediante `overrides` en el
 `package.json` raíz, y se añadió el paso `Security audit` al job `build-test-lint`
-(`R-QA-6`/`R-SE-16`). El único residuo es 1 moderate de `@nestjs/core`. Decisión y
-consecuencias en [`../../decisiones.md`](../../decisiones.md) (ADR-16). Estado y
-evidencia en [`../_meta/AUDIT.md`](../_meta/AUDIT.md).
+(`R-QA-6`/`R-SE-16`). Con Nest 12 el árbol queda en **0 vulnerabilidades** (también
+moderate) y se retiró `--legacy-peer-deps`. Decisiones y consecuencias en
+[`../../decisiones.md`](../../decisiones.md) (ADR-16 y ADR-18). Estado y evidencia en
+[`../_meta/AUDIT.md`](../_meta/AUDIT.md).
 
 Y **`G-3` (cobertura) quedó activo** con la herramienta nativa de Node
 (`--experimental-test-coverage`) y umbrales del baseline medido (70 / 72 / 67),

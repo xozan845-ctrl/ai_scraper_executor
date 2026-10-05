@@ -50,8 +50,8 @@ cómo se guardan las credenciales que el usuario aporta para una web con login.
 
 ## Pendientes
 
-- El gate de `npm audit --audit-level=high` **ya está en CI y sale en 0**
-  (`R-SE-16` / `R-QA-6`); queda 1 moderate de `@nestjs/core` como deuda declarada en
+- El gate de `npm audit` **ya está en CI y reporta 0 vulnerabilidades** (high y
+  moderate) (`R-SE-16` / `R-QA-6`): ver
   [`../_meta/AUDIT.md`](../_meta/AUDIT.md).
 - La allowlist de dominios (`ALLOWED_DOMAINS`) es opcional y vacío = "todos permitidos".
   En producción, un despliegue abierto es una decisión consciente (`R-SE-5`).
