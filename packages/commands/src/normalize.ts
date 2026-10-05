@@ -72,9 +72,11 @@ export function normalizeRawCommand(raw: unknown): NormalizeResult {
 
   let type = rawType.trim();
   const lower = type.toLowerCase().replace(/\s+/g, '_');
-  if (ALIASES[lower]) {
+  // `Object.hasOwn`: evita que claves como `__proto__`/`constructor` resuelvan
+  // contra el prototipo y se cuelen como "alias" (hallado por property-based, R-PB-1).
+  if (Object.hasOwn(ALIASES, lower)) {
     if (type !== ALIASES[lower]) notes.push(`alias ${type}→${ALIASES[lower]}`);
-    type = ALIASES[lower];
+    type = ALIASES[lower]!;
   } else {
     type = type.toUpperCase();
     if (!KNOWN_TYPES.has(type)) {

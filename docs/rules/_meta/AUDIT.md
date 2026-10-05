@@ -19,8 +19,8 @@
 
 | Métrica | Valor | Cómo se midió |
 |---|---|---|
-| Tests unitarios | **143 / 143 en verde, 36 suites** | `MONGODB_MOCK=1 npm test` |
-| Ficheros de test | **27 en disco, 26 en `npm test`** | `ls tests/*.test.mjs` vs script `test` |
+| Tests unitarios | **149 / 149 en verde, 37 suites** (incluye 6 propiedades de `fast-check`) | `MONGODB_MOCK=1 npm test` |
+| Ficheros de test | **28 en disco, 27 en `npm test`** | `ls tests/*.test.mjs` vs script `test` |
 | Runner | `node --test --test-concurrency=1` | script `test` de `package.json` |
 | Lint | **0 errores, 0 warnings** (alcance `apps`, `packages`, `scripts`) | `npm run lint` |
 | Build | **exit 0**, 0 errores TS, 12 paquetes + 2 apps | `npm run build` |
@@ -47,8 +47,8 @@
 | E2E real | 🔴 | El fichero existe (`tests/e2e-sevasa.test.mjs`) y se ejecuta **a mano** (`npm run test:e2e`); no hay job. Deuda `G-6` |
 | OpenAPI | 🟢 | `docs/openapi.json` versionada; `npm run openapi:check` como paso `OpenAPI spec in sync` (`G-8` ✅) |
 | Cobertura | 🟢 | **Nativa de Node** (`--experimental-test-coverage`), umbrales 70/72/67 en el script `test`. Baseline medido 71.59/73.69/68.90; `G-3` ✅ |
-| Property-based | 🔴 | Sin `fast-check`. `R-PB-*` aspiracional |
-| Mutation testing | 🔴 | Sin Stryker; nunca ejecutada. `R-MT-*` |
+| Property-based | 🟢 | `fast-check` en `tests/property.test.mjs` (6 propiedades, dentro de `npm test`). Encontró 2 defectos reales (`R-PB-*`) |
+| Mutation testing | 🔴 diferido | `R-MT-1`/ADR-20: Stryker 10 no tiene runner para `node --test`; se reevalúa con una suite de runner soportado |
 | Lint (`G-7`) | 🟢 | 0 errores, **0 warnings** (incluye `scripts/`) |
 | Build (`G-7`) | 🟢 | `npm run build` exit 0 |
 | **Security gate** (`R-QA-6`/`R-SE-16`) | 🟢 | **`npm audit` → 0 vulnerabilidades** (high y moderate) y ya es un paso de CI (`Security audit`). Nest 12 + eslint 10 alinearon los peers y retiraron `--legacy-peer-deps` (ADR-18) |
@@ -81,14 +81,17 @@ autoexcluye en `npm test` si `DATABASE_URL` no responde no bloquean.
 
 1. **Capas de test enteras sin suite**: integración (`G-4`), contrato (`G-5`) y
    E2E como gate de release (`G-6`).
-2. **Sin protección de rama en el remoto**: el workflow escucha `pull_request`, pero
-   nada impide un push directo a `main` mientras no se configure branch protection
-   (afecta a `R-GE-4`).
+2. **Sin protección de rama en el remoto (bloqueada por el plan)**: el intento de
+   aplicarla con `gh api` devuelve `403 Upgrade to GitHub Pro or make this repository
+   public` — es una función de pago en repos privados, no deuda de este repo. Hasta
+   activar Pro o hacerlo público, `R-GE-4` se cumple por disciplina (rama + PR +
+   merge), no por enforcement.
 3. **Promoción entre entornos sin implementar** (`R-GE-5`): una sola rama, un solo
    juego de secretos. Deuda asumida, no norma.
-4. **Robustez no implementada**: `R-PB-*`, `R-MT-*` sin herramientas. No se exige
-   ninguna en el pipeline: mutation testing en gate de PR sería desproporcionado
-   para este tamaño de repo.
+4. **Mutation testing diferido a propósito** (`R-MT-1`, ADR-20), no por descuido:
+   Stryker 10 no tiene runner para `node --test` y los tests cargan `dist`; se
+   reevalúa cuando exista una suite con runner soportado. Los property tests cubren
+   el riesgo mientras tanto.
 
 ## Cerradas en esta auditoría
 
@@ -133,6 +136,12 @@ autoexcluye en `npm test` si `DATABASE_URL` no responde no bloquean.
 - **`G-8` (OpenAPI) y artifact de test**: `docs/openapi.json` versionada y verificada
   con `npm run openapi:check` en CI; el reporter JUnit de Node escribe
   `test-results.xml`, subido como artifact en todos los runs (`R-EN-3`).
+- **Property-based testing real** (`R-PB-*`): `fast-check` + `tests/property.test.mjs`
+  dentro de `npm test` (149 tests en total). Las propiedades **encontraron dos
+  defectos reales** y los dejaron corregidos (`R-REG-1`):
+  `normalizeJobLimits(5e-324) → 0` (fuera de `[1, HARD]`, no idempotente) y la
+  resolución de alias contra el prototipo (`__proto__`/`constructor`/`_ proto _`).
+  La mutación (`R-MT`) queda diferida a propósito (ADR-20).
 
 ## Cómo re-auditar
 

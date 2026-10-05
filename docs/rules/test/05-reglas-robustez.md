@@ -16,16 +16,16 @@ entradas no es un extra: es la función.
 
 | ID | Regla |
 |---|---|
-| R-PB-1 | Las **funciones puras de transformación** se someten a property tests: invariantes verificados con muchos inputs generados, no con tres casos fijos. En este repo las candidatas claras son `normalizeCommand` (normalización del DSL), `normalizeJobLimits` (recorte de presupuestos) y `normalizeDomain` / `isAllowedHost` (allowlist). Regla aspiracional mientras no haya herramienta (`fast-check`) instalada: el día que se añada, esta regla la exige. |
-| R-PB-2 | **Propiedades mínimas de los presupuestos**: para cualquier entrada (válida o no), `normalizeJobLimits` devuelve un entero en `[1, HARD_LIMITS[key]]`; un valor no finito o `<= 0` cae al default; `0` nunca desactiva un presupuesto (`R-DI-4`). Y para el recorte de comandos: el límite efectivo de un comando nunca supera el del job (`R-AI-7`). |
-| R-PB-3 | **Propiedades mínimas del normalizador**: normalizar un comando ya normalizado es idempotente; un comando inventado se descarta (no se "arregla"); un comando válido con campos ausentes toma los defaults documentados sin cambiar su `type`. Estas son las invariantes que un modelo weak pone a prueba en cada llamada. |
+| R-PB-1 | Las **funciones puras de transformación** se someten a property tests: invariantes verificados con muchos inputs generados, no con tres casos fijos. La herramienta es **`fast-check`** y las propiedades viven en [`tests/property.test.mjs`](../../../tests/property.test.mjs), dentro de `npm test`. Candidatas cubiertas: `normalizeJobLimits` (recorte de presupuestos), `normalizeRawCommand`/`normalizeRawPlan` (DSL) y `normalizeDomain`/`isAllowedHost` (allowlist). |
+| R-PB-2 | **Propiedades mínimas de los presupuestos**: para cualquier entrada (válida o no), `normalizeJobLimits` devuelve un entero en `[1, HARD_LIMITS[key]]`; un valor no finito o `<= 0` cae al default; `0` nunca desactiva un presupuesto (`R-DI-4`). Y para el recorte de comandos: el límite efectivo de un comando nunca supera el del job (`R-AI-7`). **Esta propiedad encontró un defecto real**: un positivo menor que 1 (`5e-324`) hacía `floor` a 0 y se salía de `[1, HARD]`; se corrigió con `Math.max(1, …)`. |
+| R-PB-3 | **Propiedades mínimas del normalizador**: normalizar un comando ya normalizado es idempotente; un comando inventado se descarta (no se "arregla"); **el `type` resultante siempre pertenece al DSL** y campos ausentes toman los defaults sin cambiar el `type`. **Estas propiedades encontraron un defecto real**: claves como `__proto__`/`constructor` (o `_ proto _`) resolvían contra el prototipo del mapa de alias y se colaban como comando; se corrigió con `Object.hasOwn` (`R-SE-*` de robustez de entrada). |
 
 ## Mutation testing
 
 | ID | Regla |
 |---|---|
-| R-MT-1 | Los **módulos críticos** (el DSL y su validación, el SSRF, la normalización de límites, la trazabilidad) se someten a mutation testing (Stryker u otra herramienta) con periodicidad pre-release. Hoy **no hay herramienta y la mutación nunca se ha ejecutado**; es deuda, no una regla cumplida. |
-| R-MT-2 | **Rangos de mutantes eliminados**: ≥ 90 % para el DSL/SSRF/límites (la frontera de seguridad), ≥ 80 % para el resto, y por debajo de **70 %** el release queda bloqueado. Mutantes supervivientes → tests débiles a corregir antes del release. Estos umbrales aplican **el día que la herramienta exista**; hoy no se pueden evaluar (`R-COV-4`). |
+| R-MT-1 | Los **módulos críticos** (el DSL y su validación, el SSRF, la normalización de límites, la trazabilidad) se someten a mutation testing (Stryker u otra herramienta) con periodicidad pre-release. **Decisión vigente (ADR-20): diferido a propósito**, no en silencio. Stryker 10 solo ofrece runners para jest/vitest/tap, y los tests de este repo cargan el **build** (`dist`) con `node --test` (ADR-03): integrarlo exigiría mutar `dist` o añadir un runner que el repo evita. La mutación se reevalúa cuando exista una suite con un runner soportado (p. ej. al cerrar `G-4`/`G-5`) o si el repo crece. Mientras tanto, la cobertura del riesgo la dan los property tests (`R-PB-*`), que ya encontraron dos defectos reales. |
+| R-MT-2 | **Rangos de mutantes eliminados**: ≥ 90 % para el DSL/SSRF/límites (la frontera de seguridad), ≥ 80 % para el resto, y por debajo de **70 %** el release queda bloqueado. Mutantes supervivientes → tests débiles a corregir antes del release. Estos umbrales aplican **el día que la herramienta exista**; hoy no se pueden evaluar (`R-COV-4`) porque la herramienta está diferida (`R-MT-1`, ADR-20). |
 | R-MT-3 | Un test que no mata ningún mutante se mejora o se elimina (equivale a un test que no comprueba el requisito). |
 
 ## Robustez de entradas
@@ -52,6 +52,9 @@ entradas no es un extra: es la función.
 ```bash
 # La suite es serial a propósito (R-FL-5)
 grep -n "test-concurrency" package.json
+
+# Property tests (R-PB-*): corren dentro de npm test
+node --test tests/property.test.mjs
 
 # El fuzz de la salida del LLM tiene casos (R-RB-1)
 grep -rn "inventado\|malformado\|desvi" tests/normalize.test.mjs tests/dsl.test.mjs | head

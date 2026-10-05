@@ -130,8 +130,10 @@ npm run test:api:fast
 
 - **G-4/G-5/G-6 sin paso en CI**: no hay suite de integración con almacén real, ni de
   contrato, ni job E2E (el E2E real existe pero se ejecuta a mano).
-- **`scripts/` sin lintear**: el lint cubre `apps packages`; `scripts/` (el cliente real
-  de la API) queda fuera del alcance de `G-7`.
+- **Mutation testing diferido a propósito** (`R-MT-1`, ADR-20): Stryker 10 no tiene
+  runner para `node --test` y los tests cargan `dist`; se reevalúa cuando exista una
+  suite con runner soportado. Los property tests (`tests/property.test.mjs`,
+  `fast-check`) cubren el riesgo mientras tanto y ya encontraron dos defectos reales.
 
 ## Cerrado en la 1ª auditoría de este repo (2026-10-05)
 
@@ -151,3 +153,8 @@ moderate) y se retiró `--legacy-peer-deps`. Decisiones y consecuencias en
 Y **`G-3` (cobertura) quedó activo** con la herramienta nativa de Node
 (`--experimental-test-coverage`) y umbrales del baseline medido (70 / 72 / 67),
 dentro del propio `npm test` (`R-COV-4/5`, ADR-17).
+
+Y el **property-based testing (`R-PB`) es real**: `tests/property.test.mjs` con
+`fast-check` dentro de `npm test`, que ya encontró y dejó corregidos dos defectos
+(`normalizeJobLimits(5e-324) → 0` y la resolución de alias contra el prototipo).
+La mutación (`R-MT`) queda diferida a propósito con su disparador (ADR-20).
