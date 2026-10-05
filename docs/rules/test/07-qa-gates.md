@@ -5,13 +5,12 @@ escribir un test concreto. Complementa
 [`01-reglas-unit.md`](./01-reglas-unit.md)…[`06-estandares-cobertura.md`](./06-estandares-cobertura.md)
 sin repetirlas: aquí vive lo que decide si un cambio puede entrar.
 
-> **Estado de cumplimiento de este repo: SÍ (high), con moderate residual.**
-> `R-QA-6` / `R-SE-16` exigen `npm audit --audit-level=high` como paso bloqueante del
-> pipeline: ya existe (`Security audit` en el job `build-test-lint`) y sale con
-> **código 0**. Queda **1 moderate** (`@nestjs/core <=11.1.17`), que exige subir Nest
-> de major y se registra como deuda en [`README.md`](./README.md) y
-> [`../_meta/AUDIT.md`](../_meta/AUDIT.md). Las reglas de este archivo son
-> permanentes: su cumplimiento es lo que cambia, no ellas.
+> **Estado de cumplimiento de este repo: SÍ.** `R-QA-6` / `R-SE-16` exigen
+> `npm audit --audit-level=high` como paso bloqueante del pipeline: ya existe
+> (`Security audit` en el job `build-test-lint`) y sale con **código 0**. Desde
+> Nest 12, `npm audit` reporta **0 vulnerabilidades** (también en moderate); el
+> detalle está en [`../_meta/AUDIT.md`](../_meta/AUDIT.md). Las reglas de este
+> archivo son permanentes: su cumplimiento es lo que cambia, no ellas.
 
 ## Reglas
 
@@ -31,10 +30,10 @@ Porque es la única regla de esta área con un paso de pipeline propio, y porque
 cerrada** (high = 0); esta sección explica cómo se resolvió y qué queda:
 
 ```bash
-# Debe salir con código 0 (hoy: 0). Es el paso `Security audit` de CI
+# Debe salir con código 0 (hoy: 0, sin vulnerabilidades). Es el paso `Security audit` de CI
 npm audit --audit-level=high
 
-# Deuda residual: 1 moderate de @nestjs/core (exige salto mayor de Nest)
+# El árbol también está limpio en moderate (Nest 12)
 npm audit --audit-level=moderate
 
 # Diagnóstico: qué paquete arrastra la vulnerabilidad
@@ -68,11 +67,9 @@ cerrada y aparenta estar abierta.
 # Suite unitaria completa, sin red y sin Docker (R-QA-2)
 MONGODB_MOCK=1 npm test
 
-# La puerta de seguridad: high debe salir en 0 (hoy: 0)
+# El árbol está limpio en high y moderate (hoy 0 vulnerabilidades)
 npm audit --audit-level=high && echo "R-QA-6 cumplida"
-
-# La deuda residual declarada (moderate de @nestjs/core): informativa, no bloquea
-npm audit --audit-level=moderate || true
+npm audit --audit-level=moderate
 
 # La red real solo en estas capas (R-QA-3)
 grep -n '"test:e2e"\|"dev:e2e"\|"test:api"' package.json

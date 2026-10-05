@@ -242,21 +242,22 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
 
 ---
 
-## ADR-13: `npm ci --ignore-scripts --legacy-peer-deps`
+## ADR-13: `npm ci --ignore-scripts` y Chromium explícito
 
-- **Fecha**: 2026-10-01
-- **Estado**: Aceptado
-- **Contexto**: El árbol de workspaces tiene conflictos de peer dependencies que
-  npm rechaza sin `--legacy-peer-deps`, y los `postinstall` de Playwright/Crawlee
+- **Fecha**: 2026-10-01 (revisado 2026-10-05)
+- **Estado**: Sustituido parcialmente por ADR-18 (retirada de `--legacy-peer-deps`)
+- **Contexto**: el árbol de workspaces tenía conflictos de peer dependencies que
+  npm rechazaba sin `--legacy-peer-deps`, y los `postinstall` de Playwright/Crawlee
   intentan descargar navegadores durante la instalación.
-- **Decisión**: la instalación es **siempre** `npm ci --ignore-scripts
-  --legacy-peer-deps`, en CI y en los Dockerfiles. Chromium se instala
-  **explícitamente** donde hace falta (`Dockerfile` del worker, host del
-  desarrollador para el E2E), nunca como efecto colateral de un `npm install`.
+- **Decisión**: la instalación es **siempre** `npm ci --ignore-scripts`, en CI y en
+  los Dockerfiles. Chromium se instala **explícitamente** donde hace falta
+  (`Dockerfile` del worker, host del desarrollador para el E2E), nunca como efecto
+  colateral de un `npm install`. La bandera `--legacy-peer-deps` se añadió entonces
+  como paliativo de los conflictos.
 - **Consecuencias**: (a) la instalación es determinista y rápida, y no descarga
-  navegadores que la suite unitaria no usa (`R-EN-5`); (b) la bandera
-  `--legacy-peer-deps` es deuda técnica explícita: cuando los conflictos desaparezcan,
-  se quita en un commit que lo explique.
+  navegadores que la suite unitaria no usa (`R-EN-5`); (b) `--legacy-peer-deps` era
+  deuda técnica explícita, y se **retiró en el ADR-18** cuando Nest 12 y eslint 10
+  alinearon los peers. Hoy `npm ci --ignore-scripts` a secas es la norma.
 
 ---
 
@@ -317,9 +318,9 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
 - **Consecuencias**: (a) la puerta pasó a **exit 0** sin tocar la versión de Nest ni
   el código de la aplicación; (b) `overrides` es una deuda viva: hay que revisarla
   cuando las dependencias que las arrastran se actualicen, y quitarla en cuanto la
-  transitiva sana llegue por su cuenta; (c) queda **1 moderate** (`@nestjs/core`
-  `<=11.1.17`) que **sí** exige subir Nest de major; se declara, no se silencia
-  (no se sube el `--audit-level`, no se añade `continue-on-error`). Ver
+  transitiva sana llegue por su cuenta; (c) quedaba **1 moderate** (`@nestjs/core`
+  `<=11.1.17`), que exigía subir Nest de major; se declaró y no se silenció, y se
+  cerró en el **ADR-18** (Nest 12). Ver
   [`rules/test/07-qa-gates.md`](./rules/test/07-qa-gates.md) (`R-QA-6`) y
   [`rules/_meta/AUDIT.md`](./rules/_meta/AUDIT.md).
 
@@ -348,18 +349,36 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
 
 ---
 
+## ADR-18: Nest 10 → 12, eslint 10 y retirada de `--legacy-peer-deps`
+
+- **Fecha**: 2026-10-05
+- **Estado**: Aceptado
+- **Contexto**: quedaban dos conflictos de peer que obligaban a `--legacy-peer-deps`
+  (ADR-13) y un `moderate` de `@nestjs/core <=11.1.17`: (a) `apps/api` en Nest 10
+  mientras `@nestjs/mongoose@12` exige Nest `^11 || ^12`; (b) `@eslint/js@10` con
+  `eslint@9`.
+- **Decisión**: subir `apps/api` a **Nest 12** (`@nestjs/common`, `@nestjs/core`,
+  `@nestjs/platform-express` `^12.1.2`, `@nestjs/swagger` `^12.0.2`) y `eslint` a
+  `^10.12.0`. Con eso los peers alinean y **se retira `--legacy-peer-deps`** de CI y
+  de los dos Dockerfiles. El `overrides` de `multer` se mantiene (platform-express 12
+  ya fija `2.4.0`, coincide).
+- **Consecuencias**: (a) `npm audit` pasa a **0 vulnerabilidades** (desaparece el
+  moderate); (b) la instalación es `npm ci --ignore-scripts` a secas y vuelve a ser
+  una resolución de peers honesta; (c) Nest 12 trae **Express 5** (routing con
+  `path-to-regexp` 8), así que cualquier `@Get`/`@Post` nuevo debe usar la sintaxis
+  de Express 5; la API actual (solo controllers Nest, sin rutas comodín raras) migra
+  sin cambios; (d) `eslint` 10 no cambió el resultado: 0 errores, 20 warnings.
+
+---
+
 ## Deudas que estos ADR dejan abiertas
 
 | Deuda | ADR relacionado | Dónde está registrada |
 |---|---|---|
-| `@nestjs/core` moderate residual (exige salto mayor de Nest) | ADR-16 | `rules/test/07-qa-gates.md` (`R-QA-6`), `rules/_meta/AUDIT.md` |
-| `overrides` de transitivas (revisar al actualizar dependencias) | ADR-16 | `rules/ci/02-entorno.md`, `rules/_meta/AUDIT.md` |
+| `overrides` de transitivas (revisar al actualizar dependencias) | ADR-16, ADR-18 | `rules/ci/02-entorno.md`, `rules/_meta/AUDIT.md` |
 | Cobertura solo de ficheros cargados por la suite | ADR-17 | `rules/test/06-estandares-cobertura.md` (`R-COV-4`) |
 | Capas sin suite (integración, contrato, E2E) | ADR-14 | `rules/test/06-estandares-cobertura.md` (`G-4`, `G-5`, `G-6`) |
 | Almacenamiento de Crawlee impide paralelizar | ADR-04, ADR-11 | `rules/test/05-reglas-robustez.md` (`R-FL-5`) |
-| `--legacy-peer-deps` | ADR-13 | `rules/ci/02-entorno.md` (`R-EN-1`) |
-| Sin grupo de concurrencia en CI | — | `rules/ci/01-flujos.md` (`R-CI-2`) |
-| Sin protección de rama en el remoto | ADR-15 | `rules/git/00-entornos.md` (`R-GE-4`) |
 | Sin release por tag ni imágenes por digest | — | `rules/cd/01-despliegue.md` (`R-CD-1..8`) |
 | `scripts/` fuera del alcance del lint | — | `rules/_meta/AUDIT.md` |
 

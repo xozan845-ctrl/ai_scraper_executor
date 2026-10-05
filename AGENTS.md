@@ -8,7 +8,7 @@ Guía para agentes de IA que trabajen en **ai-scraping-executor**. Monorepo npm 
 ## Comandos esenciales
 
 ```bash
-npm install                    # instalar (si falla por peers: --legacy-peer-deps)
+npm install                    # instalar (si algún día hay conflicto de peers: --legacy-peer-deps)
 
 npm run build                  # compila TODO en orden de dependencias (packages → apps)
 npm run build:core             # solo packages base (sin apps)
@@ -93,7 +93,7 @@ packages/storage          JobStore (Prisma + InMemory)
 - `.env` está en `.gitignore` y `.dockerignore` — **nunca** commitear secretos. Solo `.env.example`.
 - `test:e2e` usa `node --env-file=.env`, por eso no hace falta exportar variables manualmente.
 - **URL de pruebas estándar**: `TEST_URL=https://negocio360oficial.com/dashboard.html` (usada por `npm run test:api` y todos los flujos de validación MVP).
-- Dockerfiles usan `npm ci --ignore-scripts --legacy-peer-deps` (conflicto de peer deps de eslint).
+- Dockerfiles usan `npm ci --ignore-scripts` (sin `--legacy-peer-deps`: Nest 12 y eslint 10 alinearon los peers; ver ADR-18).
 
 ## Gotchas conocidos
 

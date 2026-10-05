@@ -24,7 +24,7 @@
 | Runner | `node --test --test-concurrency=1` | script `test` de `package.json` |
 | Lint | **0 errores, 20 warnings** (`no-explicit-any`) | `npm run lint` |
 | Build | **exit 0**, 0 errores TS, 12 paquetes + 2 apps | `npm run build` |
-| Puertas de seguridad | **`npm audit --audit-level=high` → exit 0** (high/critical = 0). `--audit-level=moderate` → exit 1 con **1 moderate residual** (`@nestjs/core`, exige salto mayor a Nest 12) | `npm audit` |
+| Puertas de seguridad | **`npm audit --audit-level=high` → exit 0** y **`--audit-level=moderate` → exit 0**: **0 vulnerabilidades** (Nest 12 cerró el moderate de `@nestjs/core`) | `npm audit` |
 | Cobertura | **71.59 % líneas / 73.69 % ramas / 68.90 % funciones** (baseline medido); umbral **70 / 72 / 67** | `npm test` (nativo de Node) |
 | Paquetes | **12** en `packages/` + 2 apps | `ls packages` |
 | Ficheros TS de fuente | **87** en `apps/` + `packages/` (sin `dist/`) | `find … -name '*.ts'` |
@@ -50,7 +50,7 @@
 | Mutation testing | 🔴 | Sin Stryker; nunca ejecutada. `R-MT-*` |
 | Lint (`G-7`) | 🟢 | 0 errores, 20 warnings |
 | Build (`G-7`) | 🟢 | `npm run build` exit 0 |
-| **Security gate** (`R-QA-6`/`R-SE-16`) | 🟢 | **`npm audit --audit-level=high` sale con código 0 y ya es un paso de CI** (`Security audit` en `build-test-lint`). Queda **1 moderate** (`@nestjs/core <=11.1.17`) que exige subir Nest de major: deuda residual declarada, no bloquea el gate |
+| **Security gate** (`R-QA-6`/`R-SE-16`) | 🟢 | **`npm audit` → 0 vulnerabilidades** (high y moderate) y ya es un paso de CI (`Security audit`). Nest 12 + eslint 10 alinearon los peers y retiraron `--legacy-peer-deps` (ADR-18) |
 
 ## Gates
 
@@ -77,26 +77,20 @@ autoexcluye en `npm test` si `DATABASE_URL` no responde no bloquean.
 
 ## Deudas abiertas (orden de ataque)
 
-1. **`@nestjs/core` moderate residual** — `R-QA-6` no lo bloquea (la puerta es
-   `--audit-level=high` y ya sale en 0), pero `--audit-level=moderate` sigue en 1
-   (`@nestjs/core <=11.1.17`). La solución es subir Nest de major (10 → 11/12), que
-   además alinearía con `@nestjs/mongoose@12`; es un cambio de versión mayor con su
-   propia migración, no un parche de `overrides`. Detalle en
-   [`../test/07-qa-gates.md`](../test/07-qa-gates.md).
-2. **Capas de test enteras sin suite**: integración (`G-4`), contrato (`G-5`) y
+1. **Capas de test enteras sin suite**: integración (`G-4`), contrato (`G-5`) y
    E2E como gate de release (`G-6`); el export de OpenAPI (`G-8`) sigue sin
    versionarse.
-3. **`R-EN-3` sin artifacts**: no hay informe que conservar más que el log del run.
-4. **`scripts/` fuera del alcance del lint** (`eslint apps packages`): el cliente
+2. **`R-EN-3` sin artifacts**: no hay informe que conservar más que el log del run.
+3. **`scripts/` fuera del alcance del lint** (`eslint apps packages`): el cliente
    real de la API y `run-all.mjs` no se lintean.
-5. **Sin protección de rama en el remoto**: el workflow escucha `pull_request`, pero
+4. **Sin protección de rama en el remoto**: el workflow escucha `pull_request`, pero
    nada impide un push directo a `main` mientras no se configure branch protection
    (afecta a `R-GE-4`).
-6. **Promoción entre entornos sin implementar** (`R-GE-5`): una sola rama, un solo
+5. **Promoción entre entornos sin implementar** (`R-GE-5`): una sola rama, un solo
    juego de secretos. Deuda asumida, no norma.
-7. **20 warnings `no-explicit-any`** en `apps`/`packages`: auditables en cada
+6. **20 warnings `no-explicit-any`** en `apps`/`packages`: auditables en cada
    auditoría; no bloquean (`G-7` mide errores).
-8. **Robustez no implementada**: `R-PB-*`, `R-MT-*` sin herramientas. No se exige
+7. **Robustez no implementada**: `R-PB-*`, `R-MT-*` sin herramientas. No se exige
    ninguna en el pipeline: mutation testing en gate de PR sería desproporcionado
    para este tamaño de repo.
 
@@ -116,8 +110,8 @@ autoexcluye en `npm test` si `DATABASE_URL` no responde no bloquean.
   (`multer`, `http-cache-semantics`, `deepmerge-ts`, `js-yaml`, `lodash`,
   `body-parser`, `qs`, `file-type`) y se añadió el paso `Security audit` al job
   `build-test-lint`. Las transitivas de Nest no se forzaron a un major nuevo: se
-  parchearon dentro de rango. El moderate de `@nestjs/core` queda como deuda. Ver
-  [`decisiones.md`](../../decisiones.md) (ADR-16).
+  parchearon dentro de rango. Ese moderate de `@nestjs/core` se cerró después con
+  Nest 12 (ADR-18). Ver [`decisiones.md`](../../decisiones.md) (ADR-16).
 - **`G-3` (cobertura) activado**: sin añadir dependencias, con la herramienta nativa
   de Node (`--experimental-test-coverage`) y umbrales del baseline medido
   (70 / 72 / 67). El umbral vive en el script `test`, así que `npm test` —y por tanto
@@ -128,6 +122,10 @@ autoexcluye en `npm test` si `DATABASE_URL` no responde no bloquean.
   `migrate deploy` + `migrate diff --exit-code` (un cambio de schema sin migración
   falla el job). El servicio es de un solo job (`R-EN-2`) y no toca la BD de
   desarrollo.
+- **Nest 10 → 12 y eslint 10**: se alinearon los peers con `@nestjs/mongoose@12`,
+  desaparecieron los conflictos, y se retiró `--legacy-peer-deps` de CI y de los
+  Dockerfiles (ADR-18). `npm audit` queda en **0 vulnerabilidades**. Nest 12 usa
+  Express 5 (a tener en cuenta en rutas nuevas).
 
 ## Cómo re-auditar
 
@@ -135,7 +133,7 @@ autoexcluye en `npm test` si `DATABASE_URL` no responde no bloquean.
 # La verificación de cierre: la misma que ejecuta el job build-test-lint
 npm run build && npm run lint && MONGODB_MOCK=1 npm test
 
-# Puertas de seguridad (R-QA-6): high debe salir en 0; moderate documenta su deuda
+# Puertas de seguridad (R-QA-6): 0 vulnerabilidades
 npm audit --audit-level=high
 npm audit --audit-level=moderate
 

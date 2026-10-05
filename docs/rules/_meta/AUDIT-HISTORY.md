@@ -1058,3 +1058,34 @@ gate no puede ver. Documentado en `R-COV-4`.
 `R-EN-3` (artifacts) sigue sin uso; `G-4`/`G-5`/`G-6`/`G-8` siguen pendientes. El
 servicio Postgres de CI se ampliará a Mongo/Redis cuando exista la suite de
 integración (`G-4`).
+
+---
+
+# AUDIT — Nest 12, eslint 10 y retirada de --legacy-peer-deps (ADR-18)
+
+- **Fecha:** 2026-10-05
+- **Disparador:** cerrar la cadena de dependencias que quedaba tras ADR-16.
+
+## Qué cambió
+
+- `apps/api` sube a **Nest 12** (`@nestjs/common`, `@nestjs/core`,
+  `@nestjs/platform-express` `^12.1.2`, `@nestjs/swagger` `^12.0.2`); la raíz sube
+  `eslint` a `^10.12.0` (cuadra con `@eslint/js@10`).
+- Los peers alinean con `@nestjs/mongoose@12` y se **retira `--legacy-peer-deps`** de
+  `ci.yml` y de los dos Dockerfiles: `npm ci --ignore-scripts` a secas.
+- Nest 12 trae **Express 5** (routing `path-to-regexp` 8): la API actual migra sin
+  cambios (solo controllers Nest).
+
+## Métricas
+
+| Métrica | Antes | Ahora |
+|---|---|---|
+| `npm audit` | 1 moderate (`@nestjs/core`) | **0 vulnerabilidades** |
+| Instalación CI | `npm ci --ignore-scripts --legacy-peer-deps` | `npm ci --ignore-scripts` |
+| Build / lint / test | verdes | **verdes (143/143)** |
+
+## Deuda que queda
+
+`R-EN-3` (artifacts), `G-4`/`G-5`/`G-6`/`G-8`, `scripts/` fuera del lint, protección de
+rama y robustez. El `overrides` de transitivas sigue siendo deuda viva (revisar al
+actualizar dependencias).

@@ -5,7 +5,7 @@ COPY apps ./apps
 COPY packages ./packages
 COPY prisma ./prisma
 COPY tsconfig.base.json ./
-RUN npm ci --ignore-scripts --legacy-peer-deps
+RUN npm ci --ignore-scripts
 RUN npx prisma generate --schema=prisma/schema.prisma
 RUN npm run build:core && npm run build -w api
 EXPOSE 3000
