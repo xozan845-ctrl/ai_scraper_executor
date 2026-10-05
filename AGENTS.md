@@ -22,6 +22,10 @@ npx playwright install --with-deps chromium   # una sola vez en host
 npm run dev:e2e                # levanta BDs + migra + build + test E2E
 npm run test:e2e               # solo el E2E (carga .env vía node --env-file)
 
+# Casos de uso de la API en PowerShell (requiere pwsh + API up). Ver scripts/README.md
+pwsh ./scripts/run-all.ps1     # todos los flujos (chat/sesiones, jobs, radiografía, errores)
+pwsh ./scripts/run-all.ps1 -SkipSlow   # sin flujos con radiografía/job real
+
 # Infra
 docker compose up -d postgres mongodb redis
 npm run prisma:migrate:deploy  # aplicar migraciones (prod/CI)
