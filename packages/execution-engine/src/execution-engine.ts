@@ -526,7 +526,7 @@ export class ExecutionEngine {
         }
 
         case 'AUTHENTICATE': {
-          const $ = this.requirePage();
+          this.requirePage();
           if (!cmd.usernameSelector || !cmd.passwordSelector) {
             return { ok: false, commandType: 'AUTHENTICATE', error: 'usernameSelector y passwordSelector requeridos' };
           }

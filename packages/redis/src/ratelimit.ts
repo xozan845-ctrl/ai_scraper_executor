@@ -3,6 +3,23 @@ import { getRedisClient, probeRedis, ensureConnected, Redis } from './connection
 const DEFAULT_WINDOW_MS = 60_000;
 const DEFAULT_MAX = 30;
 
+/** Tipos estructurales mínimos del middleware estilo Express (sin depender de @types/express). */
+interface RateLimitRequest {
+  ip?: string;
+  headers: Record<string, string | string[] | undefined>;
+}
+interface RateLimitResponse {
+  setHeader(name: string, value: string | number): void;
+  status(code: number): { json(body: unknown): unknown };
+}
+type RateLimitNext = () => void;
+
+function clientIp(req: RateLimitRequest): string {
+  const forwarded = req.headers['x-forwarded-for'];
+  const header = Array.isArray(forwarded) ? forwarded[0] : forwarded;
+  return req.ip ?? header ?? 'unknown';
+}
+
 /** Rate limiter distribuido por IP usando sliding window log en Redis */
 export class RedisRateLimiter {
   private readonly client: Redis;
@@ -54,8 +71,8 @@ export class RedisRateLimiter {
 
   /** Middleware estilo Express */
   middleware() {
-    return async (req: any, res: any, next: any) => {
-      const ip = req.ip ?? req.headers['x-forwarded-for'] ?? 'unknown';
+    return async (req: RateLimitRequest, res: RateLimitResponse, next: RateLimitNext) => {
+      const ip = clientIp(req);
       const { allowed, remaining, resetAt } = await this.consume(ip);
       res.setHeader('X-RateLimit-Limit', this.max);
       res.setHeader('X-RateLimit-Remaining', remaining);
@@ -100,8 +117,8 @@ export class MemoryRateLimiter {
   }
 
   middleware() {
-    return async (req: any, res: any, next: any) => {
-      const ip = req.ip ?? req.headers['x-forwarded-for'] ?? 'unknown';
+    return async (req: RateLimitRequest, res: RateLimitResponse, next: RateLimitNext) => {
+      const ip = clientIp(req);
       const { allowed, remaining, resetAt } = await this.consume(ip);
       res.setHeader('X-RateLimit-Limit', this.max);
       res.setHeader('X-RateLimit-Remaining', remaining);

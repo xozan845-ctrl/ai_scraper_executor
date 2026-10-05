@@ -50,7 +50,6 @@ export class RedisMetricsAggregator {
     const key = `${METRICS_PREFIX}${name}`;
     if (labels) {
       const labelStr = JSON.stringify(labels);
-      const pattern = `*:${labelStr}`;
       const fields = await this.client.hgetall(key) as Record<string, string>;
       return Object.entries(fields)
         .filter(([k]) => k.endsWith(labelStr))

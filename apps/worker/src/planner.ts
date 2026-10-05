@@ -25,10 +25,6 @@ function debugError(...args: unknown[]) {
   if (DEBUG) console.error('[PLANNER ERROR]', new Date().toISOString(), ...args);
 }
 
-function debugWarn(...args: unknown[]) {
-  if (DEBUG) console.warn('[PLANNER WARN]', new Date().toISOString(), ...args);
-}
-
 export interface PlanJobInput {
   url: string;
   instruction: string;

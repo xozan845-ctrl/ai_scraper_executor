@@ -17,7 +17,7 @@ export function createClient({ baseUrl, apiKey } = {}) {
       ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
     });
     const text = await res.text();
-    let data = null;
+    let data;
     try { data = text ? JSON.parse(text) : null; } catch { data = text; }
     if (!res.ok) {
       const detail = typeof data === 'string' ? data : JSON.stringify(data);

@@ -11,8 +11,8 @@ export function normalizeDomain(raw: string): string {
 }
 
 /** Fallback en memoria para tests sin MongoDB */
-interface ProfileWithId extends ISiteProfile { _id: any }
-interface RadiographyWithId extends IPageRadiography { _id: any }
+interface ProfileWithId extends ISiteProfile { _id: mongoose.Types.ObjectId }
+interface RadiographyWithId extends IPageRadiography { _id: mongoose.Types.ObjectId }
 
 class MemoryFallback {
   private profiles = new Map<string, ProfileWithId>();
@@ -48,7 +48,7 @@ class MemoryFallback {
         recordJobSuccess: async () => {},
         recordJobFailure: async () => {},
         upsertSelector: () => {},
-      } as any;
+      } as unknown as ProfileWithId;
       this.profiles.set(norm, newProfile);
       return newProfile;
     }
@@ -59,7 +59,14 @@ class MemoryFallback {
     return this.profiles.get(normalizeDomain(domain)) ?? null;
   }
 
-  async updateSelectors(profileId: string, updates: any): Promise<ProfileWithId | null> {
+  async updateSelectors(profileId: string, updates: {
+    listSelectors?: DiscoveredSelector[];
+    detailSelectors?: DiscoveredSelector[];
+    navigationSelectors?: DiscoveredSelector[];
+    pagination?: ProfileWithId['pagination'];
+    isJavaScriptHeavy?: boolean;
+    recommendedLimits?: ProfileWithId['recommendedLimits'];
+  }): Promise<ProfileWithId | null> {
     for (const p of this.profiles.values()) {
       if (p._id.toString() === profileId) {
         if (updates.listSelectors) updates.listSelectors.forEach((s: DiscoveredSelector) => this.upsertSelector(p.listSelectors, s));
@@ -103,9 +110,9 @@ class MemoryFallback {
     }
   }
 
-  async saveRadiography(data: any): Promise<RadiographyWithId> {
+  async saveRadiography(data: { url: string; expiresAt?: Date; [key: string]: unknown }): Promise<RadiographyWithId> {
     const key = data.url;
-    const rad: RadiographyWithId = { _id: this.genId(), ...data, fetchedAt: new Date(), expiresAt: data.expiresAt };
+    const rad = { _id: this.genId(), ...data, fetchedAt: new Date(), expiresAt: data.expiresAt } as unknown as RadiographyWithId;
     this.radiographies.set(key, rad);
     return rad;
   }

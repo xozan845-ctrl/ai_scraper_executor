@@ -19,7 +19,7 @@ export const t = {
       await fn();
     } catch (e) {
       threw = true;
-      if (re && !re.test(e.message)) throw new Error(`error inesperado: ${e.message}`);
+      if (re && !re.test(e.message)) throw new Error(`error inesperado: ${e.message}`, { cause: e });
       console.log(`   [OK] error esperado: ${e.message.split('\n')[0]}`);
     }
     if (!threw) throw new Error('se esperaba un error pero la llamada tuvo éxito');
@@ -44,6 +44,6 @@ export function readJsonEnv(name, fallback = null) {
   try {
     return JSON.parse(raw);
   } catch (e) {
-    throw new Error(`${name} no contiene JSON válido: ${e.message}`);
+    throw new Error(`${name} no contiene JSON válido: ${e.message}`, { cause: e });
   }
 }
