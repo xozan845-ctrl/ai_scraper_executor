@@ -8,8 +8,11 @@
  * - Seguridad §37: bloquea hosts privados / metadata endpoints antes de encolar.
  */
 import { CheerioCrawler, PlaywrightCrawler, RequestQueue } from 'crawlee';
-import { assertSafeUrl } from '@ai-scraper/security';
+import { hashHtml } from '@ai-scraper/core';
+import { assertSafeUrl, isBlockedHost, isPrivateHostsAllowed } from '@ai-scraper/security';
 import { BrowserPool, Semaphore } from './pool';
+
+export { hashHtml };
 
 /** Acción browser delegada por el ExecutionEngine (ETAPA 3, §34). */
 export interface BrowserAction {
@@ -96,16 +99,47 @@ export const CANDIDATE_SELECTORS = [
   '.item',
 ];
 
-/** Hash estable y barato del HTML (no criptográfico; solo detección de cambios). */
-export function hashHtml(html: string): string {
-  let hash = 0;
-  for (let i = 0; i < html.length; i++) {
-    hash = ((hash << 5) - hash + html.charCodeAt(i)) | 0;
+/** Seguridad §37 centralizada en @ai-scraper/security (ETAPA 2). */
+
+/**
+ * ¿El navegador debe bloquear esta URL? Cubre redirects y subrecursos (no solo la
+ * URL inicial): protocolo, hosts privados/IP literal y DNS resuelto (con caché por host).
+ */
+async function isBlockedTarget(rawUrl: string, cache: Map<string, boolean>): Promise<boolean> {
+  if (isPrivateHostsAllowed()) return false;
+  let u: URL;
+  try {
+    u = new URL(rawUrl);
+  } catch {
+    return true;
   }
-  return (hash >>> 0).toString(36);
+  if (!['http:', 'https:'].includes(u.protocol)) return false;
+  const host = u.hostname.toLowerCase();
+  if (isBlockedHost(host)) return true;
+  const cached = cache.get(host);
+  if (cached !== undefined) return cached;
+  let blocked = false;
+  try {
+    await assertSafeUrl(u.toString());
+  } catch {
+    blocked = true;
+  }
+  cache.set(host, blocked);
+  return blocked;
 }
 
-/** Seguridad §37 centralizada en @ai-scraper/security (ETAPA 2). */
+/**
+ * Instala un guard de navegación en una página Playwright: aborta peticiones a hosts
+ * privados/metadata, incluidos redirects y subrecursos (§37).
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function installNavigationGuard(page: any): Promise<void> {
+  const cache = new Map<string, boolean>();
+  await page.route('**/*', async (route: any) => {
+    if (await isBlockedTarget(route.request().url(), cache)) return route.abort('blockedbyclient');
+    return route.continue();
+  });
+}
 
 /** Heurística agnóstica §6: detectar tarjetas de listado sin conocer el CMS. */
 function discoverElements(

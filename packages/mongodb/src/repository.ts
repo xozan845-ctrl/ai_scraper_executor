@@ -1,25 +1,13 @@
 import { SiteProfile, PageRadiography, ISiteProfile, IPageRadiography, DiscoveredSelector } from './models';
 import { connectMongo, isMongoMock } from './connection';
+import { normalizeDomain as normalizeDomainBase } from '@ai-scraper/security';
 import mongoose from 'mongoose';
 
-/** Normaliza dominio: minúsculas, sin www., sin puerto */
-export function normalizeDomain(raw: string): string {
-  try {
-    const u = new URL(raw.startsWith('http') ? raw : `https://${raw}`);
-    return u.hostname.toLowerCase().replace(/^www\./, '');
-  } catch {
-    return raw.toLowerCase().replace(/^www\./, '');
-  }
-}
+export { hashHtml } from '@ai-scraper/core';
 
-/** Hash simple para detectar cambios en HTML */
-export function hashHtml(html: string): string {
-  let hash = 0;
-  for (let i = 0; i < html.length; i++) {
-    hash = ((hash << 5) - hash) + html.charCodeAt(i);
-    hash |= 0;
-  }
-  return Math.abs(hash).toString(36);
+/** Normaliza dominio para claves de perfil: minúsculas, sin www., sin esquema/path/puerto. */
+export function normalizeDomain(raw: string): string {
+  return normalizeDomainBase(raw, { stripWww: true });
 }
 
 /** Fallback en memoria para tests sin MongoDB */
