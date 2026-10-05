@@ -31,7 +31,7 @@ export interface RadiographyResult {
 /** Realiza radiografía completa de un sitio (FASE 12: Memoria) */
 export async function performRadiography(
   url: string,
-  options?: { maxDepth?: number; maxPages?: number; forceBrowser?: boolean }
+  options?: { maxDepth?: number; maxPages?: number; forceBrowser?: boolean; headers?: Record<string, string> }
 ): Promise<RadiographyResult> {
   const domain = normalizeDomain(url);
   const profile = await mongoRepo.getOrCreateProfile(domain, url);
@@ -47,6 +47,7 @@ export async function performRadiography(
     maxDepth: options?.maxDepth ?? 2,
     maxRequests: options?.maxPages ?? 20,
     maxConcurrency: 3,
+    ...(options?.headers ? { headers: options.headers } : {}),
   };
 
   const started = Date.now();

@@ -18,6 +18,8 @@ export interface CreateJobInput {
   limits?: JobLimits;
   aiProvider?: string;
   aiModel?: string;
+  /** Sesión (chat) de origen, si el job se creó desde /sessions. */
+  sessionId?: string;
 }
 
 export interface JobRecord extends CreateJobInput {

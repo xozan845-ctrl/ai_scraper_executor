@@ -21,6 +21,7 @@ const toRecord = (j: {
   limits: unknown;
   aiProvider: string;
   aiModel: string | null;
+  sessionId?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }): JobRecord => ({
@@ -31,6 +32,7 @@ const toRecord = (j: {
   limits: (j.limits as JobRecord['limits']) ?? undefined,
   aiProvider: j.aiProvider,
   aiModel: j.aiModel ?? undefined,
+  sessionId: j.sessionId ?? undefined,
   createdAt: j.createdAt.toISOString(),
   updatedAt: j.updatedAt.toISOString(),
 });
@@ -50,6 +52,7 @@ export class PrismaJobStore implements JobStore {
         limits: (input.limits ?? {}) as never,
         aiProvider: input.aiProvider ?? 'openrouter',
         aiModel: input.aiModel,
+        sessionId: input.sessionId ?? null,
       },
     });
     return toRecord(j);

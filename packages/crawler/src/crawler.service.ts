@@ -42,6 +42,8 @@ export interface CrawlInput {
   sameDomainOnly?: boolean;
   /** Rate limiting §36: peticiones/minuto por worker (env CRAWLEE_MAX_REQUESTS_PER_MINUTE). */
   maxRequestsPerMinute?: number;
+  /** Headers extra (credenciales de sesión: Authorization/Cookie). */
+  headers?: Record<string, string>;
 }
 
 function envRequestsPerMinute(): number | undefined {
@@ -250,13 +252,13 @@ export class CrawlerService {
    * El ExecutionEngine delega aquí CLICK no-enlace y SCROLL. Reutiliza el
    * navegador del pool (no lanza uno por acción) y acota la concurrencia.
    */
-  async interact(url: string, action: BrowserAction): Promise<BrowserResult> {
+  async interact(url: string, action: BrowserAction, headers?: Record<string, string>): Promise<BrowserResult> {
     await assertSafeUrl(url);
     const release = await this.browserSemaphore.acquire();
     let context: Awaited<ReturnType<Awaited<ReturnType<BrowserPool['acquire']>>['newContext']>> | null = null;
     try {
       const browser = await this.pool.acquire();
-      context = await browser.newContext();
+      context = await browser.newContext(headers ? { extraHTTPHeaders: headers } : {});
       const page = await context.newPage();
       await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
       if (action.kind === 'click' && action.selector) {
@@ -306,6 +308,7 @@ export class CrawlerService {
       maxRequestsPerMinute: input.maxRequestsPerMinute ?? envRequestsPerMinute(),
       maxRequestRetries: input.maxRetries ?? 3,
       requestHandlerTimeoutSecs: input.requestTimeoutSecs ?? 30,
+      ...(input.headers ? { additionalHttpHeaders: input.headers } : {}),
       useSessionPool: true,
       sessionPoolOptions: { maxPoolSize: 20 },
       async requestHandler({ request, $, enqueueLinks, log }) {
@@ -354,6 +357,16 @@ export class CrawlerService {
       maxRequestRetries: input.maxRetries ?? 2,
       navigationTimeoutSecs: input.requestTimeoutSecs ?? 30,
       requestHandlerTimeoutSecs: (input.requestTimeoutSecs ?? 30) + 30,
+      ...(input.headers
+        ? {
+            preNavigationHooks: [
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              async ({ page }: any) => {
+                await page.setExtraHTTPHeaders(input.headers as Record<string, string>).catch(() => undefined);
+              },
+            ],
+          }
+        : {}),
       useSessionPool: true,
       sessionPoolOptions: { maxPoolSize: 10 },
       async requestHandler({ request, page, enqueueLinks, log }) {

@@ -31,10 +31,16 @@ class LazyPageCache implements EnginePageCache {
 
 const sharedCache = new LazyPageCache();
 
-export function createProductionEngine(): ExecutionEngine {
+export interface EngineOptions {
+  /** Headers de sesión (Authorization/Cookie) aplicados a HTTP y browser. */
+  headers?: Record<string, string>;
+}
+
+export function createProductionEngine(opts?: EngineOptions): ExecutionEngine {
   return new ExecutionEngine({
-    browserInteract: (url, action) => crawler.interact(url, action),
+    browserInteract: (url, action) => crawler.interact(url, action, opts?.headers),
     pageCache: sharedCache,
+    ...(opts?.headers ? { headers: opts.headers } : {}),
   });
 }
 

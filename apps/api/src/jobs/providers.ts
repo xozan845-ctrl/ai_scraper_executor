@@ -7,7 +7,7 @@ export const SESSION_STORE = 'SESSION_STORE';
 export const RADIOGRAPHER = 'RADIOGRAPHER';
 
 /** Radiografía inyectable (test override). */
-export type Radiographer = (url: string) => Promise<void>;
+export type Radiographer = (url: string, headers?: Record<string, string>) => Promise<void>;
 
 /** Providers async: Prisma/BullMQ si responden, si no memoria (con aviso en log). */
 export const storeProvider = {
@@ -27,8 +27,8 @@ export const sessionStoreProvider = {
 
 export const radiographerProvider = {
   provide: RADIOGRAPHER,
-  useFactory: (): Radiographer => async (url: string) => {
+  useFactory: (): Radiographer => async (url: string, headers?: Record<string, string>) => {
     const { performRadiography } = await import('@ai-scraper/mongodb');
-    await performRadiography(url, { maxDepth: 2, maxPages: 10, forceBrowser: true });
+    await performRadiography(url, { maxDepth: 2, maxPages: 10, forceBrowser: true, ...(headers ? { headers } : {}) });
   },
 };

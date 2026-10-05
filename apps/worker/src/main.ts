@@ -4,10 +4,11 @@ import { processJob } from './job-processor';
 import { createProductionEngine, closeProductionBrowser } from './browser-engine';
 import { AIOrchestrator } from '@ai-scraper/ai';
 import { createFallbackProvider, withCircuitBreaker } from '@ai-scraper/ai-providers';
-import { createJobStore, closeJobStore } from '@ai-scraper/storage';
+import { createJobStore, closeJobStore, createSessionStore } from '@ai-scraper/storage';
 import { createJobQueue, createScrapingWorker, createRedisConnection, closeJobQueue, createDeadLetterQueue } from '@ai-scraper/queue';
 import { disconnectMongo } from '@ai-scraper/mongodb';
 import { runWithContext } from '@ai-scraper/observability';
+import { decryptJson } from '@ai-scraper/security';
 
 /**
  * Worker entrypoint — FASE 7.
@@ -19,6 +20,18 @@ async function main() {
   console.log('[WORKER] iniciado.');
   const store = await createJobStore();
   const queue = await createJobQueue();
+  const sessionStore = await createSessionStore();
+
+  // Carga credenciales (headers) de la sesión y las descifra para el engine.
+  const getCredentials = async (sessionId: string): Promise<{ headers?: Record<string, string> } | null> => {
+    try {
+      const s = await sessionStore.getSession(sessionId);
+      if (!s?.credentials) return null;
+      return decryptJson<{ headers?: Record<string, string> }>(s.credentials);
+    } catch {
+      return null;
+    }
+  };
 
   let closing = false;
   let worker: { close: () => Promise<void> } | null = null;
@@ -62,7 +75,7 @@ async function main() {
         return runWithContext({ jobId, correlationId }, async () => {
           console.log(`[WORKER] job recibido: ${jobId}`);
           try {
-            const result = await processJob(jobId, { store, createEngine: createProductionEngine });
+            const result = await processJob(jobId, { store, getCredentials });
             console.log(`[WORKER] ${jobId} ${result.status} (${result.items.length} items)`);
             if (result.status === 'FAILED') throw new Error(result.error ?? 'job fallido');
           } catch (e) {

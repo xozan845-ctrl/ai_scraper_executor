@@ -40,7 +40,7 @@ export class JobsService {
     @Inject(JOB_QUEUE) private readonly queue: JobQueue,
   ) {}
 
-  async create(dto: CreateJobDto, idempotencyKey?: string) {
+  async create(dto: CreateJobDto, idempotencyKey?: string, sessionId?: string) {
     // Idempotencia: si la clave ya existe, devuelve el job previo (no duplica).
     if (idempotencyKey) {
       const cache = await getJsonCache();
@@ -61,6 +61,7 @@ export class JobsService {
       limits: dto.limits,
       aiProvider: dto.ai?.provider ?? 'openrouter',
       aiModel: dto.ai?.model,
+      sessionId,
     });
     try {
       await this.queue.enqueue({

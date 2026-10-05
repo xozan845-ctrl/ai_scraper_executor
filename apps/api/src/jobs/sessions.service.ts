@@ -46,17 +46,17 @@ export class SessionsService {
       credentials,
     });
     // Radiografía en background (el cliente hace polling de /status).
-    void this.runRadiography(session.id, dto.url);
+    void this.runRadiography(session.id, dto.url, dto.credentials?.headers);
     return this.view(session);
   }
 
-  private async runRadiography(sessionId: string, url: string): Promise<void> {
+  private async runRadiography(sessionId: string, url: string, headers?: Record<string, string>): Promise<void> {
     try {
       if (this.radiographer) {
-        await this.radiographer(url);
+        await this.radiographer(url, headers);
       } else {
         const { performRadiography } = await import('@ai-scraper/mongodb');
-        await performRadiography(url, { maxDepth: 2, maxPages: 10, forceBrowser: true });
+        await performRadiography(url, { maxDepth: 2, maxPages: 10, forceBrowser: true, ...(headers ? { headers } : {}) });
       }
       await this.sessions.updateSessionStatus(sessionId, 'READY');
     } catch (e) {
@@ -107,7 +107,7 @@ export class SessionsService {
       throw new ConflictException('La sesión no está lista (radiografía en curso o fallida)');
     }
     await this.sessions.addMessage(id, 'user', dto.instruction);
-    const job = await this.jobs.create({ url: s.url, instruction: dto.instruction });
+    const job = await this.jobs.create({ url: s.url, instruction: dto.instruction }, undefined, s.id);
     const assistant = await this.sessions.addMessage(id, 'assistant', 'Analizando la página…', job.id);
     return { message: assistant, jobId: job.id, jobStatus: job.status };
   }

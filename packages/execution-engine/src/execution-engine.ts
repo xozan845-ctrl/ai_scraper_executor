@@ -74,10 +74,10 @@ type Fetcher = (url: string) => Promise<string>;
 
 /** Seguridad §37 centralizada en @ai-scraper/security (ETAPA 2). */
 
-async function defaultFetchHtml(url: string): Promise<string> {
+async function defaultFetchHtml(url: string, headers?: Record<string, string>): Promise<string> {
   // SSRF: valida host + DNS en cada hop y sigo redirects a mano (sin auto-follow).
   const { html } = await safeFetchText(url, {
-    headers: { 'User-Agent': 'AI-Scraping-Executor/0.2 (+agnostic crawler)' },
+    headers: { 'User-Agent': 'AI-Scraping-Executor/0.2 (+agnostic crawler)', ...(headers ?? {}) },
     timeoutMs: 20000,
     maxBytes: 2_000_000,
     maxRedirects: 5,
@@ -132,6 +132,8 @@ export class ExecutionEngine {
       browserInteract?: BrowserInteract;
       /** Caché HTML compartible (FASE 11/Redis). Por defecto, caché propia por engine. */
       pageCache?: EnginePageCache;
+      /** Headers extra (credenciales de sesión: Authorization/Cookie). */
+      headers?: Record<string, string>;
     },
   ) {
     this.pageCache = deps?.pageCache ?? new PageCache();
@@ -164,9 +166,9 @@ export class ExecutionEngine {
     } else if (this.deps?.crawlPage) {
       // Compat FASE 0: solo metadata, sin DOM → marcar y seguir con fetch real.
       await this.deps.crawlPage(url);
-      html = await defaultFetchHtml(url);
+      html = await defaultFetchHtml(url, this.deps?.headers);
     } else {
-      html = await defaultFetchHtml(url);
+      html = await defaultFetchHtml(url, this.deps?.headers);
     }
     try {
       await this.pageCache.set(url, html);

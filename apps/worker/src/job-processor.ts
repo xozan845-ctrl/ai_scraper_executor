@@ -13,12 +13,15 @@ import type { JobStore } from '@ai-scraper/storage';
 import type { ScrapingJobPayload } from '@ai-scraper/queue';
 import { AgentRunner, type AgentResult } from './agent-runner';
 import { enrichItems } from './interpret';
+import { createProductionEngine } from './browser-engine';
 
 export interface ProcessJobDeps {
   store: JobStore;
   /** Orquestador real por defecto; fake en tests. */
   createOrchestrator?: (payload: ScrapingJobPayload) => AIOrchestrator;
   createEngine?: () => ExecutionEngine;
+  /** Credenciales de sesión (headers) por sessionId. */
+  getCredentials?: (sessionId: string) => Promise<{ headers?: Record<string, string> } | null>;
   maxSteps?: number;
   maxRecoveryAttempts?: number;
 }
@@ -71,9 +74,14 @@ export async function processJob(jobId: string, deps: ProcessJobDeps): Promise<A
     : new AIOrchestrator(withCircuitBreaker(createAIProviderForJob(payload.ai) as never), cache);
 
   const isCancelled = async () => (await store.getJob(jobId))?.status === 'CANCELLED';
+  // Credenciales de la sesión (headers) si el job viene de /sessions.
+  const credentials = record.sessionId && deps.getCredentials
+    ? await deps.getCredentials(record.sessionId).catch(() => null)
+    : null;
+  const createEngine = deps.createEngine ?? (() => createProductionEngine(credentials?.headers ? { headers: credentials.headers } : undefined));
   const runner = new AgentRunner({
     orchestrator,
-    createEngine: deps.createEngine,
+    createEngine,
     maxSteps: deps.maxSteps,
     maxRecoveryAttempts: deps.maxRecoveryAttempts,
     isCancelled,
