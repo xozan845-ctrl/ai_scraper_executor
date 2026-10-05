@@ -35,10 +35,11 @@ export class RadiographyController {
     return getLearnedProfile(`https://${domain}`);
   }
 
-  @Get('page/:url(*)')
-  async getPageRadiography(@Param('url') url: string, @Query('maxAgeHours') maxAgeHours?: string) {
-    const radiography = await mongoRepo.findFreshRadiography(url, maxAgeHours ? Number(maxAgeHours) : 24);
-    if (!radiography) throw new NotFoundException(`Radiografía no encontrada o expirada para ${url}`);
+  @Get('page/*url')
+  async getPageRadiography(@Param('url') url: string | string[], @Query('maxAgeHours') maxAgeHours?: string) {
+    const target = Array.isArray(url) ? url.join('/') : url;
+    const radiography = await mongoRepo.findFreshRadiography(target, maxAgeHours ? Number(maxAgeHours) : 24);
+    if (!radiography) throw new NotFoundException(`Radiografía no encontrada o expirada para ${target}`);
     return radiography;
   }
 
