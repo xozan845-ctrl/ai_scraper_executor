@@ -9,7 +9,9 @@
  * - Trazabilidad §33: cada item incluye _source { url, selector, scrapedAt }.
  */
 import * as cheerio from 'cheerio';
+import { createHash } from 'node:crypto';
 import type { ScrapingCommand as StrictCommand } from '@ai-scraper/commands';
+import { logger } from '@ai-scraper/observability';
 import { assertPublicUrl, safeFetchText } from '@ai-scraper/security';
 import { PageCache, normalizeUrlForDedupe } from './page-cache';
 
@@ -109,13 +111,33 @@ function extractFieldValue(
   return el.attr(attr)?.slice(0, 1000) ?? null;
 }
 
-/** Caché de páginas aceptada por el engine: sync (memoria) o async (Redis). */
+/**
+ * Caché de páginas aceptada por el engine: sync (memoria) o async (Redis).
+ * La clave la deriva el engine (ver `ExecutionEngine.cacheKey`): incluye el
+ * scope de credenciales, de modo que el HTML autenticado de un contexto nunca
+ * se sirve a otro (fuga cross-session). Implementaciones de memoria/Redis tratan
+ * la clave como opaca y la normalizan cuando es una URL válida.
+ */
 export interface EnginePageCache {
-  get(url: string): string | null | Promise<string | null>;
-  set(url: string, html: string): void | Promise<void>;
+  get(key: string): string | null | Promise<string | null>;
+  set(key: string, html: string): void | Promise<void>;
   hits?: number;
   misses?: number;
   size?: number;
+}
+
+/**
+ * Scope estable y no reversible de un juego de headers (credenciales).
+ * Ordena las claves y hashea para que el mismo contexto comparta caché y
+ * contextos distintos jamás colisionen. Nunca incluye el valor en claro.
+ */
+function credentialScope(headers: Record<string, string>): string {
+  const canonical = Object.entries(headers)
+    .map(([k, v]) => [k.toLowerCase(), v] as const)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([k, v]) => `${k}:${v ?? ''}`)
+    .join('\n');
+  return `cred-${createHash('sha256').update(canonical).digest('hex').slice(0, 16)}`;
 }
 
 export class ExecutionEngine {
@@ -137,9 +159,19 @@ export class ExecutionEngine {
     },
   ) {
     this.pageCache = deps?.pageCache ?? new PageCache();
+    const headers = deps?.headers;
+    this.cacheScope = headers && Object.keys(headers).length > 0 ? credentialScope(headers) : undefined;
   }
 
   private readonly pageCache: EnginePageCache;
+  /** Scope de credenciales para aislar la caché compartida (undefined = anónimo). */
+  private readonly cacheScope: string | undefined;
+
+  /** Clave de caché aislada por credenciales: el HTML autenticado no se filtra entre contextos. */
+  private cacheKey(url: string): string {
+    if (!this.cacheScope) return url;
+    return `${this.cacheScope}|${normalizeUrlForDedupe(url)}`;
+  }
 
   /** Stats de caché para observabilidad (solo si la caché las expone). */
   getCacheStats(): { hits: number; misses: number; size: number } {
@@ -155,9 +187,11 @@ export class ExecutionEngine {
   }
 
   private async fetchHtml(url: string): Promise<string> {
-    // Caché (memoria o Redis). Si falla (Redis caído), se ignora sin romper el scraping.
+    // Caché (memoria o Redis) aislada por scope de credenciales. Si falla
+    // (Redis caído), se ignora sin romper el scraping.
+    const key = this.cacheKey(url);
     try {
-      const cached = await this.pageCache.get(url);
+      const cached = await this.pageCache.get(key);
       if (cached !== null && cached !== undefined) return cached;
     } catch { /* cache miss/error → fetch */ }
     let html: string;
@@ -171,7 +205,7 @@ export class ExecutionEngine {
       html = await defaultFetchHtml(url, this.deps?.headers);
     }
     try {
-      await this.pageCache.set(url, html);
+      await this.pageCache.set(key, html);
     } catch { /* noop */ }
     return html;
   }
