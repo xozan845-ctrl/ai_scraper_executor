@@ -132,10 +132,17 @@ async function isBlockedTarget(rawUrl: string, cache: Map<string, boolean>): Pro
  * Instala un guard de navegación en una página Playwright: aborta peticiones a hosts
  * privados/metadata, incluidos redirects y subrecursos (§37).
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function installNavigationGuard(page: any): Promise<void> {
+interface NavigationRoute {
+  request(): { url(): string };
+  abort(reason: string): unknown;
+  continue(): unknown;
+}
+interface NavigationPage {
+  route(pattern: string, handler: (route: NavigationRoute) => Promise<unknown>): Promise<unknown>;
+}
+export async function installNavigationGuard(page: NavigationPage): Promise<void> {
   const cache = new Map<string, boolean>();
-  await page.route('**/*', async (route: any) => {
+  await page.route('**/*', async (route: NavigationRoute) => {
     if (await isBlockedTarget(route.request().url(), cache)) return route.abort('blockedbyclient');
     return route.continue();
   });

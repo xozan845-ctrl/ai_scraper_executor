@@ -23,7 +23,7 @@
     "test:api": "node scripts/run-all.mjs",
     "test:api:fast": "node scripts/run-all.mjs --skip-slow",
     "dev:e2e": "docker compose up -d postgres mongodb redis && sleep 10 && npm run prisma:migrate:deploy && npm run build && npm run test:e2e",
-    "lint": "eslint apps packages",
+    "lint": "eslint apps packages scripts",
     "typecheck": "npm run build"
   },
   "devDependencies": {

@@ -36,7 +36,7 @@ export async function connectMongo(uri?: string): Promise<typeof mongoose> {
 
 function mockMongoose(): typeof mongoose {
   // Mongoose mock mínimo para tests - evita conexión real
-  const collections: Record<string, any> = {};
+  const collections: Record<string, unknown> = {};
 
   const mock = {
     ...mongoose,
@@ -48,7 +48,7 @@ function mockMongoose(): typeof mongoose {
       on: () => {},
       collections,
     },
-    model: (name: string, schema: any) => {
+    model: (name: string, _schema: unknown) => {
       const collectionName = name.toLowerCase() + 's';
       if (!mock.connection.collections[collectionName]) {
         mock.connection.collections[collectionName] = {
@@ -57,7 +57,7 @@ function mockMongoose(): typeof mongoose {
             sort: () => ({ limit: () => ({ exec: async () => [] }) }),
             exec: async () => [],
           }),
-          create: async (doc: any) => ({ _id: new mongoose.Types.ObjectId(), ...doc, save: async () => {} }),
+          create: async (doc: Record<string, unknown>) => ({ _id: new mongoose.Types.ObjectId(), ...doc, save: async () => {} }),
           findById: async () => null,
           findByIdAndUpdate: async () => null,
           deleteMany: async () => {},
@@ -69,7 +69,7 @@ function mockMongoose(): typeof mongoose {
           sort: () => ({ limit: () => ({ exec: async () => [] }) }),
           exec: async () => [],
         }),
-        create: async (doc: any) => ({ _id: new mongoose.Types.ObjectId(), ...doc, save: async () => {} }),
+        create: async (doc: Record<string, unknown>) => ({ _id: new mongoose.Types.ObjectId(), ...doc, save: async () => {} }),
         findById: async () => null,
         findByIdAndUpdate: async () => null,
       };
