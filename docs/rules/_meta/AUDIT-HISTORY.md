@@ -1275,3 +1275,25 @@ en la cabeza) y `main` `d891389` (run `37361504637`, ambos jobs `success`).
 ## Estado
 
 - Gates sin cambios (**8 ✅ · 1 N/A · 0 ⏸**); cobertura 71.83 / 74.62 / 68.94.
+
+---
+
+# AUDIT — Índices de base de datos (R-DB-4, R-DB-5)
+
+- **Fecha:** 2026-10-06
+
+## Qué cambió
+
+- El esquema no declaraba **ningún** índice salvo `User.email` (el email es único).
+- Migración `20261006153221_add_composite_indexes` (generada con `prisma migrate dev
+  --create-only` sobre Postgres real, `R-DB-1`): 11 índices.
+  - **FK**: `jobId` en `ScrapingPlan`, `Command`, `Page`, `Result`, `JobError`,
+    `AIInteraction`; `sessionId` en `Job` y `SessionMessage`; `userId` (compuesto).
+  - **Consulta**: `Job(status, createdAt)` (filtro+orden de `listJobs`),
+    `Job(userId, createdAt)`, `Session(domain, updatedAt)`.
+- Verificado: `migrate deploy` OK y `migrate diff --exit-code` = «No difference detected».
+
+## Estado
+
+- Gates sin cambios (**8 ✅ · 1 N/A · 0 ⏸**); migraciones **3**. Cierra el pendiente
+  de índices del área `db/`.

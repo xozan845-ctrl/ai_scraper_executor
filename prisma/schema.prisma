@@ -37,6 +37,11 @@ model Job {
   results     Result[]
   errors      JobError[]
   aiRequests  AIInteraction[]
+
+  // Índices (R-DB-4/R-DB-5): filtro+orden del listado, FK a User y a Session.
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+  @@index([sessionId])
 }
 
 // Sesión tipo "chat": una URL a analizar con su contexto (radiografía) e historial.
@@ -51,6 +56,9 @@ model Session {
   updatedAt   DateTime @updatedAt
   messages    SessionMessage[]
   jobs        Job[]
+
+  // Índices (R-DB-4/R-DB-5): sesiones de un dominio por recencia.
+  @@index([domain, updatedAt])
 }
 
 model SessionMessage {
@@ -61,6 +69,8 @@ model SessionMessage {
   content   String
   jobId     String?
   createdAt DateTime @default(now())
+
+  @@index([sessionId])
 }
 
 model ScrapingPlan {
@@ -70,6 +80,8 @@ model ScrapingPlan {
   version   String   @default("1.0")
   payload   Json
   createdAt DateTime @default(now())
+
+  @@index([jobId])
 }
 
 model Command {
@@ -80,6 +92,8 @@ model Command {
   payload   Json
   status    String   @default("PENDING")
   createdAt DateTime @default(now())
+
+  @@index([jobId])
 }
 
 model Page {
@@ -90,6 +104,8 @@ model Page {
   title     String?
   depth     Int      @default(0)
   createdAt DateTime @default(now())
+
+  @@index([jobId])
 }
 
 model Result {
@@ -101,6 +117,8 @@ model Result {
   selector   String?
   confidence Float?
   createdAt  DateTime @default(now())
+
+  @@index([jobId])
 }
 
 model JobError {
@@ -110,6 +128,8 @@ model JobError {
   message   String
   context   Json?
   createdAt DateTime @default(now())
+
+  @@index([jobId])
 }
 
 model AIInteraction {
@@ -124,4 +144,6 @@ model AIInteraction {
   tokens    Int?
   latencyMs Int?
   createdAt DateTime @default(now())
+
+  @@index([jobId])
 }
