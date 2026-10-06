@@ -30,7 +30,7 @@
 | Cobertura | baseline **71.59 / 73.69 / 68.90**; umbral **70 / 72 / 67**; medido ~73.2/74.8/68.9 | `npm test` (nativo de Node) |
 | OpenAPI | **`docs/openapi.json` versionada y verificada** en CI | `G-8` |
 | Paquetes | **12** en `packages/` + 2 apps | `ls packages` |
-| Modelos Prisma | **10**; migraciones **2** | `prisma/schema.prisma`, `ls prisma/migrations` |
+| Modelos Prisma | **10**; migraciones **3** (`0_init`, `sessions`, `add_composite_indexes`) | `prisma/schema.prisma`, `ls prisma/migrations` |
 | Comandos del DSL | **15** literales Zod | `packages/commands/src/schemas.ts` |
 | Git | **1 rama** (`main`), **68 commits, 0 merge commits**; PR #1 fusionado por `--rebase` | `git branch -a`, `git rev-list` |
 | Workflows | **2** (`ci.yml` con 2 jobs + `e2e.yml`) | `.github/workflows/` |
@@ -120,6 +120,10 @@ autoexcluye en `npm test` si `DATABASE_URL` no responde.
 - **Completitud del DSL** (`R-AI-2`, `R-U-12`): `tests/dsl-completeness.test.mjs`
   comprueba que los 15 `type` del enum Zod tienen trato en el normalizador y aparecen
   en el `DSL_SPEC` que se declara al modelo. Cierra el pendiente del área `ai/`.
+- **Índices de base de datos** (`R-DB-4`, `R-DB-5`): migración
+  `20261006153221_add_composite_indexes` con 11 índices (FK de `jobId`/`sessionId`/
+  `userId` y compuestos de consulta `Job(status, createdAt)`, `Job(userId, createdAt)`,
+  `Session(domain, updatedAt)`). Antes no había ninguno salvo `User.email`.
 
 ## Historial heredado (procedencia)
 

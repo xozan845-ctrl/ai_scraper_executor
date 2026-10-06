@@ -54,11 +54,12 @@ puede expirar sin dejar rastro, es Redis.
 | `R-RD-5` | El fallback en memoria de Redis avisa y degrada → `R-AR-6` (`../architecture/01-arquitectura.md`), `R-DI-6` (`../data/01-integridad.md`) |
 | `R-DB-8` | En CI se aplica solo desde migraciones versionadas → `R-EN-2` (`../ci/02-entorno.md`) |
 
-## Pendientes
+## Estado y pendientes
 
-- **No hay índices compuestos declarados** sobre `Job(userId, createdAt)` ni
-  `Session(domain, updatedAt)`, que son las consultas más frecuentes de la API. Es
-  deuda abierta de `R-DB-5`.
+- **Índices (R-DB-4/R-DB-5): cumplido** desde 2026-10-06. La migración
+  `20261006153221_add_composite_indexes` añade índices de FK (`jobId`, `sessionId`,
+  `userId`) y de consulta (`Job(status, createdAt)`, `Job(userId, createdAt)`,
+  `Session(domain, updatedAt)`). Antes no había ninguno (salvo `User.email`).
 - No hay **retención** declarada para `Page`/`Command`/`AIInteraction`: la tabla crece
   por job (→ `R-DI-8`).
 - `redis` se usa también como broker de la cola (BullMQ). Compartir el mismo Redis
