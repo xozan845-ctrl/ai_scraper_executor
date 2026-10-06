@@ -11,7 +11,7 @@ despliegue con entornos.
 > | Imágenes | **Dos Dockerfiles**: `apps/api/Dockerfile` (node:22-alpine) y `apps/worker/Dockerfile` (node:22-bookworm-slim + Chromium) |
 > | Composición | **Un `docker-compose.yml`** en la raíz con 6 servicios: `postgres`, `mongodb`, `redis`, `migrate` (one-shot), `api`, `worker` |
 > | Migraciones | Servicio `migrate` que corre `npx prisma migrate deploy` y **bloquea** el arranque de `api` y `worker` (`condition: service_completed_successfully`) |
-> | Release por tag | **No existe**: no hay `release.yml`, ni tags, ni publicación a registry |
+> | Release por tag | **Existe** ([`release.yml`](../../../.github/workflows/release.yml)): tag `v*.*.*` o dispatch con `dry_run`; imágenes en GHCR con etiquetas OCI (`R-CD-1..8`) |
 > | Entornos | **No hay**: ni `staging` ni `produccion`; una sola rama (`R-GE-1`) y un solo conjunto de secretos |
 > | Health | `HEALTHCHECK` en la imagen de la API contra `/api/v1/health` |
 >
@@ -54,10 +54,13 @@ puerto que no responde no se propaga como fallo de aplicación.
 
 ## Pendientes (deuda)
 
-- **No hay `release.yml`**: no hay tag, ni imagen publicada, ni promoción
-  automática. Los `R-CD-1..8` no describen nada que corra; son el contrato del día
-  que exista. La entrega actual es *build desde el commit de `main`*, sin
-  inmutabilidad por digest (`R-CD-3`).
+- **Release por tag (ya existe)**: [`release.yml`](../../../.github/workflows/release.yml)
+  se dispara con el push de un tag `v*.*.*` (o a mano con `dry_run` por defecto).
+  Valida el tag y la procedencia (commit en `main` y run de `ci` verde), y construye
+  las dos imágenes en GHCR con etiquetas OCI; la construcción de la entrega actual
+  (`docker compose up -d --build`) sigue siendo la vía local. **Proceso vigente**: el
+  tag se corta **después** de que el E2E (`G-6`) esté verde. `R-CD-6` (aprobación de
+  producción) sigue siendo la puerta del merge verificado a `main`.
 - **No hay entornos**: una sola configuración para un solo destino. La promoción
   `staging` → producción del proyecto de origen **no se replica**: aquí se registra
   como deuda en [`../git/00-entornos.md`](../git/00-entornos.md) (`R-GE-5`).

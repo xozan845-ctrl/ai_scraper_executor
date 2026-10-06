@@ -33,7 +33,7 @@
 | Modelos Prisma | **10**; migraciones **3** (`0_init`, `sessions`, `add_composite_indexes`) | `prisma/schema.prisma`, `ls prisma/migrations` |
 | Comandos del DSL | **15** literales Zod | `packages/commands/src/schemas.ts` |
 | Git | **1 rama** (`main`), **68 commits, 0 merge commits**; PR #1 fusionado por `--rebase` | `git branch -a`, `git rev-list` |
-| Workflows | **2** (`ci.yml` con 2 jobs + `e2e.yml`) | `.github/workflows/` |
+| Workflows | **3** (`ci.yml` con 2 jobs, `e2e.yml`, `release.yml`) | `.github/workflows/` |
 
 ## Estado por capa
 
@@ -126,6 +126,10 @@ autoexcluye en `npm test` si `DATABASE_URL` no responde.
   `20261006153221_add_composite_indexes` con 11 índices (FK de `jobId`/`sessionId`/
   `userId` y compuestos de consulta `Job(status, createdAt)`, `Job(userId, createdAt)`,
   `Session(domain, updatedAt)`). Antes no había ninguno salvo `User.email`.
+- **Release por tag** (ADR-22): [`release.yml`](../../../.github/workflows/release.yml)
+  implementa `R-CD-1..4`, `R-CD-7` y `R-CD-8` (tag `v*.*.*`, procedencia en `main` +
+  `ci` verde, imágenes GHCR con etiquetas OCI, `dry_run` por defecto). Tercer workflow
+  aceptado por `R-CI-4`.
 
 ## Historial heredado (procedencia)
 

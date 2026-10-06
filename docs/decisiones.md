@@ -463,5 +463,46 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
   integración son comandos aparte; (c) el E2E cubre lo que ninguna otra capa puede:
   que el modelo siga emitiendo el DSL contra un sitio real (ADR-14).
 
+---
+
+## ADR-22: Release por tag con imágenes en GHCR
+
+- **Fecha**: 2026-10-06
+- **Estado**: Aceptado
+- **Contexto**: `R-CD-1..8` eran el contrato de un pipeline de release que no existía
+  (no había `release.yml` ni publicación de imágenes). El despliegue real es
+  `docker compose` desde el commit de `main`, sin inmutabilidad por tag.
+- **Decisión**: añadir `.github/workflows/release.yml` que implementa el contrato:
+  - se dispara en el **push de un tag** `v<major>.<minor>.<patch>(-prerelease)` o a
+    mano; `workflow_dispatch` trae **`dry_run: true`** por defecto (`R-CD-8`);
+  - un job `validate` comprueba el formato del tag y la **procedencia** (el commit
+    etiquetado está en `main` **y** tiene un run de `ci` verde en ese SHA) (`R-CD-1`,
+    `R-CD-2`);
+  - un job `images` (matriz `api`/`worker`) construye una vez con `docker build`,
+    etiqueta con `org.opencontainers.image.*` + semver + `sha-<corto>` + `latest`
+    (solo no-prerelease), y publica en **GHCR** con el `GITHUB_TOKEN` (`packages:
+    write`); el digest queda en el resumen del run (`R-CD-3`, `R-CD-4`);
+  - los Dockerfiles no llevan `ARG`/`ENV` con credenciales (`R-CD-7`).
+- **Consecuencias**: (a) `R-CD-1..4`, `R-CD-7` y `R-CD-8` quedan implementados;
+  (b) el **tag se corta después de que el E2E (`G-6`) esté verde** — el release no
+  reejecuta el E2E, lo asume como puerta previa; (c) `R-CD-5` (migraciones hacia
+  adelante) sigue siendo responsabilidad del despliegue (`migrate deploy`), no del
+  release; (d) `R-CD-6` (aprobación de producción) sigue siendo el merge verificado a
+  `main`, porque no hay entornos separados (`R-GE-5`).
+
+---
+
+## Deudas que estos ADR dejan abiertas
+
+| Deuda | ADR relacionado | Dónde está registrada |
+|---|---|---|
+| `overrides` de transitivas (hoy `deepmerge-ts`; revisar al actualizar `prisma`) | ADR-16, ADR-18 | `rules/ci/02-entorno.md`, `rules/_meta/AUDIT.md` |
+| Cobertura solo de ficheros cargados por la suite | ADR-17 | `rules/test/06-estandares-cobertura.md` (`R-COV-4`) |
+| Almacenamiento de Crawlee impide paralelizar la suite | ADR-04, ADR-11 | `rules/test/05-reglas-robustez.md` (`R-FL-5`) |
+| Mutation testing diferido (runner incompatible) | ADR-20 | `rules/test/05-reglas-robustez.md` (`R-MT-1`) |
+| Promoción entre entornos sin implementar | ADR-15 | `rules/git/00-entornos.md` (`R-GE-5`) |
+| Caché y cola comparten el mismo Redis | — | `rules/db/03-redis.md` (`R-RD-1`) |
+| Retención de `Page`/`Command`/`AIInteraction` sin declarar | — | `rules/data/01-integridad.md` (`R-DI-8`) |
+
 > El estado vigente de cada deuda, con el comando que la mide, está en
 > [`rules/_meta/AUDIT.md`](./rules/_meta/AUDIT.md).
