@@ -139,6 +139,9 @@ autoexcluye en `npm test` si `DATABASE_URL` no responde.
 - **Separación de Redis para la cola** (`R-RD-1`, ADR-23): `QUEUE_REDIS_URL`
   (default = `REDIS_URL`) + servicio `redis-queue` bajo el perfil `split-redis`. La
   separación deja de ser «imposible» y pasa a decisión de despliegue.
+- **Observabilidad provisionada** (`R-TM-*`, ADR-24): `infra/observability/`
+  (Prometheus + datasource/dashboard de Grafana) y `docker-compose.observability.yml`.
+  Las reglas de alerta siguen como contrato no provisionado.
 
 ## Historial heredado (procedencia)
 
