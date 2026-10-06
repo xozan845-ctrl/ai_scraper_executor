@@ -51,7 +51,7 @@
 | Lint / Build (`G-7`) | 🟢 | 0 errores / 0 warnings; `npm run build` exit 0 |
 | Security gate (`R-QA-6`/`R-SE-16`) | 🟢 | `npm audit` → 0 vulnerabilidades; paso `Security audit` |
 | Artifacts (`R-EN-3`) | 🟢 | `test-results.xml` (JUnit) subido en todos los runs |
-| Documentación (`R-DO`) | 🟡 | áreas y reglas al día; **faltan los `README.md` de 12 packages + 2 apps** (`R-DO-1`) |
+| Documentación (`R-DO`) | 🟢 | área al día; **14/14** `README.md` de paquete/app creados; `.env.production.example` versionada |
 | Contribución de IA (`R-AC`) | 🟢 | área creada y adaptada; se cumple por disciplina (PR #1) |
 
 ## Gates
@@ -83,14 +83,12 @@ autoexcluye en `npm test` si `DATABASE_URL` no responde.
 1. **Sin protección de rama en el remoto (bloqueada por el plan)**: `gh api` devuelve
    `403 Upgrade to GitHub Pro or make this repository public` — es un límite del plan
    en repos privados, no deuda del repo. `R-GE-4` se cumple por disciplina (rama + PR).
-2. **`README.md` por paquete/app (`R-DO-1`)**: los 12 packages y las 2 apps no tienen
-   README todavía. Es la deuda funcional de la nueva área `documentation/`.
-3. **Promoción entre entornos sin implementar** (`R-GE-5`): una sola rama, un solo
+2. **Promoción entre entornos sin implementar** (`R-GE-5`): una sola rama, un solo
    juego de secretos. Deuda asumida, no norma.
-4. **Mutation testing diferido a propósito** (`R-MT-1`, ADR-20): Stryker 10 no tiene
+3. **Mutation testing diferido a propósito** (`R-MT-1`, ADR-20): Stryker 10 no tiene
    runner para `node --test` y los tests cargan `dist`; se reevalúa con una suite de
    runner soportado. Los property tests cubren el riesgo mientras tanto.
-5. **`overrides` de transitivas** (ADR-16/ADR-18): deuda viva a revisar al actualizar
+4. **`overrides` de transitivas** (ADR-16/ADR-18): deuda viva a revisar al actualizar
    dependencias; hoy no hay vulnerabilidades.
 
 ## Cerradas en esta auditoría (2026-10-06)
@@ -108,6 +106,11 @@ autoexcluye en `npm test` si `DATABASE_URL` no responde.
   `R-I-12`/`R-C-12` ya no dicen «pendiente»), `_meta/CHECKLIST.md` y este snapshot.
 - **Evidencia de CI**: los gates nuevos dejaron de ser «configurados» y pasaron a ✅
   con run verde real (PR #1 + `main` `37361504637`).
+- **`R-DO-1` cumplido**: los 12 packages y las 2 apps tienen `README.md` (responsabilidad,
+  dependencias exclusivas, superficie pública y comandos). Antes era deuda.
+- **Actions actualizadas a `v7`** (`checkout`, `setup-node`, `upload-artifact`): corren
+  sobre Node 24, lo que elimina el aviso de deprecación de Node 20 en los runners. La
+  versión de las actions queda normada en `R-EN-1`.
 
 ## Historial heredado (procedencia)
 
