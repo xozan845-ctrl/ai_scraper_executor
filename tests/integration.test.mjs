@@ -92,5 +92,53 @@ describe(
       assert.equal(found?.htmlHash, 'itest-hash');
       await models.PageRadiography.deleteOne({ _id: doc._id }); // sin residuo (R-QA-3)
     });
+
+    it('R-I-4: sin API key, `POST /jobs` responde 401 y no crea nada', async () => {
+      const res = await fetch(`${api.baseUrl}/api/v1/jobs`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ url: 'https://example.com/', instruction: 'sin clave' }),
+      });
+      assert.equal(res.status, 401);
+    });
+
+    it('R-I-6: el DTO descarta campos inyectados (mass assignment)', async () => {
+      const res = await postJson('/api/v1/jobs', {
+        url: 'https://example.com/',
+        instruction: 'Mass assignment',
+        status: 'COMPLETED',
+        userId: 'intruso',
+      });
+      assert.ok([200, 201].includes(res.status), `status ${res.status}`);
+      const job = await res.json();
+      assert.notEqual(job.status, 'COMPLETED', 'el status inyectado se aplicó');
+      assert.notEqual(job.userId, 'intruso', 'el userId inyectado se aplicó');
+    });
+
+    it('R-I-2: el filtro por status es correcto y la paginación conserva el filtro', async () => {
+      const ids = [];
+      for (let i = 0; i < 2; i++) {
+        const create = await postJson('/api/v1/jobs', {
+          url: 'https://example.com/',
+          instruction: `Filtro ${i} ${Date.now()}`,
+        });
+        const job = await create.json();
+        ids.push(job.id);
+        await authed(`/api/v1/jobs/${job.id}/cancel`, { method: 'POST' });
+      }
+
+      const filtered = await authed('/api/v1/jobs?status=CANCELLED&limit=100');
+      assert.equal(filtered.status, 200);
+      const page = await filtered.json();
+      assert.ok(Array.isArray(page.items));
+      assert.ok(page.items.every((j) => j.status === 'CANCELLED'), 'hay jobs que no encajan en el filtro');
+      for (const id of ids) assert.ok(page.items.some((j) => j.id === id), `falta el job ${id}`);
+
+      const one = await authed('/api/v1/jobs?status=CANCELLED&limit=1');
+      const small = await one.json();
+      assert.equal(small.items.length, 1, 'limit=1 debe devolver exactamente 1 item');
+      assert.ok(small.nextCursor === null || typeof small.nextCursor === 'string');
+      if (small.nextCursor) assert.ok(small.items[0].status === 'CANCELLED');
+    });
   },
 );

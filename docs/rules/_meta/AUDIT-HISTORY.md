@@ -1480,3 +1480,24 @@ el stack es local, no de producción (allí el scrape debe llevar `x-api-key`, `
 
 - Gates sin cambios (**8 ✅ · 1 N/A · 0 ⏸**); 153 tests + 9 de contrato + 4 de
   integración en verde.
+
+---
+
+# AUDIT — Integración reforzada (R-I-2, R-I-4, R-I-6)
+
+- **Fecha:** 2026-10-06
+- **Disparador:** la suite de integración (G-4) tenía 4 tests; faltaban filtros,
+  paginación y mass-assignment.
+
+## Qué cambió
+
+- `tests/integration.test.mjs` pasa a **7 tests** con almacenes reales:
+  - `R-I-4`: `POST /jobs` sin API key → `401`.
+  - `R-I-6`: el `ValidationPipe` descarta `status`/`userId` inyectados (el job no sale
+    `COMPLETED` ni con el `userId` ajeno).
+  - `R-I-2`: filtro por `status` correcto (todos los items encajan) y `limit=1`
+    devuelve exactamente 1 item con `nextCursor`, conservando el filtro.
+
+## Estado
+
+- Gates sin cambios (**8 ✅ · 1 N/A · 0 ⏸**); contrato 9/9, integración 7/7.
