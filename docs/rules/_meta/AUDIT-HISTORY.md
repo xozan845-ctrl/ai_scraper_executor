@@ -1346,3 +1346,22 @@ en el merge verificado a `main` (no hay entornos separados).
 ## Estado
 
 - Gates sin cambios (**8 ✅ · 1 N/A · 0 ⏸**); workflows **3**.
+
+---
+
+# AUDIT — Detección de tests intermitentes (R-FL-1)
+
+- **Fecha:** 2026-10-06
+
+## Qué cambió
+
+- Nuevo `scripts/repeat-tests.mjs` y comando `npm run test:repeat -- <n>`: repite la
+  suite unitaria `n` veces (por defecto 5) y falla si alguna iteración contrasta con
+  las demás. Node 22 no trae `--test-rerun-failures`, así que la detección se hace por
+  repetición.
+- **No es un gate de PR** (es lento, ~25 s por iteración): se usa antes de un release o
+  al investigar un fallo esporádico. `R-FL-1` deja de estar ⏸ en el cross-ref de CI.
+
+## Estado
+
+- Gates sin cambios (**8 ✅ · 1 N/A · 0 ⏸**).
