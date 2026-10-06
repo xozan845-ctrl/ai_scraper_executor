@@ -23,6 +23,7 @@
     "test:contract": "node --test --test-concurrency=1 tests/contract.test.mjs",
     "test:integration": "node --test --test-concurrency=1 tests/integration.test.mjs",
     "test:repeat": "node scripts/repeat-tests.mjs",
+    "retention:prune": "node scripts/retention.mjs",
     "test:api": "node scripts/run-all.mjs",
     "test:api:fast": "node scripts/run-all.mjs --skip-slow",
     "dev:e2e": "docker compose up -d postgres mongodb redis && sleep 10 && npm run prisma:migrate:deploy && npm run build && npm run test:e2e",

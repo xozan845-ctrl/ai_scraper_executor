@@ -44,8 +44,9 @@ job, idempotencia, trazabilidad, límites, caché que no es verdad) y seguridad
 
 ## Pendientes
 
-- No hay retención declarada para `Page`, `Command` ni `AIInteraction`: la tabla crece
-  con cada job. Definirla es un cambio normativo pendiente (`R-DI-8`).
+- **Retención (R-DI-8): definida** desde 2026-10-06. Se conservan `Job`, `Result`,
+  `JobError` y las sesiones; se purgan `Page`/`Command`/`AIInteraction` antiguos con
+  `npm run retention:prune` y `RETENTION_ARTIFACT_DAYS`.
 - `Result.data` y `AIInteraction.request/response` son `Json`: el esquema de lo que
   guarda la IA no está versionado en el repo. Un cambio de prompt puede cambiar esa
   forma sin que nada lo detecte (`R-DI-7`).

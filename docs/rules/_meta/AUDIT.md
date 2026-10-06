@@ -133,6 +133,9 @@ autoexcluye en `npm test` si `DATABASE_URL` no responde.
 - **Detección de tests intermitentes** (`R-FL-1`): `scripts/repeat-tests.mjs` +
   `npm run test:repeat -- <n>` repite la suite y falla si hay contraste entre
   iteraciones. A propósito **no** es gate de PR (es lento).
+- **Retención definida** (`R-DI-8`): política explícita (se conservan `Job`/`Result`/
+  `JobError`/sesiones; se purgan `Page`/`Command`/`AIInteraction` con
+  `npm run retention:prune` y `RETENTION_ARTIFACT_DAYS`).
 
 ## Historial heredado (procedencia)
 
