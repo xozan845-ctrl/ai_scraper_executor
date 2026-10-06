@@ -1387,3 +1387,26 @@ en el merge verificado a `main` (no hay entornos separados).
 
 - Gates sin cambios (**8 ✅ · 1 N/A · 0 ⏸**). Cierra el pendiente de retención de
   `data/` y `db/`.
+
+---
+
+# AUDIT — Separación opt-in de Redis para la cola (R-RD-1, ADR-23)
+
+- **Fecha:** 2026-10-06
+
+## Qué cambió
+
+- `queueRedisUrl()` en `packages/queue`: usa `QUEUE_REDIS_URL` si está definida y no
+  vacía, si no `REDIS_URL`. La usan `createJobQueue` (API) y el consumidor BullMQ del
+  worker.
+- `docker-compose.yml`: servicio `redis-queue` bajo el perfil `split-redis` (no arranca
+  en el `up` por defecto) y `QUEUE_REDIS_URL` en `api`/`worker`
+  (`${QUEUE_REDIS_URL:-redis://redis:6379}`).
+- `QUEUE_REDIS_URL` en `.env.example` (vacío) y `.env.production.example` (instancia
+  separada recomendada).
+- `R-RD-1` reescrita: por defecto prefijos de clave; en producción se recomienda la
+  instancia separada.
+
+## Estado
+
+- Gates sin cambios (**8 ✅ · 1 N/A · 0 ⏸**); build/lint/153 tests en verde.

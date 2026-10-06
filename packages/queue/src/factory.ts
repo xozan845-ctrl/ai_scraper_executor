@@ -26,19 +26,29 @@ async function redisResponds(url: string, timeoutMs = 2500): Promise<boolean> {
 }
 
 /**
- * Factoría FASE 7: BullMQ si REDIS_URL responde, si no memoria (dev/tests).
+ * URL de Redis de la **cola** (R-RD-1): `QUEUE_REDIS_URL` si está definida y no
+ * vacía, si no `REDIS_URL`. Permite separar la cola del Redis de caché/rate-limit/
+ * métricas; por defecto comparten instancia (comportamiento previo).
+ */
+export function queueRedisUrl(): string | undefined {
+  const explicit = process.env.QUEUE_REDIS_URL?.trim();
+  return explicit ? explicit : process.env.REDIS_URL;
+}
+
+/**
+ * Factoría FASE 7: BullMQ si la URL de la cola responde, si no memoria (dev/tests).
  * El fallback se avisa por log; nunca se oculta en silencio.
  */
 export async function createJobQueue(): Promise<JobQueue> {
   if (singleton) return singleton;
-  const url = process.env.REDIS_URL;
+  const url = queueRedisUrl();
   if (url && (await redisResponds(url))) {
     singleton = await BullMQJobQueue.connect(url);
     console.log('[QUEUE] Redis conectado (BullMQ)');
     return singleton;
   }
-  if (url) console.warn('[QUEUE] REDIS_URL no responde — usando cola en memoria');
-  else console.warn('[QUEUE] Sin REDIS_URL — usando cola en memoria');
+  if (url) console.warn('[QUEUE] Redis de cola no responde — usando cola en memoria');
+  else console.warn('[QUEUE] Sin REDIS_URL ni QUEUE_REDIS_URL — usando cola en memoria');
   singleton = new InMemoryJobQueue();
   return singleton;
 }

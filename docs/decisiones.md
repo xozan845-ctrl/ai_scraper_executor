@@ -492,6 +492,30 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
 
 ---
 
+## ADR-23: Separación opt-in de Redis para la cola (`QUEUE_REDIS_URL`)
+
+- **Fecha**: 2026-10-06
+- **Estado**: Aceptado
+- **Contexto**: `R-RD-1` describía la cohabitación de Redis (cola BullMQ + caché +
+  rate limit + métricas) como deuda: un `FLUSHALL` de mantenimiento tumba los jobs en
+  vuelo. La separación «definitiva» se anunciaba como cambio normativo con ADR.
+- **Decisión**: soportar una instancia propia para la cola sin romper el default:
+  - `queueRedisUrl()` (en `packages/queue`) usa `QUEUE_REDIS_URL` si está definida y no
+    vacía; si no, `REDIS_URL`. La usan `createJobQueue` (API) y el consumidor BullMQ
+    del worker.
+  - `docker-compose.yml` trae un servicio `redis-queue` bajo el **perfil** `split-redis`
+    (no arranca en el `up` por defecto) y pasa `QUEUE_REDIS_URL` a `api`/`worker`
+    (por defecto `redis://redis:6379`, es decir, la instancia compartida).
+  - `QUEUE_REDIS_URL` queda en `.env.example` (vacío) y `.env.production.example`
+    (instancia separada recomendada).
+- **Consecuencias**: (a) el default no cambia (una sola instancia, familias separadas
+  por prefijo `R-RD-2`); (b) en producción se recomienda y documenta la instancia
+  separada; (c) queda pendiente del operador activar el perfil y fijar la variable —el
+  repo soporta la separación, no la impone—, por lo que la deuda se degrada de
+  «imposible» a «decisión de despliegue».
+
+---
+
 ## Deudas que estos ADR dejan abiertas
 
 | Deuda | ADR relacionado | Dónde está registrada |
@@ -501,7 +525,7 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
 | Almacenamiento de Crawlee impide paralelizar la suite | ADR-04, ADR-11 | `rules/test/05-reglas-robustez.md` (`R-FL-5`) |
 | Mutation testing diferido (runner incompatible) | ADR-20 | `rules/test/05-reglas-robustez.md` (`R-MT-1`) |
 | Promoción entre entornos sin implementar | ADR-15 | `rules/git/00-entornos.md` (`R-GE-5`) |
-| Caché y cola comparten el mismo Redis | — | `rules/db/03-redis.md` (`R-RD-1`) |
+| Separación caché/cola de Redis: soportada pero **opt-in** (default compartido) | ADR-23 | `rules/db/03-redis.md` (`R-RD-1`) |
 | Retención de `Page`/`Command`/`AIInteraction` sin declarar | — | `rules/data/01-integridad.md` (`R-DI-8`) |
 
 > El estado vigente de cada deuda, con el comando que la mide, está en

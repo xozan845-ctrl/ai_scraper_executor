@@ -41,6 +41,19 @@ services:
       timeout: 3s
       retries: 10
 
+  # Redis separado para la cola (R-RD-1). Opcional: se arranca con
+  # `docker compose --profile split-redis up` y apuntando QUEUE_REDIS_URL a este host.
+  redis-queue:
+    image: redis:7-alpine
+    profiles: ["split-redis"]
+    volumes:
+      - redis-queue-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   # Migraciones Prisma (ETAPA 5): one-shot antes de api/worker. Nunca `migrate dev` en compose.
   migrate:
     build:
@@ -66,6 +79,7 @@ services:
       DATABASE_URL: postgresql://scraper:scraper@postgres:5432/scraper?schema=public
       MONGODB_URI: mongodb://mongodb:27017/${MONGODB_DB:-scraper}
       REDIS_URL: redis://redis:6379
+      QUEUE_REDIS_URL: ${QUEUE_REDIS_URL:-redis://redis:6379}
     ports:
       - "3000:3000"
     depends_on:
@@ -90,6 +104,7 @@ services:
       DATABASE_URL: postgresql://scraper:scraper@postgres:5432/scraper?schema=public
       MONGODB_URI: mongodb://mongodb:27017/${MONGODB_DB:-scraper}
       REDIS_URL: redis://redis:6379
+      QUEUE_REDIS_URL: ${QUEUE_REDIS_URL:-redis://redis:6379}
       WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-2}
       CRAWLEE_MAX_CONCURRENCY: ${CRAWLEE_MAX_CONCURRENCY:-5}
       CRAWLEE_MAX_REQUESTS_PER_MINUTE: ${CRAWLEE_MAX_REQUESTS_PER_MINUTE:-}
@@ -111,3 +126,4 @@ volumes:
   postgres-data:
   mongodb-data:
   redis-data:
+  redis-queue-data:

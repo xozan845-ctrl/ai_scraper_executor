@@ -63,6 +63,6 @@ puede expirar sin dejar rastro, es Redis.
 - **Retención (R-DI-8): definida** desde 2026-10-06: se conservan `Job`, `Result`,
   `JobError` y las sesiones; se purgan `Page`/`Command`/`AIInteraction` más antiguos que
   `RETENTION_ARTIFACT_DAYS` con `npm run retention:prune`.
-- `redis` se usa también como broker de la cola (BullMQ). Compartir el mismo Redis
-  para caché y cola significa que un `FLUSHALL` de mantenimiento **tumba los jobs en
-  vuelo**. La separación es deuda abierta de `R-RD-1`.
+- **Separación caché/cola de Redis (`R-RD-1`, ADR-23)**: soportada vía
+  `QUEUE_REDIS_URL` (default = `REDIS_URL`). El `compose` trae `redis-queue` bajo el
+  perfil `split-redis`; activarlo y fijar la variable es decisión del despliegue.
