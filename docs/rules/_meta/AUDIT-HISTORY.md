@@ -1235,3 +1235,24 @@ en la cabeza) y `main` `d891389` (run `37361504637`, ambos jobs `success`).
 
 - Deuda `R-DO-1` cerrada; `documentation/` pasa a 🟢.
 - Gates sin cambios (**8 ✅ · 1 N/A · 0 ⏸**).
+
+---
+
+# AUDIT — Revisión de overrides (de 8 a 1) y gatillo manual de CI
+
+- **Fecha:** 2026-10-06
+
+## Qué cambió
+
+- **`overrides` revisados** (ADR-16): eliminados 7 de 8. Con el árbol sin overrides,
+  la única vulnerabilidad `high` que reaparecía era `deepmerge-ts <8.0.0` (vía
+  `@prisma/config`). Tras Nest 12/eslint 10, `multer`, `qs`, `body-parser`,
+  `http-cache-semantics`, `js-yaml`, `lodash` y `file-type` ya llegan parcheados por
+  sus padres. El bloque queda en `{ "deepmerge-ts": "^8.0.0" }`. `npm audit` sigue en 0
+  y build/lint/test/contrato/OpenAPI en verde.
+- **Gatillo manual de CI** (`workflow_dispatch`, `R-CI-1`): mitigación del evento
+  `pull_request` que este remoto no siempre entrega (documentado en `ci/README.md`).
+
+## Estado
+
+- Gates sin cambios (**8 ✅ · 1 N/A · 0 ⏸**); deuda de overrides reducida y revisada.

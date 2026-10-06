@@ -88,8 +88,11 @@ autoexcluye en `npm test` si `DATABASE_URL` no responde.
 3. **Mutation testing diferido a propósito** (`R-MT-1`, ADR-20): Stryker 10 no tiene
    runner para `node --test` y los tests cargan `dist`; se reevalúa con una suite de
    runner soportado. Los property tests cubren el riesgo mientras tanto.
-4. **`overrides` de transitivas** (ADR-16/ADR-18): deuda viva a revisar al actualizar
-   dependencias; hoy no hay vulnerabilidades.
+4. **`overrides` de transitivas** (ADR-16/ADR-18): **revisado 2026-10-06** y reducido
+   de **8 a 1** (`deepmerge-ts: ^8.0.0`). Los otros siete (`multer`, `qs`,
+   `body-parser`, `http-cache-semantics`, `js-yaml`, `lodash`, `file-type`) ya los
+   resuelven parcheados sus padres tras Nest 12/eslint 10. Deuda viva: revisar de nuevo
+   cuando `@prisma/config` empaquete `deepmerge-ts >= 8`. Hoy `npm audit` = 0.
 
 ## Cerradas en esta auditoría (2026-10-06)
 
@@ -111,6 +114,9 @@ autoexcluye en `npm test` si `DATABASE_URL` no responde.
 - **Actions actualizadas a `v7`** (`checkout`, `setup-node`, `upload-artifact`): corren
   sobre Node 24, lo que elimina el aviso de deprecación de Node 20 en los runners. La
   versión de las actions queda normada en `R-EN-1`.
+- **`overrides` reducidos de 8 a 1**: revisión de mantenimiento (ADR-16) que comprobó
+  que solo `deepmerge-ts` sigue siendo necesario para mantener `npm audit` en 0; los
+  otros siete transitivos ya llegan parcheados por sus padres.
 
 ## Historial heredado (procedencia)
 

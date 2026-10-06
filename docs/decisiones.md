@@ -324,6 +324,17 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
   [`rules/test/07-qa-gates.md`](./rules/test/07-qa-gates.md) (`R-QA-6`) y
   [`rules/_meta/AUDIT.md`](./rules/_meta/AUDIT.md).
 
+> **Revisión 2026-10-06 (mantenimiento del `overrides`):** tras Nest 12 y eslint 10,
+> se comprobó que **7 de los 8 overrides ya no eran necesarios**: con ellos fuera, la
+> única vulnerabilidad `high` que reaparece es `deepmerge-ts <8.0.0` (vía
+> `@prisma/config`). Los demás (`multer`, `qs`, `body-parser`, `http-cache-semantics`,
+> `js-yaml`, `lodash`, `file-type`) ahora los resuelven las versiones parcheadas de
+> sus padres (`@nestjs/platform-express@12` fija `multer@2.4.0`, express 5 fija
+> `body-parser@2.3.0`/`qs@6.16.0`, eslint 10 usa `js-yaml@5`, crawlee usa
+> `lodash@4.18.1` y `file-type@21.3.4`). El bloque queda reducido a
+> **`deepmerge-ts: ^8.0.0`**. Revisar de nuevo cuando `@prisma/config` empaquete
+> `deepmerge-ts >= 8`.
+
 ---
 
 ## ADR-17: Cobertura con la herramienta nativa de Node, umbral del baseline
