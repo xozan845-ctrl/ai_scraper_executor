@@ -1,6 +1,7 @@
 import { runAgentLoop } from './agent-loop';
 import { AgentRunner } from './agent-runner';
 import { processJob } from './job-processor';
+import { incMetric } from './metrics-bridge';
 import { createProductionEngine, closeProductionBrowser } from './browser-engine';
 import { AIOrchestrator } from '@ai-scraper/ai';
 import { createFallbackProvider, withCircuitBreaker } from '@ai-scraper/ai-providers';
@@ -103,7 +104,10 @@ async function main() {
             failedAt: new Date().toISOString(),
             attemptsMade: made,
           })
-          .then(() => console.error(`[WORKER] ${job.data.jobId} → DLQ`))
+          .then(() => {
+            incMetric('jobs_dead_total');
+            console.error(`[WORKER] ${job.data.jobId} → DLQ`);
+          })
           .catch(() => undefined);
       }
     });

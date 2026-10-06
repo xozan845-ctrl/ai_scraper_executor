@@ -1,0 +1,46 @@
+# Reglas de alerta de Prometheus (R-TM-5, R-TM-9).
+#
+# R-TM-9: cada alerta dice QUÉ HACER, no solo que «algo va mal». No se provisiona
+# Alertmanager aquí (las alertas quedan visibles en Prometheus y en Grafana); añadirlo
+# es un cambio de este stack, no una regla nueva.
+groups:
+  - name: scraper
+    rules:
+      # R-TM-5: la cola de muertos alerta por CRECIMIENTO, no por existir.
+      - alert: ScraperDeadLetterGrowing
+        expr: sum(increase(scraper_jobs_dead_total[15m])) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Jobs entrando en la cola de muertos (scraping-jobs-dead)'
+          description: >-
+            Hay jobs acumulándose en la DLQ en los últimos 15 min. Qué hacer: revisar
+            `scraper_jobs_failed_total` y los JobError; si la causa es el proveedor de
+            IA, revisar el circuit breaker; si es el sitio objetivo, revisar el perfil
+            aprendido. Relanzar con `POST /api/v1/jobs/:id/retry` tras corregir.
+
+      - alert: ScraperJobFailuresHigh
+        expr: sum(rate(scraper_jobs_failed_total[10m])) > 0.2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Tasa de jobs fallidos alta'
+          description: >-
+            Más de 0.2 jobs/s fallan de forma sostenida. Qué hacer: distinguir 4xx del
+            sitio (cortesía/bloqueo) de 5xx/infra; mirar los logs por `correlationId`
+            del `jobId` afectado.
+
+      - alert: ScraperQueueBacklog
+        expr: sum(scraper_pending_jobs) > 50
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Backlog de la cola por encima de 50'
+          description: >-
+            La cola lleva 15 min por encima de 50 pendientes. Qué hacer: comprobar si
+            hay workers vivos (`docker compose ps worker`); si los hay, los jobs están
+            lentos (subir `WORKER_CONCURRENCY` con cuidado, es un tercero), no que
+            falten workers.

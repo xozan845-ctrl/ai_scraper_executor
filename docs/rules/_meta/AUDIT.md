@@ -141,7 +141,9 @@ autoexcluye en `npm test` si `DATABASE_URL` no responde.
   separación deja de ser «imposible» y pasa a decisión de despliegue.
 - **Observabilidad provisionada** (`R-TM-*`, ADR-24): `infra/observability/`
   (Prometheus + datasource/dashboard de Grafana) y `docker-compose.observability.yml`.
-  Las reglas de alerta siguen como contrato no provisionado.
+  **Reglas de alerta** en `infra/observability/alerts.yml` (`R-TM-5`/`R-TM-9`, con
+  `scraper_jobs_dead_total`, métrica nueva del worker); **Alertmanager** (envío) queda
+  como contrato no provisionado.
 
 ## Historial heredado (procedencia)
 

@@ -1435,3 +1435,24 @@ el stack es local, no de producción (allí el scrape debe llevar `x-api-key`, `
 ## Estado
 
 - Gates sin cambios (**8 ✅ · 1 N/A · 0 ⏸**); `docker compose … config` válido.
+
+---
+
+# AUDIT — Reglas de alerta provisionadas (R-TM-5, R-TM-9)
+
+- **Fecha:** 2026-10-06
+
+## Qué cambió
+
+- Nueva métrica `scraper_jobs_dead_total`: el worker la incrementa al mover un job a la
+  cola de muertos (`apps/worker/src/main.ts`), habilitando la alerta «por crecimiento,
+  no por existir» de `R-TM-5`.
+- `infra/observability/alerts.yml`: reglas `ScraperDeadLetterGrowing`,
+  `ScraperJobFailuresHigh` y `ScraperQueueBacklog`, cada una con la acción a tomar en su
+  descripción (`R-TM-9`). `prometheus.yml` las carga con `rule_files`.
+- **Alertmanager** (envío/notificación) sigue sin provisionarse: las alertas se ven en
+  Prometheus/Grafana.
+
+## Estado
+
+- Gates sin cambios (**8 ✅ · 1 N/A · 0 ⏸**); build/lint/153 tests verdes.
