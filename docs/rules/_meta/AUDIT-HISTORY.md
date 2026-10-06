@@ -1456,3 +1456,27 @@ el stack es local, no de producción (allí el scrape debe llevar `x-api-key`, `
 ## Estado
 
 - Gates sin cambios (**8 ✅ · 1 N/A · 0 ⏸**); build/lint/153 tests verdes.
+
+---
+
+# AUDIT — Instrumentación HTTP RED automática (R-TM-3, R-TM-4)
+
+- **Fecha:** 2026-10-06
+- **Disparador:** `observability/README.md` declaraba que las métricas RED no eran
+  automáticas: se medían por `withSpan` solo en los puntos marcados.
+
+## Qué cambió
+
+- `apps/api/src/jobs/http-metrics.interceptor.ts`: interceptor global que, en cada
+  request HTTP, incrementa `scraper_http_requests_total{method,status,route}` y
+  `scraper_http_request_duration_ms_total{...}` (avg = `rate(total)/rate(requests)`).
+- Etiquetas de baja cardinalidad: `method` (enum HTTP) y `route` (patrón de Nest,
+  nunca la URL con IDs). `R-TM-3` amplía las etiquetas aceptadas; `R-TM-4` documenta la
+  instrumentación automática.
+- `tests/contract.test.mjs`: nuevo test que comprueba que las dos métricas aparecen en
+  `/api/v1/metrics/prometheus` (9/9).
+
+## Estado
+
+- Gates sin cambios (**8 ✅ · 1 N/A · 0 ⏸**); 153 tests + 9 de contrato + 4 de
+  integración en verde.

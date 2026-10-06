@@ -22,7 +22,7 @@
 |---|---|---|
 | Tests unitarios | **153 / 153 en verde, 38 suites** (6 propiedades de `fast-check` + 4 de completitud del DSL) | `MONGODB_MOCK=1 npm test` |
 | Ficheros de test | **31 en disco, 28 en `npm test`** | `ls tests/*.test.mjs` vs script `test` |
-| Tests de contrato / integración | **8 / 4**, en verde | `npm run test:contract`, `npm run test:integration` |
+| Tests de contrato / integración | **9 / 4**, en verde | `npm run test:contract`, `npm run test:integration` |
 | Runner | `node --test --test-concurrency=1` | script `test` de `package.json` |
 | Lint | **0 errores, 0 warnings** (alcance `apps`, `packages`, `scripts`) | `npm run lint` |
 | Build | **exit 0**, 0 errores TS, 12 paquetes + 2 apps | `npm run build` |
@@ -42,7 +42,7 @@
 | Unit / integración con dobles | 🟢 | **149 tests / 37 suites**, sin red y sin Docker (`MONGODB_MOCK=1`) |
 | Frontend | **N/A** | No hay `frontend/`. `G-2` y `R-COV-5` **reservados, nunca reutilizados** |
 | Integración con almacén real | 🟢 | `tests/integration.test.mjs` (4 tests, Postgres/Mongo/Redis); job `integration` |
-| Contrato de API | 🟢 | `tests/contract.test.mjs` (8 tests); paso `Contract` |
+| Contrato de API | 🟢 | `tests/contract.test.mjs` (9 tests, incluye la instrumentación RED); paso `Contract` |
 | E2E real | 🟢 | workflow [`e2e.yml`](../../../.github/workflows/e2e.yml) en `release`; necesita Chromium + `OPENROUTER_API_KEY` |
 | OpenAPI | 🟢 | `docs/openapi.json` + `npm run openapi:check` |
 | Cobertura | 🟢 | nativa de Node, umbrales 70/72/67 en el script `test` |
@@ -144,6 +144,10 @@ autoexcluye en `npm test` si `DATABASE_URL` no responde.
   **Reglas de alerta** en `infra/observability/alerts.yml` (`R-TM-5`/`R-TM-9`, con
   `scraper_jobs_dead_total`, métrica nueva del worker); **Alertmanager** (envío) queda
   como contrato no provisionado.
+- **Instrumentación HTTP RED automática** (`R-TM-3`, `R-TM-4`): `HttpMetricsInterceptor`
+  (global) cuenta cada request en `scraper_http_requests_total{method,status,route}` y
+  `scraper_http_request_duration_ms_total`, con etiquetas de baja cardinalidad. Cubierto
+  por `tests/contract.test.mjs` (9/9).
 
 ## Historial heredado (procedencia)
 

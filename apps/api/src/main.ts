@@ -10,11 +10,14 @@ import { runWithContext } from '@ai-scraper/observability';
 import { closeJobStore } from '@ai-scraper/storage';
 import { closeJobQueue } from '@ai-scraper/queue';
 import { disconnectMongo } from '@ai-scraper/mongodb';
+import { HttpMetricsInterceptor } from './jobs/http-metrics.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, new ExpressAdapter());
   app.setGlobalPrefix('api/v1');
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  // Instrumentación RED de todas las rutas (R-TM-4).
+  app.useGlobalInterceptors(new HttpMetricsInterceptor());
   // CORS: allowlist explícita por CORS_ORIGINS. En producción sin allowlist NO se
   // emiten cabeceras CORS (mismo origen); en dev/test se mantiene abierto.
   const corsOrigins = (process.env.CORS_ORIGINS ?? '')
