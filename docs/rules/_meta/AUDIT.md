@@ -22,7 +22,7 @@
 |---|---|---|
 | Tests unitarios | **153 / 153 en verde, 38 suites** (6 propiedades de `fast-check` + 4 de completitud del DSL) | `MONGODB_MOCK=1 npm test` |
 | Ficheros de test | **31 en disco, 28 en `npm test`** | `ls tests/*.test.mjs` vs script `test` |
-| Tests de contrato / integración | **9 / 4**, en verde | `npm run test:contract`, `npm run test:integration` |
+| Tests de contrato / integración | **9 / 7**, en verde | `npm run test:contract`, `npm run test:integration` |
 | Runner | `node --test --test-concurrency=1` | script `test` de `package.json` |
 | Lint | **0 errores, 0 warnings** (alcance `apps`, `packages`, `scripts`) | `npm run lint` |
 | Build | **exit 0**, 0 errores TS, 12 paquetes + 2 apps | `npm run build` |
@@ -148,6 +148,9 @@ autoexcluye en `npm test` si `DATABASE_URL` no responde.
   (global) cuenta cada request en `scraper_http_requests_total{method,status,route}` y
   `scraper_http_request_duration_ms_total`, con etiquetas de baja cardinalidad. Cubierto
   por `tests/contract.test.mjs` (9/9).
+- **Integración reforzada** (`R-I-2`, `R-I-4`, `R-I-6`): la suite pasa de 4 a **7**
+  tests con filtro por `status` + paginación, `401` sin clave y mass-assignment
+  descartado por el `ValidationPipe`.
 
 ## Historial heredado (procedencia)
 
