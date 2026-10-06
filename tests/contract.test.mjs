@@ -85,4 +85,13 @@ describe('Contrato de la API (R-C-*)', () => {
     assert.ok(spec.openapi, 'sin campo openapi');
     assert.ok(spec.paths['/api/v1/jobs'], 'falta /api/v1/jobs en la spec');
   });
+
+  it('R-TM-4: las peticiones HTTP se instrumentan (métricas RED)', async () => {
+    await req('/api/v1/health');
+    const res = await authed('/api/v1/metrics/prometheus');
+    assert.equal(res.status, 200);
+    const text = await res.text();
+    assert.ok(text.includes('scraper_http_requests_total'), 'falta scraper_http_requests_total');
+    assert.ok(text.includes('scraper_http_request_duration_ms_total'), 'falta la duración');
+  });
 });

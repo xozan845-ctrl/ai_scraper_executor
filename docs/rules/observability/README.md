@@ -50,6 +50,8 @@ Prometheus con dashboard y alertas (`02-telemetria.md`).
   worker). **No se provisiona Alertmanager** (el envío/notificación): las alertas se ven
   en Prometheus/Grafana. Es un stack **local** (arranca la API sin `API_KEYS`); en
   producción el scrape debe enviar `x-api-key` (`R-TM-7`) con el secreto fuera del repo.
-- Las métricas RED están expuestas **por endpoint y por log**, no por instrumentación
-  automática del servidor HTTP: las latencias se miden por `withSpan` en los puntos
-  que se marcaron, no en todas las rutas.
+- Las métricas RED de HTTP son **automáticas** desde 2026-10-06: `HttpMetricsInterceptor`
+  instrumenta todas las rutas (`scraper_http_requests_total{method,status,route}` y
+  `scraper_http_request_duration_ms_total`). Las latencias de negocio (planner, LLM,
+  fetch, browser) siguen midiéndose por `withSpan` en los puntos marcados, no en todas
+  las operaciones internas.
