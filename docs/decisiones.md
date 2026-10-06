@@ -535,6 +535,26 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
 
 ---
 
+## ADR-25: Puertos publicados del compose configurables por entorno
+
+- **Fecha**: 2026-10-06
+- **Estado**: Aceptado
+- **Contexto**: un despliegue en Dokploy falló al arrancar `api`: el compose publicaba
+  puertos **fijos** en el host (`3000`, y `5432`/`27017`/`6379`), y en un host
+  compartido el `3000` ya estaba asignado por otro servicio
+  (`Bind for 0.0.0.0:3000 failed: port is already allocated`).
+- **Decisión**: los puertos del host pasan a ser configurables con default local:
+  `API_PORT` (3000), `POSTGRES_PORT` (5432), `MONGODB_PORT` (27017) y `REDIS_PORT`
+  (6379). El lado del contenedor no cambia; las URLs internas siguen resolviendo por
+  nombre de servicio. Documentado en `cd/02-entornos.md` y en las plantillas de
+  entorno.
+- **Consecuencias**: (a) un despliegue en host compartido fija cada `*_PORT` a un
+  puerto libre (o no publica `API_PORT` y deja que el proxy enrute a `api:3000`);
+  (b) el desarrollo local no cambia (usa los defaults); (c) el `HEALTHCHECK` del
+  contenedor y los healthchecks de los almacenes siguen midiendo el puerto interno.
+
+---
+
 ## Deudas que estos ADR dejan abiertas
 
 | Deuda | ADR relacionado | Dónde está registrada |
