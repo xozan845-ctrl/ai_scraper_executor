@@ -43,12 +43,13 @@ Prometheus con dashboard y alertas (`02-telemetria.md`).
 ## Estado y pendientes
 
 - **Stack de observabilidad provisionado** (2026-10-06): `infra/observability/`
-  (scrape de Prometheus + datasource y dashboard de Grafana) y el override
-  [`docker-compose.observability.yml`](../../../docker-compose.observability.yml)
-  (Prometheus + Grafana). Es un stack **local** (arranca la API sin `API_KEYS`); en
+  (scrape de Prometheus + reglas de alerta + datasource/dashboard de Grafana) y el
+  override [`docker-compose.observability.yml`](../../../docker-compose.observability.yml)
+  (Prometheus + Grafana). Las reglas de alerta de `R-TM-5`/`R-TM-9` están en
+  `infra/observability/alerts.yml` y usan `scraper_jobs_dead_total` (métrica nueva del
+  worker). **No se provisiona Alertmanager** (el envío/notificación): las alertas se ven
+  en Prometheus/Grafana. Es un stack **local** (arranca la API sin `API_KEYS`); en
   producción el scrape debe enviar `x-api-key` (`R-TM-7`) con el secreto fuera del repo.
-  Las alertas de `R-TM-5`/`R-TM-9` siguen siendo un **contrato** (no se provisionan
-  reglas de alerta en el repo).
 - Las métricas RED están expuestas **por endpoint y por log**, no por instrumentación
   automática del servidor HTTP: las latencias se miden por `withSpan` en los puntos
   que se marcaron, no en todas las rutas.
