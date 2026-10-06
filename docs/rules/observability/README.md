@@ -40,13 +40,15 @@ Prometheus con dashboard y alertas (`02-telemetria.md`).
 | `R-TM-6` | Métricas distribuidas → `R-RD-6` (`../db/03-redis.md`) |
 | `R-TM-8` | Readiness y el arranque tardío → `R-DI-6` (`../data/01-integridad.md`) |
 
-## Pendientes
+## Estado y pendientes
 
-- **No hay Grafana provisionado en el repo**: no existe `infra/grafana/` ni
-  `docker-compose.observability.yml`. El dashboard que existe es el SPA de
-  `/api/v1/dashboard` (autorefresco 5 s). Las alertas de `R-TM-5` y `R-TM-9` son
-  hoy un contrato, no una configuración existente → deuda en
-  [`../_meta/AUDIT.md`](../_meta/AUDIT.md).
+- **Stack de observabilidad provisionado** (2026-10-06): `infra/observability/`
+  (scrape de Prometheus + datasource y dashboard de Grafana) y el override
+  [`docker-compose.observability.yml`](../../../docker-compose.observability.yml)
+  (Prometheus + Grafana). Es un stack **local** (arranca la API sin `API_KEYS`); en
+  producción el scrape debe enviar `x-api-key` (`R-TM-7`) con el secreto fuera del repo.
+  Las alertas de `R-TM-5`/`R-TM-9` siguen siendo un **contrato** (no se provisionan
+  reglas de alerta en el repo).
 - Las métricas RED están expuestas **por endpoint y por log**, no por instrumentación
   automática del servidor HTTP: las latencias se miden por `withSpan` en los puntos
   que se marcaron, no en todas las rutas.

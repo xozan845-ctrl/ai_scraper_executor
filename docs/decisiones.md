@@ -516,6 +516,25 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
 
 ---
 
+## ADR-24: Stack de observabilidad local (Prometheus + Grafana)
+
+- **Fecha**: 2026-10-06
+- **Estado**: Aceptado
+- **Contexto**: `R-TM-*` exige métricas con prefijo `scraper_`, dashboard y alertas,
+  pero el repo no provisionaba nada: el «dashboard» era el SPA de `/api/v1/dashboard`.
+- **Decisión**: añadir `infra/observability/` (scrape de Prometheus del endpoint
+  `/api/v1/metrics/prometheus` + datasource y dashboard de Grafana con las métricas
+  reales) y un override [`docker-compose.observability.yml`](../docker-compose.observability.yml)
+  que levanta Prometheus y Grafana sobre el compose base. El stack arranca la API con
+  `API_KEYS` vacío para que el scrape funcione sin cabecera.
+- **Consecuencias**: (a) hay un dashboard reproducible con las métricas del proyecto;
+  (b) **no** es el stack de producción: allí el endpoint exige `x-api-key` (`R-TM-7`) y
+  el scrape debe llevar el secreto fuera del repo; (c) las **reglas de alerta**
+  (`R-TM-5`/`R-TM-9`) siguen siendo un contrato no provisionado — se dejan como deuda
+  explícita.
+
+---
+
 ## Deudas que estos ADR dejan abiertas
 
 | Deuda | ADR relacionado | Dónde está registrada |

@@ -1,0 +1,16 @@
+# Prometheus para el stack de observabilidad local (docker-compose.observability.yml).
+#
+# Raspa el endpoint de métricas de la API. R-TM-7: si la API tiene autenticación
+# activa (API_KEYS), `/api/v1/metrics/prometheus` exige la cabecera `x-api-key`; este
+# stack de desarrollo arranca la API SIN API_KEYS, así que el scrape va sin cabecera.
+# En producción, añade aquí `authorization`/`headers` con el secreto FUERA del repo.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: scraper-api
+    metrics_path: /api/v1/metrics/prometheus
+    static_configs:
+      - targets: ['api:3000']

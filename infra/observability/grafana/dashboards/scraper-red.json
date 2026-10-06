@@ -1,0 +1,61 @@
+{
+  "title": "AI Scraper — RED",
+  "uid": "ai-scraper-red",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Jobs creados (rate 5m)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum(rate(scraper_jobs_created_total[5m]))" }]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Jobs completados (rate 5m)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum(rate(scraper_jobs_completed_total[5m]))" }]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Items extraídos (rate 5m)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum(rate(scraper_items_extracted_total[5m]))" }]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Cola pendiente y profundidad",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum(scraper_pending_jobs)" },
+        { "refId": "B", "expr": "sum(scraper_queue_depth)" }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Métricas distribuidas (suma entre réplicas)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum(scraper_distributed_jobs_created_total)" }]
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Uptime (s)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [{ "refId": "A", "expr": "max(scraper_uptime_seconds)" }]
+    }
+  ]
+}

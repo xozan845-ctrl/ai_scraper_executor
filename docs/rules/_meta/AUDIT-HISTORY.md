@@ -1410,3 +1410,28 @@ en el merge verificado a `main` (no hay entornos separados).
 ## Estado
 
 - Gates sin cambios (**8 ✅ · 1 N/A · 0 ⏸**); build/lint/153 tests en verde.
+
+---
+
+# AUDIT — Stack de observabilidad provisionado (R-TM-*, ADR-24)
+
+- **Fecha:** 2026-10-06
+
+## Qué cambió
+
+- `infra/observability/prometheus.yml` (scrape de `/api/v1/metrics/prometheus`) y
+  `infra/observability/grafana/` (datasource + dashboard `scraper-red` con las métricas
+  reales `scraper_jobs_*`, `scraper_items_extracted_total`, `scraper_pending_jobs`,
+  `scraper_queue_depth`, `scraper_distributed_*`, `scraper_uptime_seconds`).
+- `docker-compose.observability.yml`: override con Prometheus + Grafana; arranca la API
+  con `API_KEYS` vacío para el scrape local.
+- `observability/README.md` deja de declarar «no hay Grafana provisionado».
+
+## Deuda que permanece
+
+Las **reglas de alerta** (`R-TM-5`/`R-TM-9`) siguen siendo un contrato no provisionado;
+el stack es local, no de producción (allí el scrape debe llevar `x-api-key`, `R-TM-7`).
+
+## Estado
+
+- Gates sin cambios (**8 ✅ · 1 N/A · 0 ⏸**); `docker compose … config` válido.
