@@ -1,0 +1,130 @@
+name: release
+
+# Release inmutable por tag (R-CD-1..8). No corre en push/PR de ramas ni en main:
+# solo en el push de un tag `v<major>.<minor>.<patch>(-prerelease)` o a mano.
+# `workflow_dispatch` trae `dry_run: true` por defecto: construye sin publicar (R-CD-8).
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Construir las imágenes sin publicarlas
+        type: boolean
+        default: true
+      tag:
+        description: Tag existente a reproducir (vacío = el del evento)
+        type: string
+        required: false
+
+permissions:
+  contents: read
+  packages: write
+  actions: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      sha: ${{ steps.meta.outputs.sha }}
+      prerelease: ${{ steps.meta.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
+      - name: Validar tag y procedencia
+        id: meta
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="${{ inputs.tag || github.ref_name }}"
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]; then
+            echo "::error::tag inválido: $TAG (se espera v<major>.<minor>.<patch>[-prerelease])"
+            exit 1
+          fi
+          VERSION="${TAG#v}"
+          SHA="$(git rev-parse HEAD)"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          if [[ "$VERSION" == *-* ]]; then echo "prerelease=true" >> "$GITHUB_OUTPUT"; else echo "prerelease=false" >> "$GITHUB_OUTPUT"; fi
+
+          # R-CD-2: el commit etiquetado tiene que estar en main.
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "$SHA" origin/main; then
+            echo "::error::el commit $SHA no está en main"
+            exit 1
+          fi
+
+          # R-CD-2: y tener un run de ci.yml verde en ese mismo SHA.
+          COUNT="$(curl -fsSL \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/runs?head_sha=$SHA&status=completed&conclusion=success&per_page=1" \
+            | grep -o '"total_count": *[0-9]*' | head -1 | grep -o '[0-9]*$')"
+          if [[ -z "${COUNT:-}" || "$COUNT" -lt 1 ]]; then
+            echo "::error::no hay ningún run de ci.yml en success para el commit $SHA"
+            exit 1
+          fi
+          echo "procedencia OK: tag $TAG, commit $SHA, ci verde"
+
+  images:
+    needs: validate
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - app: api
+            dockerfile: apps/api/Dockerfile
+          - app: worker
+            dockerfile: apps/worker/Dockerfile
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Login en GHCR
+        if: ${{ github.event_name == 'push' || inputs.dry_run == false }}
+        run: echo "${{ github.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build y (si procede) push
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
+          SHA: ${{ needs.validate.outputs.sha }}
+          PRERELEASE: ${{ needs.validate.outputs.prerelease }}
+          PUSH: ${{ github.event_name == 'push' || inputs.dry_run == false }}
+        run: |
+          set -euo pipefail
+          IMAGE="ghcr.io/${{ github.repository }}-${{ matrix.app }}"
+          SHORT="$(echo "$SHA" | cut -c1-7)"
+          MAJOR="${VERSION%%.*}"
+          MINOR="${VERSION%.*}"
+          TAGS=("$IMAGE:$VERSION" "$IMAGE:sha-$SHORT")
+          # R-CD-4: `latest` solo en releases no-prerelease.
+          if [[ "$PRERELEASE" == "false" ]]; then TAGS+=("$IMAGE:$MINOR" "$IMAGE:$MAJOR" "$IMAGE:latest"); fi
+          BUILD_ARGS=()
+          for t in "${TAGS[@]}"; do BUILD_ARGS+=(-t "$t"); done
+          # R-CD-7: sin ARG/ENV con credenciales; solo etiquetas OCI de trazabilidad.
+          docker build \
+            -f "${{ matrix.dockerfile }}" \
+            --label "org.opencontainers.image.revision=$SHA" \
+            --label "org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
+            --label "org.opencontainers.image.version=$VERSION" \
+            "${BUILD_ARGS[@]}" .
+          if [[ "$PUSH" == "true" ]]; then
+            for t in "${TAGS[@]}"; do docker push "$t"; done
+            # R-CD-3/R-CD-4: el digest de lo publicado queda en el resumen del run.
+            DIGEST="$(docker inspect --format='{{index .RepoDigests 0}}' "$IMAGE:$VERSION" 2>/dev/null || true)"
+            {
+              echo "### ${{ matrix.app }} — $VERSION"
+              echo ""
+              echo "- tags: ${TAGS[*]}"
+              echo "- digest: ${DIGEST:-<no reportado>}"
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "dry_run: construido sin publicar $IMAGE:$VERSION"
+          fi

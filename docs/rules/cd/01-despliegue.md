@@ -3,14 +3,14 @@
 Reglas del pipeline de **artefactos de release** (tags, imágenes, migraciones,
 secretos). Conservan su número heredado.
 
-> **Estado hoy: no existe `release.yml`.** No hay tags de release, ni publicación
-> de imágenes a ningún registry, ni promoción automática. La entrega actual es
-> *build desde el commit de `main`*: `docker compose up -d --build` construye las
-> dos imágenes desde el `Dockerfile` de cada app y las ejecuta. Estas reglas son
-> el **contrato exigible** el día que exista un pipeline de release (R-CI-4), no la
-> descripción de algo que ya corre. Lo que sí se norma hoy —orden de arranque,
-> migraciones, secretos, smoke y rollback— está en
-> [`02-entornos.md`](./02-entornos.md) (`R-CD-9..12`).
+> **Estado: `release.yml` existe desde 2026-10-06.** Implementa `R-CD-1` (tag
+> `v*.*.*`), `R-CD-2` (procedencia: commit en `main` + run de `ci` verde en el SHA),
+> `R-CD-3`/`R-CD-4` (una construcción, etiquetas OCI, digest en el resumen, `latest`
+> solo en no-prerelease), `R-CD-7` (Dockerfiles sin credenciales) y `R-CD-8`
+> (`dry_run: true` por defecto en dispatch). El disparo real es el push de un tag o
+> `workflow_dispatch`. La entrega local sigue siendo
+> `docker compose up -d --build` (ver [`02-entornos.md`](./02-entornos.md)). **El tag
+> se corta después de que el E2E (`G-6`) esté verde.**
 
 | ID | Regla |
 |---|---|
@@ -26,8 +26,8 @@ secretos). Conservan su número heredado.
 ## Verificación
 
 ```bash
-# el workflow de release no existe (R-CD-1..8 pendientes)
-ls .github/workflows/
+# el workflow de release (R-CD-1..8)
+ls .github/workflows/        # ci.yml, e2e.yml, release.yml
 
 # las imágenes de la entrega actual: dos, una por app
 grep -n "^FROM\|ARG\|EXPOSE\|HEALTHCHECK\|CMD" apps/api/Dockerfile apps/worker/Dockerfile

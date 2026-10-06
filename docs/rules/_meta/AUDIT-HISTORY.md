@@ -1318,3 +1318,31 @@ cubre parte del riesgo.
 ## Estado
 
 - Gates sin cambios (**8 ✅ · 1 N/A · 0 ⏸**).
+
+---
+
+# AUDIT — Release por tag (R-CD-1..8, ADR-22)
+
+- **Fecha:** 2026-10-06
+
+## Qué cambió
+
+- Nuevo `.github/workflows/release.yml`: push de tag `v*.*.*` o `workflow_dispatch`
+  con `dry_run` por defecto. Job `validate` (formato de tag + procedencia: commit en
+  `main` y run de `ci` verde en ese SHA) y job `images` (matriz api/worker: build
+  único, etiquetas OCI + semver + `sha-<corto>` + `latest` solo no-prerelease, push a
+  GHCR, digest en el resumen). Implementa `R-CD-1..4`, `R-CD-7` y `R-CD-8`.
+- Documentado como tercer workflow aceptado por `R-CI-4`; `cd/README.md` y
+  `cd/01-despliegue.md` dejan de decir «no existe».
+- ADR-22 registra la decisión; se restaura en `decisiones.md` la tabla de deudas de
+  ADR (se había perdido en una edición previa).
+
+## Proceso
+
+El tag se corta **después** de que el E2E (`G-6`) esté verde; el release asume esa
+puerta y no la reejecuta. `R-CD-5` (migraciones) sigue en el despliegue y `R-CD-6`
+en el merge verificado a `main` (no hay entornos separados).
+
+## Estado
+
+- Gates sin cambios (**8 ✅ · 1 N/A · 0 ⏸**); workflows **3**.
