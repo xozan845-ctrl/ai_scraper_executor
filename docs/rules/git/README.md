@@ -10,10 +10,10 @@ documentación viva de por qué existe cada línea.
 > | | Estado (verificado con `git branch -a`) |
 > |---|---|
 > | Ramas | **Una sola: `main`.** No hay `develop` ni `staging` |
-> | Historial | **58 commits, 0 merge commits** → historia lineal, sin PRs fusionados |
-> | Commits | Majoritariamente Conventional Commits (`feat(security):`, `fix(metrics):`, `test(client):`), con algunos asuntos largos descriptivos |
-> | Protección | El workflow dispara en `push` a `main` **y** en `pull_request`; no se ha configurado branch protection en el remoto |
-> | Estado actual | `docs/` (incluido `docs/rules/`) está **sin trackear** |
+> | Historial | **68 commits, 0 merge commits** → historia lineal; el trabajo entra por PR y se fusiona con `--rebase` |
+> | Commits | Conventional Commits (`fix(security):`, `fix(metrics):`, `test(gates):`, `ci:`, `docs(rules):`) |
+> | Protección | El workflow dispara en `push` a `main` **y** en `pull_request`; la branch protection **no puede activarse** (función de pago en repos privados, ver [`00-entornos.md`](./00-entornos.md)) |
+> | Estado actual | `docs/` **trackeado**; árbol limpio en `main` |
 >
 > El modelo de tres ramas (`develop` → `staging` → `main`) que heredarían estos
 > documentos pertenece a otro proyecto. Aquí se norma **una rama** y la promoción

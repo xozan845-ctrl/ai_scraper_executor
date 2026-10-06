@@ -87,14 +87,14 @@ La importancia es cerrar la evidencia: un cambio terminado es un commit con
 - **Puerta de seguridad ya en CI (deuda cerrada)**: la puerta de `R-QA-6` /
   `R-SE-16` **ya es un paso** (`Security audit`) y reporta **0 vulnerabilidades**
   (high y moderate). Ver [`../_meta/AUDIT.md`](../_meta/AUDIT.md).
-- **Concurrencia y servicios efímeros (deuda cerrada)**: `R-CI-2` ya declara
-  `concurrency` con `cancel-in-progress`, y `R-EN-2` ya usa un servicio
-  `postgres:16-alpine` para validar el schema y detectar deriva de migraciones
-  (`G-9`). El día que exista suite de integración (`G-4`), ese mismo servicio se
-  ampliará a `mongo:7-jammy` y `redis:7-alpine`.
-- **Artifacts (deuda cerrada)**: `R-EN-3` ya sube `test-results.xml` (reporter JUnit de
+- **Concurrencia y servicios efímeros (deuda cerrada)**: `R-CI-2` declara
+  `concurrency` con `cancel-in-progress`; `R-EN-2` usa un servicio
+  `postgres:16-alpine` en `build-test-lint` (schema/deriva) y **`postgres` +
+  `mongodb` + `redis`** en el job `integration` (`G-4`).
+- **Artifacts (deuda cerrada)**: `R-EN-3` sube `test-results.xml` (reporter JUnit de
   Node) como artifact en todos los runs (`if: always()`). Sirve de evidencia de la
   suite sin depender del log del job.
-- **Sin protección de rama configurada en el remoto**: el workflow dispara en
-  `pull_request`, pero nada impide un push directo a `main` mientras no se configure
-  branch protection. `R-GE-4` lo norma; el enforcement es de GitHub, no del repo.
+- **Sin protección de rama (bloqueada por el plan)**: no puede configurarse en un repo
+  privado sin GitHub Pro (`403 Upgrade to GitHub Pro …`). El workflow escucha
+  `pull_request`; el enforcement de `R-GE-4` es por disciplina, no de GitHub. Ver
+  [`../git/00-entornos.md`](../git/00-entornos.md).

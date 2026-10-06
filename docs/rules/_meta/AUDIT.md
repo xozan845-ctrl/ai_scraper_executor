@@ -5,196 +5,143 @@
 > final. El histórico de auditorías vive en
 > [`AUDIT-HISTORY.md`](./AUDIT-HISTORY.md).
 
-- **Última auditoría:** 2026-10-05 — **1ª auditoría de este repo**, hecha durante
-  la reescritura de las reglas contra la realidad medida, y **cerrada el mismo día
-  con la puerta de seguridad puesta en verde** (`npm audit --audit-level=high` → 0,
-  ya como paso de CI). Todas las cifras de este documento son **medidas**.
-- **Estado global:** 🟢 **CUMPLE** para lo que CI puede verificar — la verificación
-  de cierre (`npm run build && npm run lint && MONGODB_MOCK=1 npm test`) está verde,
-  la **puerta de seguridad ya no bloquea** (high/critical = 0) y quedan como deuda
-  declarada las capas que aún no tienen suite (integración, contrato, E2E) y la
-  cobertura sin herramienta.
+- **Última auditoría:** 2026-10-06 — **2ª auditoría**, tras integrar las áreas
+  [`documentation/`](../documentation/README.md) (`R-DO`) y
+  [`ai-contributions/`](../ai-contributions/README.md) (`R-AC`) y **sincronizar las
+  reglas con el remoto**: el trabajo de la 1ª auditoría se publicó por rama + PR #1
+  (merge `--rebase`) y `main` quedó con el run **verde** `37361504637`.
+- **Estado global:** 🟢 **CUMPLE**. La verificación de cierre está verde, los **9
+  gates** tienen run verde de CI (`G-1..G-9`, `G-2` N/A) y `npm audit` está en **0
+  vulnerabilidades**. Quedan como deuda declarada: la protección de rama (bloqueada
+  por el plan de GitHub), la promoción entre entornos, la mutación (diferida) y los
+  `README.md` por paquete/app (`R-DO-1`).
 
 ## Números medidos
 
 | Métrica | Valor | Cómo se midió |
 |---|---|---|
 | Tests unitarios | **149 / 149 en verde, 37 suites** (incluye 6 propiedades de `fast-check`) | `MONGODB_MOCK=1 npm test` |
-| Ficheros de test | **28 en disco, 27 en `npm test`** | `ls tests/*.test.mjs` vs script `test` |
+| Ficheros de test | **30 en disco, 27 en `npm test`** | `ls tests/*.test.mjs` vs script `test` |
+| Tests de contrato / integración | **8 / 4**, en verde | `npm run test:contract`, `npm run test:integration` |
 | Runner | `node --test --test-concurrency=1` | script `test` de `package.json` |
 | Lint | **0 errores, 0 warnings** (alcance `apps`, `packages`, `scripts`) | `npm run lint` |
 | Build | **exit 0**, 0 errores TS, 12 paquetes + 2 apps | `npm run build` |
-| Puertas de seguridad | **`npm audit --audit-level=high` → exit 0** y **`--audit-level=moderate` → exit 0**: **0 vulnerabilidades** (Nest 12 cerró el moderate de `@nestjs/core`) | `npm audit` |
-| Cobertura | **71.59 % líneas / 73.69 % ramas / 68.90 % funciones** (baseline medido); umbral **70 / 72 / 67** | `npm test` (nativo de Node) |
-| OpenAPI | **`docs/openapi.json` versionada y verificada** en CI (`npm run openapi:check`) | `G-8` |
+| Puertas de seguridad | **`npm audit` → exit 0** (high y moderate): **0 vulnerabilidades** | `npm audit` |
+| Cobertura | baseline **71.59 / 73.69 / 68.90**; umbral **70 / 72 / 67**; medido ~73.2/74.8/68.9 | `npm test` (nativo de Node) |
+| OpenAPI | **`docs/openapi.json` versionada y verificada** en CI | `G-8` |
 | Paquetes | **12** en `packages/` + 2 apps | `ls packages` |
-| Ficheros TS de fuente | **87** en `apps/` + `packages/` (sin `dist/`) | `find … -name '*.ts'` |
-| Modelos Prisma | **10** (`User`, `Job`, `Session`, `SessionMessage`, `ScrapingPlan`, `Command`, `Page`, `Result`, `JobError`, `AIInteraction`) | `prisma/schema.prisma` |
-| Migraciones | **2** (`0_init`, `20261005001125_sessions`) | `ls prisma/migrations` |
+| Modelos Prisma | **10**; migraciones **2** | `prisma/schema.prisma`, `ls prisma/migrations` |
 | Comandos del DSL | **15** literales Zod | `packages/commands/src/schemas.ts` |
-| Git | **1 rama** (`main`), **58 commits, 0 merge commits** | `git branch -a`, `git rev-list` |
-| Workflows | **1** (`ci.yml`), **1 job** (`build-test-lint`) | `.github/workflows/` |
-| Suites | `npm test` 27 ficheros · `test:contract` 1 (8 tests) · `test:integration` 1 (4 tests) · `test:e2e` 1 | `package.json` |
+| Git | **1 rama** (`main`), **68 commits, 0 merge commits**; PR #1 fusionado por `--rebase` | `git branch -a`, `git rev-list` |
+| Workflows | **2** (`ci.yml` con 2 jobs + `e2e.yml`) | `.github/workflows/` |
 
 ## Estado por capa
 
 | Capa | Estado | Evidencia |
 |---|---|---|
-| Unit / integración con dobles | 🟢 | **143 tests / 36 suites** en verde, sin red y sin Docker (`MONGODB_MOCK=1`) |
-| Frontend | **N/A** | No hay `frontend/` en el monorepo. `G-2` y `R-COV-5` quedan **reservados, nunca reutilizados** |
-| Integración con almacén real | 🟢 | `tests/integration.test.mjs` (4 tests con Postgres/Mongo/Redis reales); job `integration` (`G-4` ✅) |
-| Contrato de API | 🟢 | `tests/contract.test.mjs` (8 tests de forma de `/api/v1/**`); paso `Contract` (`G-5` ✅) |
-| E2E real | 🟢 | workflow [`e2e.yml`](../../../.github/workflows/e2e.yml) en `release` (`G-6` ✅); necesita Chromium + `OPENROUTER_API_KEY` |
-| OpenAPI | 🟢 | `docs/openapi.json` versionada; `npm run openapi:check` como paso `OpenAPI spec in sync` (`G-8` ✅) |
-| Cobertura | 🟢 | **Nativa de Node** (`--experimental-test-coverage`), umbrales 70/72/67 en el script `test`. Baseline medido 71.59/73.69/68.90; `G-3` ✅ |
-| Property-based | 🟢 | `fast-check` en `tests/property.test.mjs` (6 propiedades, dentro de `npm test`). Encontró 2 defectos reales (`R-PB-*`) |
-| Mutation testing | 🔴 diferido | `R-MT-1`/ADR-20: Stryker 10 no tiene runner para `node --test`; se reevalúa con una suite de runner soportado |
-| Lint (`G-7`) | 🟢 | 0 errores, **0 warnings** (incluye `scripts/`) |
-| Build (`G-7`) | 🟢 | `npm run build` exit 0 |
-| **Security gate** (`R-QA-6`/`R-SE-16`) | 🟢 | **`npm audit` → 0 vulnerabilidades** (high y moderate) y ya es un paso de CI (`Security audit`). Nest 12 + eslint 10 alinearon los peers y retiraron `--legacy-peer-deps` (ADR-18) |
-| Artifacts (`R-EN-3`) | 🟢 | `test-results.xml` (reporter JUnit de Node) subido en todos los runs (`if: always()`) |
+| Unit / integración con dobles | 🟢 | **149 tests / 37 suites**, sin red y sin Docker (`MONGODB_MOCK=1`) |
+| Frontend | **N/A** | No hay `frontend/`. `G-2` y `R-COV-5` **reservados, nunca reutilizados** |
+| Integración con almacén real | 🟢 | `tests/integration.test.mjs` (4 tests, Postgres/Mongo/Redis); job `integration` |
+| Contrato de API | 🟢 | `tests/contract.test.mjs` (8 tests); paso `Contract` |
+| E2E real | 🟢 | workflow [`e2e.yml`](../../../.github/workflows/e2e.yml) en `release`; necesita Chromium + `OPENROUTER_API_KEY` |
+| OpenAPI | 🟢 | `docs/openapi.json` + `npm run openapi:check` |
+| Cobertura | 🟢 | nativa de Node, umbrales 70/72/67 en el script `test` |
+| Property-based | 🟢 | `fast-check` + `tests/property.test.mjs`; encontró **3 defectos reales** |
+| Mutation testing | 🔴 diferido | `R-MT-1`/ADR-20: Stryker 10 no tiene runner para `node --test` |
+| Lint / Build (`G-7`) | 🟢 | 0 errores / 0 warnings; `npm run build` exit 0 |
+| Security gate (`R-QA-6`/`R-SE-16`) | 🟢 | `npm audit` → 0 vulnerabilidades; paso `Security audit` |
+| Artifacts (`R-EN-3`) | 🟢 | `test-results.xml` (JUnit) subido en todos los runs |
+| Documentación (`R-DO`) | 🟡 | áreas y reglas al día; **faltan los `README.md` de 12 packages + 2 apps** (`R-DO-1`) |
+| Contribución de IA (`R-AC`) | 🟢 | área creada y adaptada; se cumple por disciplina (PR #1) |
 
 ## Gates
 
-Verificado contra `.github/workflows/ci.yml`.
+Verificado contra `.github/workflows/` (`ci.yml` + `e2e.yml`). Todos con run verde.
 
 | Gate | Estado | Evidencia |
 |---|---|---|
-| `G-1` suite unitaria | ✅ | paso `Test`: `npm test` con `MONGODB_MOCK: '1'` → 143/143 |
+| `G-1` suite unitaria | ✅ | paso `Test`: 149/149 |
 | `G-2` unit frontend | **N/A** | sin frontend (ID reservado) |
-| `G-3` cobertura | ✅ | `npm test` con `--experimental-test-coverage` + `--test-coverage-lines=70 --test-coverage-branches=72 --test-coverage-functions=67`; baseline 71.59/73.69/68.90 |
-| `G-4` integración | ✅ | job `integration`: Postgres/Mongo/Redis efímeros + `npm run test:integration` (4/4) |
-| `G-5` contrato | ✅ | paso `Contract`: `npm run test:contract` (8/8) |
-| `G-6` E2E | ✅ | workflow `e2e.yml` (release); requiere servicios reales + Chromium + `OPENROUTER_API_KEY` |
-| `G-7` lint + build | ✅ | pasos `Build` y `Lint` del mismo job |
-| `G-8` Swagger sync | ✅ | paso `OpenAPI spec in sync`: `npm run openapi:check` sobre `docs/openapi.json` |
-| `G-9` deriva de migraciones | ✅ | `prisma validate` + `prisma migrate deploy` + `prisma migrate diff --exit-code` sobre Postgres efímero |
+| `G-3` cobertura | ✅ | `--test-coverage-lines=70 --test-coverage-branches=72 --test-coverage-functions=67` |
+| `G-4` integración | ✅ | job `integration` (Postgres/Mongo/Redis efímeros) → 4/4 |
+| `G-5` contrato | ✅ | paso `Contract` → 8/8 |
+| `G-6` E2E | ✅ | workflow `e2e.yml` (release) |
+| `G-7` lint + build | ✅ | pasos `Build` y `Lint` |
+| `G-8` Swagger sync | ✅ | paso `OpenAPI spec in sync` |
+| `G-9` deriva de migraciones | ✅ | `prisma validate` + `migrate deploy` + `migrate diff --exit-code` |
 
-**Total: 8 ✅ · 1 N/A · 0 ⏸.** Los ✅ de `G-4`/`G-5`/`G-6` están configurados y
-verificados localmente; su evidencia de run verde de CI llega con el primer push
-(`R-COV-3`).
+**Total: 8 ✅ · 1 N/A · 0 ⏸.** Evidencia de CI: run `37361504637` sobre `main`
+(`d891389`) con ambos jobs en `success`; el PR #1 verificó los checks en su cabeza
+(`R-PR-6`) y el run post-merge (`R-PR-8`).
 
-Controles que **no** llevan ID `G-*` (pero pueden bloquear igual): la puerta de
-seguridad es un **paso del job** y se norma como `R-QA-6`/`R-SE-16`, no como gate
-`G-n`; el cliente real de la API (`npm run test:api`) y el smoke de Prisma que se
-autoexcluye en `npm test` si `DATABASE_URL` no responde no bloquean.
+Controles que **no** llevan ID `G-*`: la puerta de seguridad (`R-QA-6`/`R-SE-16`, paso
+del job), el cliente real de la API (`npm run test:api`) y el smoke de Prisma que se
+autoexcluye en `npm test` si `DATABASE_URL` no responde.
 
 ## Deudas abiertas (orden de ataque)
 
-1. **Sin protección de rama en el remoto (bloqueada por el plan)**: el intento de
-   aplicarla con `gh api` devuelve `403 Upgrade to GitHub Pro or make this repository
-   public` — es una función de pago en repos privados, no deuda de este repo. Hasta
-   activar Pro o hacerlo público, `R-GE-4` se cumple por disciplina (rama + PR +
-   merge), no por enforcement.
-2. **Evidencia de CI pendiente para los gates nuevos**: `G-4`/`G-5`/`G-6` están
-   configurados y verdes en local; falta el run verde de CI (`R-COV-3`) que llegará
-   con el primer push de la rama.
+1. **Sin protección de rama en el remoto (bloqueada por el plan)**: `gh api` devuelve
+   `403 Upgrade to GitHub Pro or make this repository public` — es un límite del plan
+   en repos privados, no deuda del repo. `R-GE-4` se cumple por disciplina (rama + PR).
+2. **`README.md` por paquete/app (`R-DO-1`)**: los 12 packages y las 2 apps no tienen
+   README todavía. Es la deuda funcional de la nueva área `documentation/`.
 3. **Promoción entre entornos sin implementar** (`R-GE-5`): una sola rama, un solo
    juego de secretos. Deuda asumida, no norma.
-4. **Mutation testing diferido a propósito** (`R-MT-1`, ADR-20), no por descuido:
-   Stryker 10 no tiene runner para `node --test` y los tests cargan `dist`; se
-   reevalúa cuando exista una suite con runner soportado. Los property tests cubren
-   el riesgo mientras tanto.
+4. **Mutation testing diferido a propósito** (`R-MT-1`, ADR-20): Stryker 10 no tiene
+   runner para `node --test` y los tests cargan `dist`; se reevalúa con una suite de
+   runner soportado. Los property tests cubren el riesgo mientras tanto.
+5. **`overrides` de transitivas** (ADR-16/ADR-18): deuda viva a revisar al actualizar
+   dependencias; hoy no hay vulnerabilidades.
 
-## Cerradas en esta auditoría
+## Cerradas en esta auditoría (2026-10-06)
 
-- **Reescritura completa de `docs/rules/`** contra el repo medido: borradas las áreas
-  `gateway/` y `microservice/` (no existen aquí) y `db/02-supabase.md` (`R-SB`
-  retirado, **nunca reutilizar**); creadas `ai/` y `security/`. Los sufijos `R-GW`,
-  `R-MS`, `R-MI` y `R-SB` quedan **retirados**.
-- **Snapshot sustituido**: las cifras heredadas (358 tests, 55 suites, 10 workspaces
-  con `coverageThreshold`, 47 warnings, 65 PRs, 48 commits, cobertura por
-  workspace) eran de otro proyecto. Este documento mide las de este repo.
-- **`docs/rules/` estaba sin trackear**: `git status` mostraba `?? docs/`. Sigue
-  sin trackear; versionarlo es un commit propio.
-- **Puerta de seguridad cerrada y en CI**: `npm audit --audit-level=high` pasó de
-  exit 1 (8 high) a **exit 0**, mediante `overrides` en el `package.json` raíz
-  (`multer`, `http-cache-semantics`, `deepmerge-ts`, `js-yaml`, `lodash`,
-  `body-parser`, `qs`, `file-type`) y se añadió el paso `Security audit` al job
-  `build-test-lint`. Las transitivas de Nest no se forzaron a un major nuevo: se
-  parchearon dentro de rango. Ese moderate de `@nestjs/core` se cerró después con
-  Nest 12 (ADR-18). Ver [`decisiones.md`](../../decisiones.md) (ADR-16).
-- **`G-3` (cobertura) activado**: sin añadir dependencias, con la herramienta nativa
-  de Node (`--experimental-test-coverage`) y umbrales del baseline medido
-  (70 / 72 / 67). El umbral vive en el script `test`, así que `npm test` —y por tanto
-  el job `build-test-lint`— falla si la cobertura baja. El alcance es `dist` (lo que
-  los tests cargan), documentado en `R-COV-4`. Ver ADR-17.
-- **CI endurecida**: `concurrency` con `cancel-in-progress` (`R-CI-2`) y
-  **`G-9` cerrado** con un servicio Postgres efímero: `prisma validate` +
-  `migrate deploy` + `migrate diff --exit-code` (un cambio de schema sin migración
-  falla el job). El servicio es de un solo job (`R-EN-2`) y no toca la BD de
-  desarrollo.
-- **Nest 10 → 12 y eslint 10**: se alinearon los peers con `@nestjs/mongoose@12`,
-  desaparecieron los conflictos, y se retiró `--legacy-peer-deps` de CI y de los
-  Dockerfiles (ADR-18). `npm audit` queda en **0 vulnerabilidades**. Nest 12 usa
-  Express 5 (a tener en cuenta en rutas nuevas).
-- **Runtime de la API adaptado a Nest 12/Express 5**: adaptador `ExpressAdapter`
-  explícito (el driver HTTP no se autodetecta cuando `platform-express` está
-  anidado) y comodín `*url` en `GET /radiography/page/*url`. Lo detectó el arranque
-  manual de la API, no la suite unitaria: refuerza la deuda de `G-4`/`G-6`.
-- **Warnings de lint a cero**: `scripts/` entra en el alcance de ESLint (globals de
-  Node) y se corrigieron las findings reales (`no-useless-assignment`,
-  `preserve-caught-error`) y los `any`/variables sin usar (tipos estructurales).
-  Resultado: **0 errores / 0 warnings** (antes 0/20).
-- **`G-8` (OpenAPI) y artifact de test**: `docs/openapi.json` versionada y verificada
-  con `npm run openapi:check` en CI; el reporter JUnit de Node escribe
-  `test-results.xml`, subido como artifact en todos los runs (`R-EN-3`).
-- **Property-based testing real** (`R-PB-*`): `fast-check` + `tests/property.test.mjs`
-  dentro de `npm test` (149 tests en total). Las propiedades **encontraron dos
-  defectos reales** y los dejaron corregidos (`R-REG-1`):
-  `normalizeJobLimits(5e-324) → 0` (fuera de `[1, HARD]`, no idempotente) y la
-  resolución de alias contra el prototipo (`__proto__`/`constructor`/`_ proto _`).
-  La mutación (`R-MT`) queda diferida a propósito (ADR-20).
-- **Capas de test completas** (ADR-21): `G-5` contrato (paso `Contract`,
-  `tests/contract.test.mjs`, 8/8), `G-4` integración (job `integration`,
-  `tests/integration.test.mjs`, 4/4 con Postgres/Mongo/Redis reales) y `G-6` E2E
-  (workflow `e2e.yml` de release). Los tres verificados en local; la evidencia de CI
-  llega con el primer push.
+- **Área `documentation/` (`R-DO`)** integrada y adaptada a este repo: sin «Core
+  Engine», sin «microservicios»/«Gateway», con `.env.production.example` creado
+  (hace ciertas `R-DO-3` y `R-DS-1`) y `R-DO-6` alineada con `R-C-12`/`G-8`.
+- **Área `ai-contributions/` (`R-AC`)** creada: el borrador `ai/01-contribuciones.md`
+  (que colisionaba con `01-dsl.md`, usaba `R-IA` y citaba un ID retirado del área
+  `gateway/`) se reescribió con sufijo propio `R-AC` y sin referencias al proyecto
+  origen.
+- **Reglas sincronizadas con el remoto**: `git/` (58 → 68 commits, `docs/` trackeado,
+  R-GE-3 ya no llama «sin gate» a `G-4`/`G-5`/`G-6`), `ci/` (2 jobs + `e2e.yml`, R-EN-2/3/4
+  ya no dicen «el día que…»), `test/` (workflow/jobs, 27 ficheros, `--env-file-if-exists`,
+  `R-I-12`/`R-C-12` ya no dicen «pendiente»), `_meta/CHECKLIST.md` y este snapshot.
+- **Evidencia de CI**: los gates nuevos dejaron de ser «configurados» y pasaron a ✅
+  con run verde real (PR #1 + `main` `37361504637`).
+
+## Historial heredado (procedencia)
+
+- **1ª auditoría (2026-10-05)**: reescritura completa de `docs/rules/` contra la
+  realidad medida (áreas nativas, `_meta` con cifras propias, ADR-16..ADR-21). Detalle
+  en [`AUDIT-HISTORY.md`](./AUDIT-HISTORY.md).
+- Entradas anteriores a 2026-10-05: pertenecen a **otros proyectos** («Core Engine»,
+  ZKTeco) y se conservan como procedencia; no describen este repo.
 
 ## Cómo re-auditar
 
 ```bash
-# La verificación de cierre: la misma que ejecuta el job build-test-lint
+# Verificación de cierre: la misma que ejecuta el job build-test-lint
 npm run build && npm run lint && MONGODB_MOCK=1 npm test
 
-# Puertas de seguridad (R-QA-6): 0 vulnerabilidades
-npm audit --audit-level=high
-npm audit --audit-level=moderate
-
-# OpenAPI versionada (G-8): falla si docs/openapi.json no coincide con la API
+# Gate de seguridad y de contrato/OpenAPI
+npm audit --audit-level=high && npm audit --audit-level=moderate
 npm run openapi:check
-npm run openapi:export   # para actualizarla
-
-# Schema, migraciones y deriva (G-9: lo que corre CI)
-npx prisma validate --schema=prisma/schema.prisma
-docker compose up -d postgres
-DATABASE_URL='postgresql://scraper:scraper@localhost:5432/scraper?schema=public' npx prisma migrate deploy --schema=prisma/schema.prisma
-DATABASE_URL='postgresql://scraper:scraper@localhost:5432/scraper?schema=public' npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --exit-code
-docker compose stop postgres
-
-# Cobertura (G-3): el reporte completo por fichero
-MONGODB_MOCK=1 npm test 2>&1 | sed -n '/start of coverage report/,/end of coverage report/p'
-
-# Mecanismo de umbral (debe fallar con exit 1)
-node --test --test-concurrency=1 --experimental-test-coverage \
-  --test-coverage-lines=99 --test-coverage-include='packages/*/dist/**/*.js' tests/dsl.test.mjs
-
-# Estado del repo y del workflow
-git branch -a && git rev-list --count main && git rev-list --merges --count main
-ls .github/workflows/ && grep -c "jobs:" .github/workflows/ci.yml
-
-# Contrato de la API (G-5, paso de CI)
 npm run test:contract
 
-# Integración con almacenes reales (G-4, job de CI)
+# Integración con almacenes reales (G-4)
 docker compose up -d postgres mongodb redis
 DATABASE_URL='postgresql://scraper:scraper@localhost:5432/scraper?schema=public' \
 MONGODB_URI='mongodb://localhost:27017/scraper' REDIS_URL='redis://localhost:6379' \
   npm run test:integration
 
-# E2E de release (G-6) y cliente real (a mano)
-npm run test:e2e      # requiere Docker + OPENROUTER_API_KEY + Chromium
-npm run test:api:fast
+# Documentación (R-DO): READMEs que faltan y plantillas de entorno
+for d in apps/* packages/*; do [ -f "$d/README.md" ] || echo "falta $d/README.md"; done
+ls .env.example .env.production.example
+grep -c "^## ADR-" docs/decisiones.md
+
+# Estado del repo y de los workflows
+git branch -a && git rev-list --count main && git rev-list --merges --count main
+ls .github/workflows/
 
 # Evidencia de CI (R-COV-3: un gate ✅ solo con run verde)
 gh run list --limit 5

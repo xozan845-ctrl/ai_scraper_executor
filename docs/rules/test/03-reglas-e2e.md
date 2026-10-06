@@ -50,7 +50,7 @@ Aplica a: pruebas que recorren la pila completa contra un **sitio real** y un
 # Levantar BDs, migrar, compilar y ejecutar el E2E real
 npm run dev:e2e
 
-# Solo el E2E (carga .env con node --env-file)
+# Solo el E2E (env con node --env-file-if-exists)
 OPENROUTER_API_KEY=... npm run test:e2e
 
 # El cliente real de la API contra un sitio real
