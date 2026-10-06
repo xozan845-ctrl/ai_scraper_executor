@@ -1297,3 +1297,24 @@ en la cabeza) y `main` `d891389` (run `37361504637`, ambos jobs `success`).
 
 - Gates sin cambios (**8 ✅ · 1 N/A · 0 ⏸**); migraciones **3**. Cierra el pendiente
   de índices del área `db/`.
+
+---
+
+# AUDIT — Reevaluación de mutation testing (R-MT-1, ADR-20)
+
+- **Fecha:** 2026-10-06
+- **Disparador:** ADR-20 decía «se reevalúa cuando exista una suite con runner
+  soportado (p. ej. al cerrar G-4/G-5)». `G-4`/`G-5` ya están cerrados.
+
+## Resultado
+
+**Sigue diferido.** Cerrar capas de test **no cambia el runner**, que continúa siendo
+`node --test` (cargando `dist`), no soportado por Stryker 10 (solo jest/vitest/tap). El
+disparador real es **adoptar un runner soportado** (un framework), algo que ADR-03
+evita a propósito y que exigiría enmendarlo. Se corrige el enunciado del disparador en
+`R-MT-1` y ADR-20, y se anota que la completitud del DSL (`tests/dsl-completeness.test.mjs`)
+cubre parte del riesgo.
+
+## Estado
+
+- Gates sin cambios (**8 ✅ · 1 N/A · 0 ⏸**).

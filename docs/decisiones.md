@@ -422,8 +422,13 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
   dentro de `npm test` (invariantes de `normalizeJobLimits`, `normalizeRawCommand`/
   `normalizeRawPlan` y `normalizeDomain`/`isAllowedHost`). **Diferir mutation
   testing** de forma explícita: no se añade Stryker porque exigiría mutar `dist` o
-  un runner que el repo evita; la reevaluación se dispara cuando exista una suite con
-  runner soportado (`G-4`/`G-5`) o si el repo crece.
+  un runner que el repo evita.
+- **Reevaluación 2026-10-06**: al cerrar `G-4`/`G-5` se revisó el disparador. **Sigue
+  diferido**: cerrar capas de test no cambia el runner, que sigue siendo `node --test`
+  (no soportado por Stryker). El disparador real es **adoptar un runner soportado**
+  (jest/vitest/tap como framework), lo que ADR-03 evita a propósito; hacerlo exigiría
+  enmendar ADR-03. Se añade `tests/dsl-completeness.test.mjs` como cobertura parcial
+  del DSL (`R-AI-2`).
 - **Consecuencias**: (a) los property tests **encontraron tres defectos reales** que
   los casos fijos no veían: `normalizeJobLimits(5e-324) → 0` (fuera de `[1, HARD]` y
   no idempotente), la resolución de alias contra el prototipo (`__proto__`,
