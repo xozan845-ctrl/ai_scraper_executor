@@ -60,8 +60,9 @@ puede expirar sin dejar rastro, es Redis.
   `20261006153221_add_composite_indexes` añade índices de FK (`jobId`, `sessionId`,
   `userId`) y de consulta (`Job(status, createdAt)`, `Job(userId, createdAt)`,
   `Session(domain, updatedAt)`). Antes no había ninguno (salvo `User.email`).
-- No hay **retención** declarada para `Page`/`Command`/`AIInteraction`: la tabla crece
-  por job (→ `R-DI-8`).
+- **Retención (R-DI-8): definida** desde 2026-10-06: se conservan `Job`, `Result`,
+  `JobError` y las sesiones; se purgan `Page`/`Command`/`AIInteraction` más antiguos que
+  `RETENTION_ARTIFACT_DAYS` con `npm run retention:prune`.
 - `redis` se usa también como broker de la cola (BullMQ). Compartir el mismo Redis
   para caché y cola significa que un `FLUSHALL` de mantenimiento **tumba los jobs en
   vuelo**. La separación es deuda abierta de `R-RD-1`.

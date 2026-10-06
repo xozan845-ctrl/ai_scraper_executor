@@ -1365,3 +1365,25 @@ en el merge verificado a `main` (no hay entornos separados).
 ## Estado
 
 - Gates sin cambios (**8 ✅ · 1 N/A · 0 ⏸**).
+
+---
+
+# AUDIT — Retención de artefactos de job (R-DI-8)
+
+- **Fecha:** 2026-10-06
+
+## Qué cambió
+
+- Política de retención **definida** (`R-DI-8`): se conservan `Job`, `Result`,
+  `JobError` y `Session`/`SessionMessage`; se purgan `Page`, `Command` y
+  `AIInteraction` más antiguos que `RETENTION_ARTIFACT_DAYS` (30 por defecto).
+- `scripts/retention.mjs` + `npm run retention:prune`: borrado **explícito** (una
+  transacción, registra lo que borra), no una cascada automática. Probado contra
+  Postgres real (0 filas con datos recientes).
+- `RETENTION_ARTIFACT_DAYS` añadida a `.env.example` y `.env.production.example`
+  (`R-DO-3`).
+
+## Estado
+
+- Gates sin cambios (**8 ✅ · 1 N/A · 0 ⏸**). Cierra el pendiente de retención de
+  `data/` y `db/`.
