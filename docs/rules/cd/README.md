@@ -18,7 +18,9 @@ despliegue con entornos.
 > Es decir: el despliegue **es real y reproducible** (compose), pero **la release
 > automática y la promoción entre entornos no existen**. `R-CD-1..8` son el
 > contrato exigible el día que exista un pipeline de release; `R-CD-9..12` norma
-> la entrega que sí hay.
+> la entrega que sí hay. Los **puertos publicados en el host** son configurables
+> (`API_PORT`, `POSTGRES_PORT`, `MONGODB_PORT`, `REDIS_PORT`) — ver
+> [`02-entornos.md`](./02-entornos.md).
 
 ## Archivos
 

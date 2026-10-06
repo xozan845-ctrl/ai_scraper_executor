@@ -21,6 +21,27 @@ Reglas de la entrega **que sí existe**: un `docker-compose.yml` en la raíz con
 | R-CD-11 | **Los secretos se inyectan en ejecución y son distintos por entorno**: el `compose` carga `.env` con `env_file` y sobreescribe solo las tres URLs internas (`DATABASE_URL`, `MONGODB_URI`, `REDIS_URL`) para que apunten a los nombres de servicio de la red. Ese sobreescrito es deliberado: sin él, la aplicación hablaría con `localhost` desde dentro del contenedor y fallaría de forma engañosa. Lo que **nunca** se hace es escribir una credencial dentro del `compose` (el `POSTGRES_*` usa `${VAR:-valor de desarrollo}`, que es un default de desarrollo, no un secreto) ni en un `Dockerfile` (R-CD-7). En un despliegue real, `API_KEYS`, `CREDENTIALS_KEY`, `OPENROUTER_API_KEY` y `CORS_ORIGINS` vienen del entorno del host, `.env` está en `.gitignore` **y** en `.dockerignore`, y `CREDENTIALS_KEY` no se reutiliza entre entornos (R-SE-12, R-SE-17). |
 | R-CD-12 | **Smoke tras cada entrega y reversión por commit**: tras cada `up`/`build` se comprueba `GET /api/v1/health` (liveness) y `GET /api/v1/health/ready` (readiness, que verifica store y cola y devuelve `503` con el detalle si algo no responde); un despliegue sin smoke en verde no se da por bueno, y el resultado se anota junto al cambio (R-GE-3). Una entrega mala se revierte **volviendo al commit anterior** y reconstruyendo — la imagen no es inmutable hoy (R-CD-3), así que la unidad de reversión es el commit, no el digest — y **nunca** revirtiendo migraciones aplicadas (R-CD-5). Un smoke rojo en un despliegue ya hecho no se "deja corriendo": o se corrige con un commit nuevo (R-GE-6) o se revierte. El comando de referencia para el smoke completo es `npm run test:api:fast` contra el entorno. |
 
+## Sobre los puertos publicados
+
+El `compose` publica puertos en el **host** para la API (`3000`) y para los tres
+almacenes (`5432`, `27017`, `6379`). En un host compartido (p. ej. Dokploy) ese mapeo
+fijo choca con otro servicio: el arranque falla con
+`Bind for 0.0.0.0:3000 failed: port is already allocated`. Por eso todos son
+**configurables por entorno** con default local:
+
+| Variable | Host por defecto | Contenedor (fijo) |
+|---|---|---|
+| `API_PORT` | `3000` | `3000` |
+| `POSTGRES_PORT` | `5432` | `5432` |
+| `MONGODB_PORT` | `27017` | `27017` |
+| `REDIS_PORT` | `6379` | `6379` |
+
+**Regla de despliegue**: en un host con más de un compose, fija cada `*_PORT` a un
+puerto libre (o deja que tu proxy enrute a `api:3000` sin publicar `API_PORT`). El
+lado del contenedor no cambia: las URLs internas (`DATABASE_URL`, `MONGODB_URI`,
+`REDIS_URL`) siguen apuntando a los nombres de servicio, no a estos puertos. Publicar
+un puerto que ya está asignado es un fallo de arranque, no una degradación aceptable.
+
 ## Sobre el escalado del worker
 
 El `compose` lo permite explícitamente (`docker compose up --scale worker=3`) y el

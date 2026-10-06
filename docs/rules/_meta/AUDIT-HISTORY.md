@@ -1501,3 +1501,27 @@ el stack es local, no de producción (allí el scrape debe llevar `x-api-key`, `
 ## Estado
 
 - Gates sin cambios (**8 ✅ · 1 N/A · 0 ⏸**); contrato 9/9, integración 7/7.
+
+---
+
+# AUDIT — Puertos del compose configurables (despliegue Dokploy)
+
+- **Fecha:** 2026-10-06
+- **Disparador:** un deploy en Dokploy falló al arrancar `api`:
+  `Bind for 0.0.0.0:3000 failed: port is already allocated`. El compose publicaba
+  puertos fijos en el host y el `3000` ya estaba asignado por otro servicio.
+
+## Qué cambió
+
+- `docker-compose.yml`: los puertos publicados pasan a ser configurables con default
+  local — `API_PORT` (3000), `POSTGRES_PORT` (5432), `MONGODB_PORT` (27017),
+  `REDIS_PORT` (6379). El lado del contenedor no cambia.
+- `.env.example` / `.env.production.example`: nuevas variables documentadas; en
+  producción son `<puerto-host-libre>`.
+- `cd/02-entornos.md`: sección «Sobre los puertos publicados»; `cd/README.md` y ADR-25
+  registran la decisión.
+
+## Verificación
+
+`docker compose config` con defaults → 3000/27017/5432/6379; con overrides →
+3010/37017/55432/36379.
