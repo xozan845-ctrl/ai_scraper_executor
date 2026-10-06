@@ -136,6 +136,9 @@ autoexcluye en `npm test` si `DATABASE_URL` no responde.
 - **Retención definida** (`R-DI-8`): política explícita (se conservan `Job`/`Result`/
   `JobError`/sesiones; se purgan `Page`/`Command`/`AIInteraction` con
   `npm run retention:prune` y `RETENTION_ARTIFACT_DAYS`).
+- **Separación de Redis para la cola** (`R-RD-1`, ADR-23): `QUEUE_REDIS_URL`
+  (default = `REDIS_URL`) + servicio `redis-queue` bajo el perfil `split-redis`. La
+  separación deja de ser «imposible» y pasa a decisión de despliegue.
 
 ## Historial heredado (procedencia)
 

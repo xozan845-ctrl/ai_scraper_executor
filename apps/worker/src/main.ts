@@ -5,7 +5,7 @@ import { createProductionEngine, closeProductionBrowser } from './browser-engine
 import { AIOrchestrator } from '@ai-scraper/ai';
 import { createFallbackProvider, withCircuitBreaker } from '@ai-scraper/ai-providers';
 import { createJobStore, closeJobStore, createSessionStore } from '@ai-scraper/storage';
-import { createJobQueue, createScrapingWorker, createRedisConnection, closeJobQueue, createDeadLetterQueue } from '@ai-scraper/queue';
+import { createJobQueue, createScrapingWorker, createRedisConnection, closeJobQueue, createDeadLetterQueue, queueRedisUrl } from '@ai-scraper/queue';
 import { disconnectMongo } from '@ai-scraper/mongodb';
 import { runWithContext } from '@ai-scraper/observability';
 import { decryptJson } from '@ai-scraper/security';
@@ -65,9 +65,10 @@ async function main() {
 
   const hasLlm = Boolean(process.env.OPENROUTER_API_KEY ?? process.env.AI_CUSTOM_ENDPOINT);
 
-  // Consumidor BullMQ cuando hay Redis real.
-  if (queue.kind === 'bullmq' && process.env.REDIS_URL) {
-    connection = createRedisConnection(process.env.REDIS_URL);
+  // Consumidor BullMQ cuando hay Redis real (R-RD-1: la cola puede usar su propia URL).
+  const bullUrl = queueRedisUrl();
+  if (queue.kind === 'bullmq' && bullUrl) {
+    connection = createRedisConnection(bullUrl);
     const bullWorker = createScrapingWorker(
       connection as never,
       async (bullJob) => {
