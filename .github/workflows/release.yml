@@ -42,7 +42,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          TAG="${{ inputs.tag || github.ref_name }}"
+          TAG="${{ inputs.tag }}"
+          if [[ -z "$TAG" ]]; then
+            if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.dry_run }}" == "true" ]]; then
+              TAG="v0.0.0-dryrun"   # ensayo: no publica, solo prueba el proceso (R-CD-8)
+            else
+              TAG="${GITHUB_REF_NAME}"
+            fi
+          fi
           if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]; then
             echo "::error::tag inválido: $TAG (se espera v<major>.<minor>.<patch>[-prerelease])"
             exit 1
