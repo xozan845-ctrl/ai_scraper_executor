@@ -31,7 +31,9 @@ real.
 | `R-DO-6` | La spec OpenAPI versionada es el contrato → `R-C-2`/`R-C-12` (`../test/04-reglas-contrato.md`), `G-8` |
 | `R-DO-7` | Lo derivado vive en `_meta/` → [`../_meta/README.md`](../_meta/README.md) |
 
-## Pendientes
+## Estado
 
-- **`README.md` por paquete/app (R-DO-1)**: ninguno de los 12 packages ni de las 2
-  apps tiene README todavía. Deuda registrada en [`../_meta/AUDIT.md`](../_meta/AUDIT.md).
+- **`README.md` por paquete/app (R-DO-1): cumplido** desde 2026-10-06. Los 12 packages
+  de `packages/*` y las 2 apps de `apps/*` tienen su README (responsabilidad,
+  dependencias, superficie pública y comandos). Antes era deuda registrada en
+  [`../_meta/AUDIT.md`](../_meta/AUDIT.md).
