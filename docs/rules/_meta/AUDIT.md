@@ -47,7 +47,7 @@
 | OpenAPI | 🟢 | `docs/openapi.json` + `npm run openapi:check` |
 | Cobertura | 🟢 | nativa de Node, umbrales 70/72/67 en el script `test` |
 | Property-based | 🟢 | `fast-check` + `tests/property.test.mjs`; encontró **3 defectos reales** |
-| Mutation testing | 🔴 diferido | `R-MT-1`/ADR-20: Stryker 10 no tiene runner para `node --test` |
+| Mutation testing | 🔴 diferido | `R-MT-1`/ADR-20: Stryker 10 no tiene runner para `node --test`. **Reevaluado 2026-10-06** al cerrar `G-4`/`G-5`: sigue diferido (el disparador real es adoptar jest/vitest/tap, que ADR-03 evita) |
 | Lint / Build (`G-7`) | 🟢 | 0 errores / 0 warnings; `npm run build` exit 0 |
 | Security gate (`R-QA-6`/`R-SE-16`) | 🟢 | `npm audit` → 0 vulnerabilidades; paso `Security audit` |
 | Artifacts (`R-EN-3`) | 🟢 | `test-results.xml` (JUnit) subido en todos los runs |
@@ -86,8 +86,10 @@ autoexcluye en `npm test` si `DATABASE_URL` no responde.
 2. **Promoción entre entornos sin implementar** (`R-GE-5`): una sola rama, un solo
    juego de secretos. Deuda asumida, no norma.
 3. **Mutation testing diferido a propósito** (`R-MT-1`, ADR-20): Stryker 10 no tiene
-   runner para `node --test` y los tests cargan `dist`; se reevalúa con una suite de
-   runner soportado. Los property tests cubren el riesgo mientras tanto.
+   runner para `node --test` y los tests cargan `dist`. **Reevaluado 2026-10-06** al
+   cerrar `G-4`/`G-5`: el disparador «suite con runner soportado» **no** se cumple (el
+   runner no cambia); el disparador real es adoptar jest/vitest/tap, que ADR-03 evita.
+   Los property tests y la completitud del DSL cubren el riesgo mientras tanto.
 4. **`overrides` de transitivas** (ADR-16/ADR-18): **revisado 2026-10-06** y reducido
    de **8 a 1** (`deepmerge-ts: ^8.0.0`). Los otros siete (`multer`, `qs`,
    `body-parser`, `http-cache-semantics`, `js-yaml`, `lodash`, `file-type`) ya los
