@@ -1211,3 +1211,27 @@ en la cabeza) y `main` `d891389` (run `37361504637`, ambos jobs `success`).
 ## Deuda nueva declarada
 
 `R-DO-1`: 12 packages + 2 apps sin `README.md`. Registrada en `AUDIT.md`.
+
+---
+
+# AUDIT — Cierre de R-DO-1 (READMEs) y subida de actions a v7
+
+- **Fecha:** 2026-10-06
+- **Disparador:** la 2ª auditoría dejó como deuda `R-DO-1` (14 READMEs) y el log de CI
+  avisaba de la deprecación de Node 20 en `actions/checkout@v4`/`setup-node@v4`.
+
+## Qué cambió
+
+- **`R-DO-1` cumplido**: `README.md` en los 12 packages (`core`, `security`,
+  `observability`, `commands`, `crawler`, `execution-engine`, `ai`, `ai-providers`,
+  `mongodb`, `redis`, `storage`, `queue`) y en las 2 apps (`api`, `worker`). Cada uno
+  describe responsabilidad, capa, dependencias exclusivas, superficie pública y
+  comandos, citando las reglas que gobiernan.
+- **Actions a `v7`** (`checkout`, `setup-node`, `upload-artifact`), todas sobre
+  **Node 24** → desaparece el aviso de deprecación de Node 20. La política queda en
+  `R-EN-1`.
+
+## Estado
+
+- Deuda `R-DO-1` cerrada; `documentation/` pasa a 🟢.
+- Gates sin cambios (**8 ✅ · 1 N/A · 0 ⏸**).
