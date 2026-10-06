@@ -64,7 +64,7 @@ aquí**: son reglas de testing y siguen en
 | `G-6` | E2E antes de release | ✅ workflow `e2e.yml` (`release`/`workflow_dispatch`) |
 | `G-8` | Swagger sincronizado | ✅ `npm run openapi:check` sobre `docs/openapi.json` (paso `OpenAPI spec in sync`) |
 | `R-QA-6` | `npm audit --audit-level=high` bloqueante | ✅ paso `Security audit` (0 vulnerabilidades, high y moderate) |
-| `R-FL-1` | Tests intermitentes en cuarentena con fecha | ⏸ no hay herramienta que los detecte |
+| `R-FL-1` | Tests intermitentes: detección por repetición | ✅ herramienta `npm run test:repeat` (a propósito **no** es gate de PR: es lenta) |
 | `R-COV-3` | Un gate ✅ solo con run verde de CI | sí, es el criterio de esta área |
 | `R-GP-2/6` | Push con checks verdes; rojo ⇒ fix-forward | sí, con `gh` (R-CI-6) |
 

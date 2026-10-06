@@ -118,6 +118,9 @@ npm run test:contract
 # Integración con almacenes reales (G-4): requiere Docker
 npm run test:integration
 
+# Detección de tests intermitentes (R-FL-1): repite la suite n veces
+npm run test:repeat -- 20
+
 # Lint y build (job `build-test-lint`, gate G-7)
 npm run lint
 npm run build

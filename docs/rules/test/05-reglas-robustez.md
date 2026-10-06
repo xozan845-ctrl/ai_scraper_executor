@@ -41,7 +41,7 @@ entradas no es un extra: es la función.
 
 | ID | Regla |
 |---|---|
-| R-FL-1 | **Cero tolerancia a tests intermitentes.** Un test que falla 1 de cada 20 corre en CI: se arregla o se marca en cuarentena con issue y fecha máxima de reparación. |
+| R-FL-1 | **Cero tolerancia a tests intermitentes.** Un test que falla 1 de cada 20 corre en CI: se arregla o se marca en cuarentena con issue y fecha máxima de reparación. La herramienta de detección es **`npm run test:repeat -- <n>`** ([`scripts/repeat-tests.mjs`](../../../scripts/repeat-tests.mjs)), que repite la suite `n` veces (por defecto 5) y falla si alguna iteración queda en rojo mientras otras están en verde. **No es un gate de PR** (es lento, ~25 s por iteración): se ejecuta antes de un release o al investigar un fallo esporádico. |
 | R-FL-2 | **Prohibido el `sleep` arbitrario** para esperar una condición; usar esperas activas sobre la condición real (el job llegó a estado terminal, el endpoint responde) con su propio timeout. |
 | R-FL-3 | **Sin dependencia del orden entre tests** ni de la zona horaria/máquina. `node --test` ejecuta los ficheros de un directorio; cada test prepara lo que necesita y no asume estado previo. |
 | R-FL-4 | **Sin dependencia de red externa ni de terceros** en la suite unitaria (`npm test`): `fetch`, el LLM y los sitios se doblan. La única capa que habla con la red real es el E2E (`03-reglas-e2e.md`), y por eso va en otro comando. |

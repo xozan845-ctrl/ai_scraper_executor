@@ -129,7 +129,10 @@ autoexcluye en `npm test` si `DATABASE_URL` no responde.
 - **Release por tag** (ADR-22): [`release.yml`](../../../.github/workflows/release.yml)
   implementa `R-CD-1..4`, `R-CD-7` y `R-CD-8` (tag `v*.*.*`, procedencia en `main` +
   `ci` verde, imágenes GHCR con etiquetas OCI, `dry_run` por defecto). Tercer workflow
-  aceptado por `R-CI-4`.
+  aceptado por `R-CI-4`. Validado con un `dry_run` desde `main`.
+- **Detección de tests intermitentes** (`R-FL-1`): `scripts/repeat-tests.mjs` +
+  `npm run test:repeat -- <n>` repite la suite y falla si hay contraste entre
+  iteraciones. A propósito **no** es gate de PR (es lento).
 
 ## Historial heredado (procedencia)
 
