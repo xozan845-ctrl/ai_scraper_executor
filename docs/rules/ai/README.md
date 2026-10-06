@@ -51,11 +51,15 @@ tiende a desviarse (`R-AI-4`) y su test. Un comando sin schema no existe.
 | `R-AI-14` | La caché de respuestas LLM no es la verdad → `R-DI-5` (`../data/01-integridad.md`) y `R-RD-3` (`../db/03-redis.md`) |
 | `R-AI-16` | Un 429 del proveedor cae en el circuit breaker → `R-SC-8` (`../scraping/01-motor.md`) |
 
+## Estado
+
+- **Completitud del DSL cubierta**: `tests/dsl-completeness.test.mjs` (dentro de
+  `npm test`) comprueba que los 15 `type` del enum Zod tienen trato en el normalizador
+  y aparecen en el `DSL_SPEC` de los prompts (`R-AI-2`, `R-U-12`). Antes era deuda.
+
 ## Pendientes
 
 - El reparto de modelos depende de IDs `:free` de OpenRouter que **roten**. La regla
   `R-AI-11` obliga a no fijarlos en el código y a tener siempre `openrouter/free` o
   una lista de fallback; el estado real de los modelos hoy está en
   [`../_meta/AUDIT.md`](../_meta/AUDIT.md).
-- No hay aún un test que compruebe que **todos** los `type` del enum Zod tienen su
-  entrada en el normalizador y en los prompts: es deuda de `R-U-12`.

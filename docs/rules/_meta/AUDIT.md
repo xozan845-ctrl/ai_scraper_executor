@@ -20,8 +20,8 @@
 
 | Métrica | Valor | Cómo se midió |
 |---|---|---|
-| Tests unitarios | **149 / 149 en verde, 37 suites** (incluye 6 propiedades de `fast-check`) | `MONGODB_MOCK=1 npm test` |
-| Ficheros de test | **30 en disco, 27 en `npm test`** | `ls tests/*.test.mjs` vs script `test` |
+| Tests unitarios | **153 / 153 en verde, 38 suites** (6 propiedades de `fast-check` + 4 de completitud del DSL) | `MONGODB_MOCK=1 npm test` |
+| Ficheros de test | **31 en disco, 28 en `npm test`** | `ls tests/*.test.mjs` vs script `test` |
 | Tests de contrato / integración | **8 / 4**, en verde | `npm run test:contract`, `npm run test:integration` |
 | Runner | `node --test --test-concurrency=1` | script `test` de `package.json` |
 | Lint | **0 errores, 0 warnings** (alcance `apps`, `packages`, `scripts`) | `npm run lint` |
@@ -117,6 +117,9 @@ autoexcluye en `npm test` si `DATABASE_URL` no responde.
 - **`overrides` reducidos de 8 a 1**: revisión de mantenimiento (ADR-16) que comprobó
   que solo `deepmerge-ts` sigue siendo necesario para mantener `npm audit` en 0; los
   otros siete transitivos ya llegan parcheados por sus padres.
+- **Completitud del DSL** (`R-AI-2`, `R-U-12`): `tests/dsl-completeness.test.mjs`
+  comprueba que los 15 `type` del enum Zod tienen trato en el normalizador y aparecen
+  en el `DSL_SPEC` que se declara al modelo. Cierra el pendiente del área `ai/`.
 
 ## Historial heredado (procedencia)
 
