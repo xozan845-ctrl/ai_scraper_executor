@@ -8,7 +8,7 @@ aquí**: son reglas de testing y siguen en
 > ## La realidad: `ci.yml` (2 jobs) + `e2e.yml` (release)
 >
 > ```yaml
-> # ci.yml — push a main y pull_request
+> # ci.yml — push a main, pull_request y workflow_dispatch (forzar a mano)
 > concurrency: { group: ci-${{ github.ref }}, cancel-in-progress: true }
 > jobs.build-test-lint:
 >   services: postgres:16-alpine (schema/deriva + contrato + unit)
@@ -98,3 +98,10 @@ La importancia es cerrar la evidencia: un cambio terminado es un commit con
   privado sin GitHub Pro (`403 Upgrade to GitHub Pro …`). El workflow escucha
   `pull_request`; el enforcement de `R-GE-4` es por disciplina, no de GitHub. Ver
   [`../git/00-entornos.md`](../git/00-entornos.md).
+- **El evento `pull_request` no siempre se entrega (peculiaridad del remoto)**: en tres
+  PRs seguidos (el #1 entregó `opened`; los #2/#3 no), abrir o actualizar el PR no
+  disparó el run hasta **cerrar y reabrir**. Verificado: Actions está habilitado
+  (`enabled:true`, `allowed_actions:all`) y el mismo `ci.yml` corre sin problema en
+  `push` a `main` y en el PR tras reabrir, así que **no es configuración del repo**.
+  Mitigación: el gatillo manual `workflow_dispatch`
+  (`gh workflow run ci.yml --ref <rama>`), aceptado en `R-CI-1`.
