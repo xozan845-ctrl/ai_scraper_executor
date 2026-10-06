@@ -12,11 +12,11 @@ fecha filtrada como UTC en vez del día configurado).
 > | | Reality |
 > |---|---|
 > | Runner | `node --test --test-concurrency=1` (el nativo de Node ≥20, sin dependencias) |
-> | Ficheros | `tests/*.test.mjs` — **30 en disco, 27 en `npm test`** (contrato, integración y E2E van en otros comandos, `R-FL-4`), JavaScript, **no** `*.spec.ts` de Jest |
+> | Ficheros | `tests/*.test.mjs` — **31 en disco, 28 en `npm test`** (contrato, integración y E2E van en otros comandos, `R-FL-4`), JavaScript, **no** `*.spec.ts` de Jest |
 > | Ejecución | `npm test` (unit + propiedades, con dobles) · `npm run test:contract` · `npm run test:integration` (Docker) · `npm run test:e2e` (release) · `npm run test:api` (cliente real) |
 > | Cobertura | **Nativa de Node** (`--experimental-test-coverage`), umbrales en el script `test`: **70 / 72 / 67** (líneas/ramas/funciones). Sin `c8`/`nyc` |
 > | Concurrencia | Fija a **1**: Crawlee usa almacenamiento local y en paralelo los tests se contaminan (`R-FL-5`) |
-> | Estado hoy | **149 tests / 37 suites** en `npm test` + **8 de contrato** + **4 de integración**, todos en verde |
+> | Estado hoy | **153 tests / 38 suites** en `npm test` + **8 de contrato** + **4 de integración**, todos en verde |
 >
 > Los identificadores heredados que hablaban de Jest (`jest.coverageThreshold`,
 > `*.spec.ts`, `setup de Jest`) se conservan **sin renumerar** y su texto apunta al

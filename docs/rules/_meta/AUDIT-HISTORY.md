@@ -1256,3 +1256,22 @@ en la cabeza) y `main` `d891389` (run `37361504637`, ambos jobs `success`).
 ## Estado
 
 - Gates sin cambios (**8 ✅ · 1 N/A · 0 ⏸**); deuda de overrides reducida y revisada.
+
+---
+
+# AUDIT — Completitud del DSL (R-AI-2, R-U-12)
+
+- **Fecha:** 2026-10-06
+
+## Qué cambió
+
+- Nuevo `tests/dsl-completeness.test.mjs` dentro de `npm test` (153 tests / 38 suites):
+  comprueba que el enum tiene exactamente **15** comandos, que **cada** `type`
+  sobrevive al normalizador sin mutar, que **cada** `type` aparece en el `DSL_SPEC`
+  que se declara al modelo, y que un `type` inventado se descarta.
+- Cierra el pendiente del área `ai/` («no hay test de que todos los `type` tengan
+  normalizador y prompt») y la deuda `R-U-12` de esa capa.
+
+## Estado
+
+- Gates sin cambios (**8 ✅ · 1 N/A · 0 ⏸**); cobertura 71.83 / 74.62 / 68.94.
