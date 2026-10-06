@@ -46,7 +46,7 @@ rompe al cliente sin fallar ningún test unitario.
 | ID | Regla |
 |---|---|
 | R-C-11 | **Un campo nuevo implica actualizar a quien lo consume en el mismo cambio**: campo en el DTO + su decorator de Swagger + el test de contrato/forma que lo comprueba + el cliente de `scripts/` o el README si lo documentan. Añadir un campo que un consumidor activo no conoce es cómo se rompen las integraciones en silencio. |
-| R-C-12 | **La spec está versionada y en sync con la API**: `docs/openapi.json` es la fuente que un consumidor puede leer, y `npm run openapi:check` (paso `OpenAPI spec in sync` de CI) falla si la API genera una spec distinta. Cualquier cambio de DTO o ruta se exporta con `npm run openapi:export` y se commitea junto al cambio. La capa de **contrato** como suite de aserciones (recorrer endpoints y validar shapes) sigue pendiente (`G-5`); hasta entonces, la sincronización de la spec es el gate efectivo y cada endpoint nuevo debe traer su asertación de forma en el fichero de test que le corresponde. |
+| R-C-12 | **La spec está versionada y en sync con la API**: `docs/openapi.json` es la fuente que un consumidor puede leer, y `npm run openapi:check` (paso `OpenAPI spec in sync` de CI) falla si la API genera una spec distinta. Cualquier cambio de DTO o ruta se exporta con `npm run openapi:export` y se commitea junto al cambio. La capa de **contrato** como suite de aserciones existe además en `tests/contract.test.mjs` (paso `Contract`, `G-5`), que recorre los endpoints críticos y valida sus formas; cada endpoint nuevo debe traer su asertación de forma en el fichero de test que le corresponde. |
 
 ## Verificación
 

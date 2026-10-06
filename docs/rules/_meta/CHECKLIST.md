@@ -29,8 +29,8 @@ Marcar las capas ✅ que apliquen y **justificar las que no**.
 | Migración Prisma | — | ✅ up + down | ✅ si cambia DTO | — |
 | **Bug en producción** | ✅ regresión primero | ✅ si aplica | ✅ si aplica | ✅ si es flujo visible |
 
-> Sin herramientas de cobertura (`G-3` ⏸), la evidencia de la columna Unit es el
-> recuento de tests del PR (`MONGODB_MOCK=1 npm test`).
+> La evidencia de la columna Unit es el recuento de tests del PR
+> (`MONGODB_MOCK=1 npm test`); la cobertura está gateada por `G-3`.
 
 ## 2. Universales (todo PR)
 
@@ -129,5 +129,16 @@ Marcar las capas ✅ que apliquen y **justificar las que no**.
 - [ ] **R-CD-9/10** — El grafo de arranque se respeta: `migrate` one-shot con `migrate deploy` bloquea a `api`/`worker`; no se arranca la API saltándoselo.
 - [ ] **R-CD-7/11** — Cero secretos en la imagen (ni `ARG` ni `ENV`); los secretos llegan en runtime por `env_file`/`environment`.
 - [ ] **R-CD-12** — Smoke tras la entrega: `/api/v1/health` y `/api/v1/health/ready` en verde; si se revertiría, se revierte por commit, nunca por migración.
+
+## 13. Documentación y contribución de IA ([`documentation/`](../documentation/README.md), [`ai-contributions/`](../ai-contributions/README.md))
+
+- [ ] **R-DO-1** — Si el PR añade un paquete/app, trae su `README.md` (responsabilidad, dependencias, superficie, comandos).
+- [ ] **R-DO-3** — Si añade/quita variables de entorno, actualiza `.env.example` **y** `.env.production.example`; nunca un secreto real versionado.
+- [ ] **R-DO-5** — Si es una decisión estructural (herramienta, esquema, orden de build), hay un ADR en `docs/decisiones.md`.
+- [ ] **R-DO-6** — Si cambia un DTO/ruta, `docs/openapi.json` re-exportado (`npm run openapi:export`).
+- [ ] **R-DO-7** — Nada derivado (audit/checklist/snapshot) fuera de `../_meta/`.
+- [ ] **R-AC-1/3/5** — La IA leyó el índice y el AUDIT; commits atómicos; entrega por rama + PR (nunca `main`).
+- [ ] **R-AC-4** — Sin pases libres: gates verdes y cobertura sin bajar.
+- [ ] **R-AC-6** — Sin refactors oportunistas: lo ajeno a la tarea se registra como deuda.
 
 > Estado actual de los gates y deudas: [`AUDIT.md`](./AUDIT.md) (snapshot).

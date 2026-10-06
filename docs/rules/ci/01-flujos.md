@@ -1,8 +1,9 @@
 # 01 — Flujos de CI (gatillos y ejecución)
 
-Aplica a: cuándo y cómo se ejecuta `.github/workflows/ci.yml`. El archivo tiene hoy
-**un job** (`build-test-lint`); las reglas describen cómo debe comportarse ese job y
-marcan como deuda lo que aún no está configurado.
+Aplica a: cuándo y cómo se ejecutan `.github/workflows/ci.yml` (jobs
+`build-test-lint` e `integration`) y el workflow de release `.github/workflows/e2e.yml`.
+Las reglas describen cómo deben comportarse y marcan como deuda lo que aún no está
+configurado.
 
 | ID | Regla |
 |---|---|

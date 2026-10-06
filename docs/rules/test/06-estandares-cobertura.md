@@ -7,11 +7,11 @@ tocar cada tipo de cambio** y **qué pasos bloquean el merge hoy**.
 >
 > | | Estado real (verificado contra `.github/workflows/ci.yml` y `package.json`) |
 > |---|---|
-> | Workflow | **Uno solo**: `ci.yml`, un job `build-test-lint` |
+> | Workflow | [`ci.yml`](../../../.github/workflows/ci.yml) con **2 jobs** (`build-test-lint` + `integration`) y [`e2e.yml`](../../../.github/workflows/e2e.yml) de release |
 > | Node | 22 en CI (el `engines` del repo pide `>=20`); trae cobertura nativa |
 > | Instalación | `npm ci --ignore-scripts` (sin `--legacy-peer-deps` desde Nest 12, ADR-18) |
-> | Pasos | `npm ci` → `Security audit` → `prisma:generate` → schema/deriva → `build` → OpenAPI → `lint` → `test` → artifact |
-> | Suite | `npm test` = `node --test --test-concurrency=1 --experimental-test-coverage …` sobre 26 ficheros, con `MONGODB_MOCK: '1'` |
+> | Pasos | `npm ci` → `Security audit` → `prisma:generate` → schema/deriva → `build` → OpenAPI → `lint` → `test` → contract → artifact |
+> | Suite | `npm test` = `node --test --test-concurrency=1 --experimental-test-coverage …` sobre 27 ficheros, con `MONGODB_MOCK: '1'` |
 > | Cobertura | **Nativa de Node** (`--experimental-test-coverage`): sin `c8` ni `nyc`. Umbrales en el propio script `test`: **70 % líneas / 72 % ramas / 67 % funciones** |
 > | Jobs | `build-test-lint` (unit, cobertura, lint, build, contrato, OpenAPI) + `integration` (Postgres/Mongo/Redis) + [`e2e.yml`](../../../.github/workflows/e2e.yml) (release) |
 >
@@ -71,8 +71,8 @@ Dos filas que en este repo tienen recorrido peculiar:
 
 ## Gates
 
-Estado verificado contra `.github/workflows/ci.yml` (único workflow del repo).
-✅ = el job ejecuta el paso y bloquea el merge · ⏸ = la regla está vigente pero el paso
+Estado verificado contra `.github/workflows/` (`ci.yml` + `e2e.yml`).
+✅ = el job/workflow ejecuta el paso y bloquea · ⏸ = la regla está vigente pero el paso
 no existe (deuda) · N/A = no aplica a este repo, **ID reservado, nunca se reutiliza**.
 
 | Gate | Condición | Cómo se ejecutaría | Estado |
@@ -83,7 +83,7 @@ no existe (deuda) · N/A = no aplica a este repo, **ID reservado, nunca se reuti
 | **G-4** | Suite de integración (API + Postgres/Mongo/Redis reales) en verde | job `integration` de `ci.yml` con servicios efímeros: `npm run test:integration` | ✅ |
 | **G-5** | Tests de contrato en verde | paso `Contract` de `ci.yml`: `npm run test:contract` (arranca la API y valida formas de `/api/v1/**`) | ✅ |
 | **G-6** | E2E de flujos críticos en verde **antes de release** (no en cada PR) | workflow [`e2e.yml`](../../../.github/workflows/e2e.yml) (`release`/`workflow_dispatch`): `npm run test:e2e` con servicios reales + Chromium + `OPENROUTER_API_KEY` | ✅ |
-| **G-7** | **Lint y build sin errores** | pasos `Build` (`npm run build`) y `Lint` (`npm run lint`, ESLint sobre `apps` y `packages`) del mismo job | ✅ |
+| **G-7** | **Lint y build sin errores** | pasos `Build` (`npm run build`) y `Lint` (`npm run lint`, ESLint sobre `apps`, `packages` y `scripts`) del mismo job | ✅ |
 | **G-8** | Swagger sincronizado | `npm run openapi:check` (exporta `docs/openapi.json` desde la API y compara) | ✅ |
 | **G-9** | Deriva de migraciones = 0 | `prisma validate` + `prisma migrate deploy` sobre Postgres efímero + `prisma migrate diff --from-url … --to-schema-datamodel … --exit-code` | ✅ |
 

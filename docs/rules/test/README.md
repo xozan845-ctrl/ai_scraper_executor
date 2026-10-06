@@ -140,9 +140,6 @@ npm run test:api:fast
   `fast-check`) cubren el riesgo mientras tanto y ya encontraron tres defectos reales.
 - **Cliente real de la API (`npm run test:api`) no es un gate**: es un smoke de flujos
   completos que se ejecuta a mano contra una API levantada.
-- **Evidencia de CI pendiente**: los gates nuevos (`G-4`/`G-5`/`G-6`) están
-  configurados y verificados localmente; `R-COV-3` exige además un run verde de CI,
-  que llegará con el primer push de la rama.
 
 ## Cerrado en la 1ª auditoría de este repo (2026-10-05)
 

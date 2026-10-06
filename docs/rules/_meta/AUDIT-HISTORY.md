@@ -1178,3 +1178,36 @@ colgando). Fix: `.trim()` en la forma canónica. Corregido con `R-REG-1`.
 `G-4`, `G-5` y `G-6` pasan a ✅. Total: **8 ✅ · 1 N/A · 0 ⏸**. Los tres están
 verificados en local; la evidencia de run verde de CI llega con el primer push
 (`R-COV-3`).
+
+---
+
+# AUDIT — 2ª auditoría: áreas documentation/ y ai-contributions/, y sincronización con el remoto
+
+- **Fecha:** 2026-10-06
+- **Disparador:** el usuario añadió dos borradores (`docs/rules/documentation/` y
+  `docs/rules/ai/01-contribuciones.md`) escritos todavía para otro proyecto. Se
+  integraron respetando la metodología, y se purgó el estado que quedó obsoleto
+  tras publicar la 1ª auditoría por PR.
+
+## Qué cambió
+
+- **Área `documentation/` (`R-DO`, 1–7)**: adaptada a este repo (sin «Core Engine»,
+  sin microservicios/Gateway/RabbitMQ), registrada en el índice raíz, con
+  `.env.production.example` creado (hace ciertas `R-DO-3` y `R-DS-1`) y `R-DO-6`
+  alineada con `R-C-12`/`G-8`.
+- **Área `ai-contributions/` (`R-AC`, 1–6)**: el borrador `ai/01-contribuciones.md`
+  colisionaba con `01-dsl.md`, usaba el sufijo `R-IA` (anagrama de `R-AI`) y citaba
+  el ID retirado `R-GW-4`. Se movió a un área propia, con sufijo `R-AC`, sin
+  referencias al proyecto origen y con el tooling del harness remitido a `AGENTS.md`.
+- **Estado sincronizado con el remoto** en `git/`, `ci/`, `test/` y `_meta/CHECKLIST.md`:
+  68 commits, `docs/` trackeado, 2 jobs + `e2e.yml`, `R-EN-2/3/4` ejecutadas,
+  `R-I-12`/`R-C-12` con suite real, `--env-file-if-exists`.
+
+## Gates
+
+Siguen **8 ✅ · 1 N/A · 0 ⏸**, ahora con evidencia de run verde real: PR #1 (checks
+en la cabeza) y `main` `d891389` (run `37361504637`, ambos jobs `success`).
+
+## Deuda nueva declarada
+
+`R-DO-1`: 12 packages + 2 apps sin `README.md`. Registrada en `AUDIT.md`.
