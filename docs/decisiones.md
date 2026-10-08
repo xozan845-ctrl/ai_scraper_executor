@@ -555,6 +555,30 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
 
 ---
 
+## ADR-27: Node fijado a la major 22 (`.nvmrc` + `engines`)
+
+- **Fecha**: 2026-10-08
+- **Estado**: Aceptado
+- **Contexto**: el repo declaraba `engines.node: ">=20"`, pero la realidad del
+  toolchain es Node **22**: CI lo fija (`node-version: "22"`, `R-EN-1`), los dos
+  `Dockerfile` parten de `node:22-*` (ADR-12) y la cobertura de `ADR-17` se calibró
+  sobre 22. No existía `.nvmrc`, así que cada máquina elegía su Node. Se comprobó que
+  la suite unitaria **no es reproducible fuera de 22**: con Node 24 el umbral de
+  cobertura de funciones queda por debajo de 67 y `npm test` sale en rojo aunque los
+  153 tests pasen. Es decir, `engines: ">=20"` prometía un soporte que la puerta de
+  calidad no sostiene.
+- **Decisión**: fijar la major en **22** con `.nvmrc` (`22`) para `nvm`/`fnm`/`asdf` y
+  `engines.node: ">=22"`. El workflow **no** cambia: `ci.yml` ya fija el literal `"22"`
+  (`R-EN-1`) y coincide con `.nvmrc`.
+- **Consecuencias**: (a) local y CI comparten major por construcción, lo que evita el
+  falso rojo de cobertura observado; (b) Node 20 deja de estar soportado de forma
+  declarada (npm avisa por `engines`); (c) quedan **cuatro** referencias a la major que
+  deben moverse juntas al subirla — workflow (`R-EN-1`), Dockerfiles, `.nvmrc` y
+  `engines`; (d) no resuelve por sí sola la variabilidad de cobertura entre plataformas
+  (Windows), que queda como deuda separada.
+
+---
+
 ## Deudas que estos ADR dejan abiertas
 
 | Deuda | ADR relacionado | Dónde está registrada |

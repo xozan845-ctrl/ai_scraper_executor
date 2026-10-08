@@ -55,7 +55,7 @@ npm run test:api            # todos los flujos, incluido chat real y credenciale
 npm run test:api:fast       # solo los rápidos (sin radiografía/job/chat real)
 ```
 
-> `test:e2e` usa `node --env-file=.env` (Node ≥20.6), así que la `OPENROUTER_API_KEY` y los modelos
+> `test:e2e` usa `node --env-file=.env` (Node 22, ver `.nvmrc`), así que la `OPENROUTER_API_KEY` y los modelos
 > se toman del `.env` sin exportarlos manualmente.
 > `test:api` (en `scripts/`) es un **cliente real**: recorre todos los endpoints y verifica que un
 > frontend tipo chat pueda funcionar. Configura `API_URL`, `API_KEY`, `TEST_URL`,

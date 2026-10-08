@@ -16,10 +16,11 @@ prohibido versionarlos — esta regla extiende R-GA-4 a CI. Ningún paso persist
 ## Verificación
 
 ```bash
-# las tres versiones de Node que deben coincidir (R-EN-1)
+# las versiones de Node que deben coincidir (R-EN-1): workflow, imágenes, .nvmrc y engines
 grep -n "node-version" .github/workflows/ci.yml      # 22
-grep -n "^FROM" apps/api/Dockerfile apps/worker/Dockerfile
-node -v                                                  # engines: >=20
+grep -n "^FROM" apps/api/Dockerfile apps/worker/Dockerfile   # node:22-*
+cat .nvmrc                                            # 22
+node -v                                               # engines: >=22
 
 # la instalación exacta de CI
 grep -n "npm ci" .github/workflows/ci.yml

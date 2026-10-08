@@ -8,7 +8,7 @@ tocar cada tipo de cambio** y **qué pasos bloquean el merge hoy**.
 > | | Estado real (verificado contra `.github/workflows/ci.yml` y `package.json`) |
 > |---|---|
 > | Workflow | [`ci.yml`](../../../.github/workflows/ci.yml) con **2 jobs** (`build-test-lint` + `integration`) y [`e2e.yml`](../../../.github/workflows/e2e.yml) de release |
-> | Node | 22 en CI (el `engines` del repo pide `>=20`); trae cobertura nativa |
+> | Node | 22 en CI (`.nvmrc` y el `engines` del repo piden `>=22`); trae cobertura nativa |
 > | Instalación | `npm ci --ignore-scripts` (sin `--legacy-peer-deps` desde Nest 12, ADR-18) |
 > | Pasos | `npm ci` → `Security audit` → `prisma:generate` → schema/deriva → `build` → OpenAPI → `lint` → `test` → contract → artifact |
 > | Suite | `npm test` = `node --test --test-concurrency=1 --experimental-test-coverage …` sobre 27 ficheros, con `MONGODB_MOCK: '1'` |

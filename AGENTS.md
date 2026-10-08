@@ -1,7 +1,7 @@
 # AGENTS.md
 
 Guía para agentes de IA que trabajen en **ai-scraping-executor**. Monorepo npm workspaces
-(`apps/*` + `packages/*`), TypeScript, Node ≥20.6, Vitest no: usa el runner nativo `node --test`.
+(`apps/*` + `packages/*`), TypeScript, Node 22 (`.nvmrc`/`engines`), Vitest no: usa el runner nativo `node --test`.
 
 `LA IA ES EL CEREBRO. CRAWLEE ES EL MOTOR.` La IA decide QUÉ (DSL de 15 comandos); el motor decide CÓMO.
 
