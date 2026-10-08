@@ -21,8 +21,9 @@ Un solo entorno desplegable. La rama es `main`; la promoción entre entornos
 | Desarrollo | **local** | `docker compose up -d --build`, o solo las BDs para tests | nulo |
 | Despliegue | host/VPS con Compose | `docker compose up -d --build` desde un commit de `main` verificado | **alto: consume tokens de LLM y peticiones a terceros** |
 
-**Regla de oro:** lo desplegado viene de un commit de `main` con el job
-`build-test-lint` en verde (`R-GE-4`, `R-CI-1`, `R-PR-8`). No hay build automático
+**Regla de oro:** lo desplegado viene de un commit de `main` con el workflow
+`ci` en verde —ambos jobs, `build-test-lint` e `integration`— (`R-GE-4`, `R-CI-1`,
+`R-PR-8`). No hay build automático
 por webhook: quien despliega comprueba antes que el run del commit está verde, y
 comprueba el smoke después (`R-CD-12`).
 
@@ -135,6 +136,10 @@ Detalle del flujo en [`README.md`](../README.md) y en el cliente real
 - **Métricas**: `/api/v1/metrics` y `/api/v1/metrics/prometheus` exponen lo agregado. El worker
   publica en Redis y la API agrega (`scraper_distributed_*`), de modo que las
   métricas de varios workers aparecen juntas (`R-TM-*`).
+- **Stack local de observabilidad**: `docker-compose.observability.yml` levanta
+  Prometheus + Grafana sobre el compose base (`infra/observability/`, ADR-24) con las
+  métricas reales del proyecto. Es para inspección local; el **envío de alertas**
+  (Alertmanager) sigue sin provisionar (`R-TM-5`/`R-TM-9`).
 - **Sin recogida centralizada de logs**: el despliegue no monta un agregador. Quien
   necesite retention, lo añade; hoy los logs se pierden con el contenedor.
 
@@ -156,10 +161,10 @@ el esquema ya aplicado (`R-CD-5`).
 | Falta | Por qué | Dónde está registrado |
 |---|---|---|
 | Entornos separados (stage/producción) | No están implementados; hay una rama | `R-GE-5`, ADR-15 en [`decisiones.md`](./decisiones.md) |
-| Release por tag e imágenes por digest | No hay `release.yml` | `R-CD-1..4` |
+| Despliegue por digest desde GHCR | `release.yml` ya publica imágenes (ADR-22), pero el `compose` sigue construyendo desde fuente | `R-CD-3` |
 | Aprobación de producción como puerta | Hoy la puerta es el merge verificado a `main` | `R-CD-6` |
-| Export de la spec OpenAPI | La spec se genera en runtime en `/api/v1/docs` | `G-8` |
 | Despliegue automático desde CI | Hoy es una orden manual | `R-CI-4` |
+| Envío de alertas (Alertmanager) | Prometheus/Grafana locales ya provisionados (ADR-24), sin gestor de notificaciones | `R-TM-5`/`R-TM-9` |
 
 Ninguna de esas ausencias es un olvido: están normadas como deuda en
 [`rules/cd/`](./rules/cd/README.md) y en
