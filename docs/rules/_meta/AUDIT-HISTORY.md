@@ -1525,3 +1525,49 @@ el stack es local, no de producción (allí el scrape debe llevar `x-api-key`, `
 
 `docker compose config` con defaults → 3000/27017/5432/6379; con overrides →
 3010/37017/55432/36379.
+
+---
+
+# AUDIT — Sincronización de consistencia documental
+
+- **Fecha:** 2026-10-08
+- **Disparador:** revisión de consistencia de la documentación: varias reglas y
+  snapshots describían un estado anterior (checks de CI, `release.yml`, export de
+  OpenAPI, cifras de tests) que ya no era el real.
+
+## Qué cambió
+
+- `rules/git/04-pr.md` (`R-PR-6`/`R-PR-8`): los checks de PR pasan a describir la
+  realidad de `ci.yml` — dos jobs (`build-test-lint`: `G-1`, `G-3`, `G-5`, `G-7`,
+  `G-8`, `G-9`, `R-QA-6`; `integration`: `G-4`) y el E2E (`G-6`) como check **solo de
+  release** (`R-CI-4`), no de PR.
+- `dockploy-setup.md`: §0 (workflow `ci` completo, no solo `build-test-lint`), §6
+  (stack local Prometheus/Grafana, ADR-24; Alertmanager pendiente) y §8 (se retiran
+  `release.yml` y el export de OpenAPI, que ya existen; se dejan como deuda el
+  despliegue por digest y el envío de alertas).
+- `_meta/AUDIT.md`: se retira `R-DO-1` de las deudas (cumplido, 14/14) y se
+  sincronizan las cifras internas — unit **153/38**, contrato **9**, integración
+  **7**, `G-1` 153/153, `G-4` 7/7, `G-5` 9/9, **88 commits**.
+- `README.md` / `AGENTS.md`: recuento de tests a **153** (y lista de suites completa,
+  +`dsl-completeness`, +`property`).
+- `_meta/CHECKLIST.md`: aclarado que `G-4` es **integración** (no contrato) en la
+  nota de la sección de integración/E2E.
+
+## Verificación
+
+`npm run build` (exit 0), `npm run lint` (0/0), `MONGODB_MOCK=1 npm test`
+(**153/153**, 38 suites), `npm run test:contract` (**9/9**),
+`npm run test:integration` con Docker (**7/7**), `npm run openapi:check`,
+`npm audit --audit-level=high` (**0**). CI en `main` (`d8003e9`): `completed success`.
+
+## Hallazgos fuera de alcance (portabilidad Windows)
+
+- **Cobertura de funciones**: en Windows la cobertura medida localmente queda por
+  debajo del umbral (67) y `npm test` sale con código 1 (dos corridas:
+  **73.49/74.48/61.67** sin almacenes y **74.56/74.85/62.50** con Postgres/Mongo/Redis
+  levantados — la disponibilidad de los almacenes cambia qué ramas se ejecutan). En CI
+  (Linux, Node 22) el gate está verde; la diferencia es de plataforma, no de código.
+  El gate autoritativo es CI (`R-COV-3`).
+- **`openapi:check`**: `scripts/check-openapi.mjs` compara el fichero byte a byte;
+  con el checkout CRLF de Windows falla aunque el fichero versionado (LF) sea
+  correcto. En Linux pasa.

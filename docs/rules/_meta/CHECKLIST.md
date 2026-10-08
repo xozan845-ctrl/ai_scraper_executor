@@ -81,7 +81,7 @@ Marcar las capas ✅ que apliquen y **justificar las que no**.
 
 ## 8. Integración y E2E ([`02-reglas-integracion.md`](../test/02-reglas-integracion.md), [`03-reglas-e2e.md`](../test/03-reglas-e2e.md))
 
-> `G-4` (contrato de integración con almacenes reales) y `G-6` (E2E) ya son gates: el PR que toca esas capas debe dejar los comandos en verde.
+> `G-4` (integración con almacenes reales) y `G-6` (E2E) ya son gates: el PR que toca esas capas debe dejar los comandos en verde.
 
 - [ ] **R-I-1..13** — Si toca integración: BD real, datos limpios, filtros exactos, `401/400/404/409` comprobados (`npm run test:integration`).
 - [ ] **R-E-1..13** — Si toca el scraping de verdad: `npm run test:e2e` (release) o `npm run test:api:fast`, ejecutado y adjunto, con `TEST_URL` como objetivo.
