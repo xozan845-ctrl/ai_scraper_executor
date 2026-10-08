@@ -13,8 +13,7 @@
 - **Estado global:** 🟢 **CUMPLE**. La verificación de cierre está verde, los **9
   gates** tienen run verde de CI (`G-1..G-9`, `G-2` N/A) y `npm audit` está en **0
   vulnerabilidades**. Quedan como deuda declarada: la protección de rama (bloqueada
-  por el plan de GitHub), la promoción entre entornos, la mutación (diferida) y los
-  `README.md` por paquete/app (`R-DO-1`).
+  por el plan de GitHub), la promoción entre entornos y la mutación (diferida).
 
 ## Números medidos
 
@@ -27,21 +26,21 @@
 | Lint | **0 errores, 0 warnings** (alcance `apps`, `packages`, `scripts`) | `npm run lint` |
 | Build | **exit 0**, 0 errores TS, 12 paquetes + 2 apps | `npm run build` |
 | Puertas de seguridad | **`npm audit` → exit 0** (high y moderate): **0 vulnerabilidades** | `npm audit` |
-| Cobertura | baseline **71.59 / 73.69 / 68.90**; umbral **70 / 72 / 67**; medido ~73.2/74.8/68.9 | `npm test` (nativo de Node) |
+| Cobertura | baseline **71.59 / 73.69 / 68.90**; umbral **70 / 72 / 67**; medido en CI (Linux) ~73.2/74.8/68.9 | `npm test` (nativo de Node) |
 | OpenAPI | **`docs/openapi.json` versionada y verificada** en CI | `G-8` |
 | Paquetes | **12** en `packages/` + 2 apps | `ls packages` |
 | Modelos Prisma | **10**; migraciones **3** (`0_init`, `sessions`, `add_composite_indexes`) | `prisma/schema.prisma`, `ls prisma/migrations` |
 | Comandos del DSL | **15** literales Zod | `packages/commands/src/schemas.ts` |
-| Git | **1 rama** (`main`), **68 commits, 0 merge commits**; PR #1 fusionado por `--rebase` | `git branch -a`, `git rev-list` |
+| Git | **1 rama** (`main`), **88 commits, 0 merge commits**; PR #1 fusionado por `--rebase` | `git branch -a`, `git rev-list` |
 | Workflows | **3** (`ci.yml` con 2 jobs, `e2e.yml`, `release.yml`) | `.github/workflows/` |
 
 ## Estado por capa
 
 | Capa | Estado | Evidencia |
 |---|---|---|
-| Unit / integración con dobles | 🟢 | **149 tests / 37 suites**, sin red y sin Docker (`MONGODB_MOCK=1`) |
+| Unit / integración con dobles | 🟢 | **153 tests / 38 suites**, sin red y sin Docker (`MONGODB_MOCK=1`) |
 | Frontend | **N/A** | No hay `frontend/`. `G-2` y `R-COV-5` **reservados, nunca reutilizados** |
-| Integración con almacén real | 🟢 | `tests/integration.test.mjs` (4 tests, Postgres/Mongo/Redis); job `integration` |
+| Integración con almacén real | 🟢 | `tests/integration.test.mjs` (7 tests, Postgres/Mongo/Redis); job `integration` |
 | Contrato de API | 🟢 | `tests/contract.test.mjs` (9 tests, incluye la instrumentación RED); paso `Contract` |
 | E2E real | 🟢 | workflow [`e2e.yml`](../../../.github/workflows/e2e.yml) en `release`; necesita Chromium + `OPENROUTER_API_KEY` |
 | OpenAPI | 🟢 | `docs/openapi.json` + `npm run openapi:check` |
@@ -60,11 +59,11 @@ Verificado contra `.github/workflows/` (`ci.yml` + `e2e.yml`). Todos con run ver
 
 | Gate | Estado | Evidencia |
 |---|---|---|
-| `G-1` suite unitaria | ✅ | paso `Test`: 149/149 |
+| `G-1` suite unitaria | ✅ | paso `Test`: 153/153 |
 | `G-2` unit frontend | **N/A** | sin frontend (ID reservado) |
 | `G-3` cobertura | ✅ | `--test-coverage-lines=70 --test-coverage-branches=72 --test-coverage-functions=67` |
-| `G-4` integración | ✅ | job `integration` (Postgres/Mongo/Redis efímeros) → 4/4 |
-| `G-5` contrato | ✅ | paso `Contract` → 8/8 |
+| `G-4` integración | ✅ | job `integration` (Postgres/Mongo/Redis efímeros) → 7/7 |
+| `G-5` contrato | ✅ | paso `Contract` → 9/9 |
 | `G-6` E2E | ✅ | workflow `e2e.yml` (release) |
 | `G-7` lint + build | ✅ | pasos `Build` y `Lint` |
 | `G-8` Swagger sync | ✅ | paso `OpenAPI spec in sync` |

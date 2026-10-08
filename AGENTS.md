@@ -14,7 +14,7 @@ npm run build                  # compila TODO en orden de dependencias (packages
 npm run build:core             # solo packages base (sin apps)
 npm run lint                   # eslint apps packages scripts (debe quedar en 0 errors/0 warnings)
 npm run typecheck              # alias de build
-npm test                       # 149 tests unitarios + propiedades (mocks, sin BD reales)
+npm test                       # 153 tests unitarios + propiedades (mocks, sin BD reales)
 MONGODB_MOCK=1 npm test        # fuerza mock MongoDB (recomendado en local sin Docker)
 npm run test:contract          # contrato de la API /api/v1 (G-5), sin infra
 npm run test:integration       # integración con Postgres/Mongo/Redis reales (G-4)

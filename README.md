@@ -40,7 +40,7 @@ npm run dev:worker  # Worker consumiendo cola
 
 ```bash
 # Tests unitarios/integración (mocks, sin BD reales)
-npm test                    # 143 tests: dsl + normalize + engine + crawler + ai-providers + agent + persistence + dashboard + security + browser + api-hardening + observability + scale + llm-cache + interpret + resilience + sessions + credentials + cache-isolation + limits + first-user + logging + util-unify + metrics-labels + retry-cleanup + browser-ssrf
+npm test                    # 153 tests (28 suites): dsl + dsl-completeness + normalize + engine + crawler + ai-providers + agent + persistence + dashboard + security + browser + api-hardening + observability + scale + llm-cache + interpret + resilience + sessions + credentials + cache-isolation + limits + first-user + logging + util-unify + metrics-labels + retry-cleanup + browser-ssrf + property
 MONGODB_MOCK=1 npm test     # Forzar mock MongoDB
 
 # Test E2E real contra https://www.sevasaonline.com/
@@ -394,6 +394,8 @@ AI_CUSTOM_MODEL=llama3.1:8b
 | Jobs se quedan QUEUED | Verificar worker corriendo + `REDIS_URL` correcto |
 | `playwright: executable doesn't exist` | `npx playwright install --with-deps chromium` (en worker Dockerfile ya está; para E2E local fuera de Docker, ejecutar en host) |
 | Tests fallan por flakiness | `npm test` usa `--test-concurrency=1` |
+| `npm test` falla solo el umbral de cobertura de funciones | La cobertura de funciones difiere por plataforma: en Windows puede salir por debajo del 67% aunque los tests pasen. El gate verde es CI (Linux, Node 22) |
+| `openapi:check` falla en Windows | El script compara el fichero byte a byte y el checkout local usa CRLF; el fichero versionado es LF y CI (Linux) pasa |
 | Radiografía lenta | Forzar `forceBrowser: true` si sitio es JS-heavy |
 | OpenRouter `404 No endpoints found` | Modelo inexistente/deprecado → usa `openrouter/free` o IDs `:free` actuales; revisa `OPENROUTER_FALLBACK_MODELS` |
 | OpenRouter `403 Key limit exceeded` | Sin créditos o límite total de la clave → recarga en openrouter.ai o usa Ollama local |
