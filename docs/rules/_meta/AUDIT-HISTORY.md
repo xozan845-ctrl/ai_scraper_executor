@@ -1571,3 +1571,49 @@ el stack es local, no de producción (allí el scrape debe llevar `x-api-key`, `
 - **`openapi:check`**: `scripts/check-openapi.mjs` compara el fichero byte a byte;
   con el checkout CRLF de Windows falla aunque el fichero versionado (LF) sea
   correcto. En Linux pasa.
+
+---
+
+# AUDIT — Auditoría del área `ci/` y corrección de `R-CI-2`
+
+- **Fecha:** 2026-10-08
+- **Disparador:** auditoría solicitada del área `ci/` (`R-CI-1..6`, `R-EN-1..5`),
+  respetando el resto de reglas (`R-AC-1`, `R-AC-6`, `R-COV-3`).
+- **Base:** `origin/main` (workflows y reglas idénticos al working tree). El árbol de
+  trabajo local estaba sucio (WIP no commitear en `apps/*`, `packages/*`, `engines`
+  y `.nvmrc`), así que la medición se hace contra la base publicada, no contra el WIP.
+- **Comando:** lectura de `docs/rules/ci/`, `grep` de los workflows (`node-version`,
+  `npm ci`, `concurrency`, `paths`, `continue-on-error`, `uses: actions/`), `node -v`,
+  `git show origin/main:package.json`, `docker-compose.yml`, `gh run list`.
+
+## Resultado
+
+`R-CI-1..6` y `R-EN-1..5` → **11/11 ✅** tras corregir una desviación.
+
+### Desviación corregida (`R-CI-2`)
+
+- `e2e.yml` declaraba `concurrency` con **`cancel-in-progress: false`**.
+- `release.yml` **no declaraba `concurrency`** en absoluto → dos ejecuciones podían
+  solaparse publicando imágenes (riesgo para `R-CD-1..4`).
+- `R-CI-2` exige un grupo por ref con `cancel-in-progress: true` en cada workflow, y
+  relajarlo «exige enmienda explícita», que no existía. Fix en el mismo cambio: grupo
+  `release-${{ github.ref }}` en `release.yml` y `cancel-in-progress: true` en
+  `e2e.yml` y `release.yml` (`ci.yml` ya cumplía).
+
+## Otros hallazgos (fuera del área, sin cambio)
+
+- `AGENTS.md` describía «Node 22 (`.nvmrc` + `engines`)» a partir del WIP local; en la
+  base publicada `engines` es `>=20` y `.nvmrc` no existe. Se alinea a «Node ≥20 (CI e
+  imágenes usan 22)», que es cierto en ambos estados.
+- `e2e.yml` fija `TEST_URL` a `negocio360oficial.com` mientras el fichero se llama
+  `e2e-sevasa.test.mjs` y los docs citan sevasa: desalineación de nombre, no de regla
+  (`R-E-11` se cumple: `TEST_URL` sale de variable). Se registra, no se toca.
+
+## Verificación
+
+- `grep -rn "concurrency" .github/workflows/` → los 3 workflows con grupo y
+  `cancel-in-progress: true`.
+- `gh run list --limit 5` → runs `success` (evidencia de `R-CI-6`); el de la rama es
+  requisito de `R-PR-6`.
+- El cambio es de workflows y documentación; no altera `src/` ni tests. La verificación
+  de cierre (`build`/`lint`/`test`) la ejecuta la CI del PR (`R-COV-3`).
