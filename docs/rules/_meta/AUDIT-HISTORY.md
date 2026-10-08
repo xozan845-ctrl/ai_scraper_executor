@@ -1525,3 +1525,28 @@ el stack es local, no de producción (allí el scrape debe llevar `x-api-key`, `
 
 `docker compose config` con defaults → 3000/27017/5432/6379; con overrides →
 3010/37017/55432/36379.
+
+---
+
+# AUDIT — Node fijado a la major 22 (`.nvmrc` + `engines`)
+
+- **Fecha:** 2026-10-08
+- **Disparador:** la suite no era reproducible fuera de Node 22: con Node 24 el umbral
+  de cobertura de funciones (`G-3`) quedaba por debajo de 67 y `npm test` salía en rojo
+  aunque los 153 tests pasaran. El repo declaraba `engines: ">=20"`, CI e imágenes
+  usaban 22 y no había `.nvmrc`.
+
+## Qué cambió
+
+- **`.nvmrc`** nuevo (`22`): fija la major para `nvm`/`fnm`/`asdf`.
+- `package.json` / `package-lock.json`: `engines.node` `>=20` → **`>=22`**.
+- Docs sincronizadas con el pin (R-DO-8): `AGENTS.md`, `README.md`,
+  `rules/ci/02-entorno.md` (verificación de las cuatro referencias a la major) y
+  `rules/test/06-estandares-cobertura.md`.
+- `decisiones.md`: **ADR-27** registra la decisión.
+
+## Estado
+
+- Gates sin cambios (**8 ✅ · 1 N/A · 0 ⏸**). El pin no altera la cobertura en CI
+  (Linux/Node 22 sigue verde); elimina el falso rojo local al alinear el runtime. La
+  variabilidad de cobertura en Windows queda como deuda separada.
