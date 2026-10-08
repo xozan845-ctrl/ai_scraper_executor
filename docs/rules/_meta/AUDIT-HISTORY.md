@@ -1525,3 +1525,29 @@ el stack es local, no de producción (allí el scrape debe llevar `x-api-key`, `
 
 `docker compose config` con defaults → 3000/27017/5432/6379; con overrides →
 3010/37017/55432/36379.
+
+---
+
+# AUDIT — Nueva regla R-DO-8 (sincronización documental)
+
+- **Fecha:** 2026-10-08
+- **Disparador:** la revisión de consistencia documental destapó deriva entre READMEs
+  y código (recuentos de tests, `release.yml` negado en el guion, checks de `R-PR-6`
+  que ya existían). El área `documentation/` cubría casos concretos pero ninguna regla
+  obligaba a sincronizar el README de un módulo al cambiar su lógica.
+
+## Qué cambió
+
+- `documentation/01-reglas-documentacion.md`: nueva regla **`R-DO-8`** — todo cambio de
+  lógica en `apps/*`/`packages/*` viene con el README de su módulo actualizado en el
+  mismo PR; si no altera nada documentado, el PR lo declara en el `CHECKLIST`. Se añade
+  el comando de verificación.
+- `documentation/README.md`: mapa de IDs `R-DO` a **1–8** y cross-ref al `CHECKLIST`.
+- `_meta/CHECKLIST.md`: ítem `R-DO-8` en la sección 13 (documentación).
+- `decisiones.md`: **ADR-26** registra la decisión.
+
+## Estado
+
+- Gates sin cambios (**8 ✅ · 1 N/A · 0 ⏸**). Es una regla de proceso: su evidencia es
+  el `CHECKLIST` marcado del PR (sin gate mecánico posible); `G-8` (OpenAPI) y `G-9`
+  (migraciones) siguen cubriendo lo automatizable.
