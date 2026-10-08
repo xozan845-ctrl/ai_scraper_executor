@@ -133,6 +133,7 @@ Marcar las capas ✅ que apliquen y **justificar las que no**.
 ## 13. Documentación y contribución de IA ([`documentation/`](../documentation/README.md), [`ai-contributions/`](../ai-contributions/README.md))
 
 - [ ] **R-DO-1** — Si el PR añade un paquete/app, trae su `README.md` (responsabilidad, dependencias, superficie, comandos).
+- [ ] **R-DO-8** — Si el PR toca la lógica de un `apps/*` o `packages/*`, el `README.md` de ese módulo está actualizado en el mismo PR, o el PR declara que el cambio no altera nada documentado.
 - [ ] **R-DO-3** — Si añade/quita variables de entorno, actualiza `.env.example` **y** `.env.production.example`; nunca un secreto real versionado.
 - [ ] **R-DO-5** — Si es una decisión estructural (herramienta, esquema, orden de build), hay un ADR en `docs/decisiones.md`.
 - [ ] **R-DO-6** — Si cambia un DTO/ruta, `docs/openapi.json` re-exportado (`npm run openapi:export`).
