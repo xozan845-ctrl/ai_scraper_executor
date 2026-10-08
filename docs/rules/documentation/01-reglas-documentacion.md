@@ -15,6 +15,7 @@ con la implementación real.
 | R-DO-5 | **Toda decisión estructural es un ADR**: añadir una herramienta (`fast-check`, Playwright), cambiar el esquema de datos, el orden de build o apartarse de un patrón se registra como **ADR** en [`../../decisiones.md`](../../decisiones.md), con contexto, opciones y decisión. Una decisión sin ADR es una decisión que se pierde (→ `R-AR-9`). |
 | R-DO-6 | **La spec OpenAPI es el contrato y está versionada**: todo cambio en request/response DTOs va con sus decoradores (`@ApiProperty`) **y** con `docs/openapi.json` re-exportado en el mismo cambio; `npm run openapi:check` (paso `OpenAPI spec in sync`, `G-8`) falla si la spec diverge de la API (`R-C-2`, `R-C-12`). |
 | R-DO-7 | **Lo derivado vive en `_meta/`**: los hallazgos de auditoría, los checklists y los snapshots de estado van en [`../_meta/`](../_meta/README.md); prohibido incrustar snapshots transitorios o resultados de CI en los READMEs estructurales o en un área de reglas. |
+| R-DO-8 | **Todo cambio de lógica sincroniza el README de su módulo en el mismo PR**: una implementación o modificación de comportamiento en `packages/*` o `apps/*` se entrega con el `README.md` del módulo tocado actualizado si cambia algo que éste documenta (responsabilidad, superficie pública, comandos, dependencias, recuento de tests); si el cambio **no** altera nada documentado, el PR lo declara explícitamente en el [`CHECKLIST`](../_meta/CHECKLIST.md). Lo que el README dice y lo que el código hace no pueden divergir: la documentación desfasada es un defecto del cambio, no deuda aceptable. Generaliza las obligaciones específicas de `R-DO-1` (crear el README), `R-DO-2` (topología), `R-DO-3` (entorno) y `R-DO-6` (contrato), que siguen vigentes con su alcance. |
 
 ## Verificación
 
@@ -35,4 +36,8 @@ npm run openapi:check
 
 # Nada derivado fuera de _meta (R-DO-7): debe imprimir vacío
 git ls-files 'docs/rules/*/AUDIT*' 'docs/rules/*/CHECKLIST*'
+
+# Módulos tocados en el PR (R-DO-8): cada uno debe traer su README en el diff del
+# PR o la excepción declarada en el CHECKLIST del PR
+git diff --name-only origin/main...HEAD | grep -E '^(apps|packages)/' | cut -d/ -f1-2 | sort -u
 ```
