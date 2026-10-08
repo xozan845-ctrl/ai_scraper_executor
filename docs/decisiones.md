@@ -555,6 +555,35 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
 
 ---
 
+## ADR-26: Sincronización obligatoria entre documentación y código (R-DO-8)
+
+- **Fecha**: 2026-10-08
+- **Estado**: Aceptado
+- **Contexto**: la documentación ya se trataba como código (área `documentation/`),
+  pero las obligaciones eran **granulares**: `R-DO-1` solo cubría paquetes/apps
+  nuevos, `R-DO-2` la topología, `R-DO-3` el entorno y `R-DO-6` el contrato. Ninguna
+  regla obligaba a actualizar el README de un módulo cuando cambiaba su lógica. La
+  prueba es el propio árbol: al revisarlo aparecieron documentos desfasados — el root
+  `README.md` decía 143 tests y `AGENTS.md` 149 cuando la suite tenía 153;
+  `dockploy-setup.md` afirmaba que no existía `release.yml`; `R-PR-6` describía como
+  inexistentes checks que ya corrían en `ci.yml`. Corregir el síntoma (un PR de
+  consistencia) no impide que la deriva vuelva a ocurrir.
+- **Decisión**: añadir **`R-DO-8`** — todo cambio de lógica en `apps/*` o `packages/*`
+  se entrega con el `README.md` del módulo actualizado en el mismo PR si altera algo
+  que éste documenta (responsabilidad, superficie pública, comandos, dependencias,
+  recuento de tests); si el cambio **no** altera nada documentado, el PR lo **declara**
+  en el `CHECKLIST`. La regla generaliza las específicas sin sustituirlas.
+- **Consecuencias**: (a) la sincronización deja de depender de la memoria del autor: es
+  un ítem de revisión de PR, no una recomendación; (b) **no** se puede gatear
+  mecánicamente en CI —qué documenta un README no es computable de forma general—, así
+  que su evidencia es el `CHECKLIST` marcado, igual que el resto de `R-DO`; lo
+  automatizable sigue cubierto por `G-8` (OpenAPI) y `G-9` (migraciones); (c) un
+  refactor sin cambio documentable no fuerza un update vacío: el autor **declara** la
+  ausencia de cambio, que es información útil para el revisor; (d) las reglas
+  específicas `R-DO-1`/`R-DO-2`/`R-DO-3`/`R-DO-6` conservan su alcance.
+
+---
+
 ## Deudas que estos ADR dejan abiertas
 
 | Deuda | ADR relacionado | Dónde está registrada |
