@@ -77,6 +77,30 @@ Controles que **no** llevan ID `G-*`: la puerta de seguridad (`R-QA-6`/`R-SE-16`
 del job), el cliente real de la API (`npm run test:api`) y el smoke de Prisma que se
 autoexcluye en `npm test` si `DATABASE_URL` no responde.
 
+## Auditoría del área `ci/` (2026-10-08)
+
+Revisión de las 11 reglas del área (`R-CI-1..6`, `R-EN-1..5`) contra `.github/workflows/`
+y ejecución de sus comandos de verificación. Resultado: **11/11 ✅**.
+
+| Regla | Estado | Evidencia |
+|---|---|---|
+| `R-CI-1` gatillos | ✅ | `ci.yml`: `push[branches:main]` + `pull_request` (sin filtro) + `workflow_dispatch` |
+| `R-CI-2` concurrencia | ✅ | `ci.yml`, `e2e.yml` y `release.yml` con grupo por ref y `cancel-in-progress: true` |
+| `R-CI-3` sin `paths` | ✅ | `grep paths .github/workflows` → 0 coincidencias |
+| `R-CI-4` pipeline único + workflows aparte | ✅ | `ci.yml` (push/PR), `e2e.yml` (release), `release.yml` (tag) |
+| `R-CI-5` `.github/` revisado como código | ✅ | todos los pasos son scripts de `package.json`, reproducibles en local |
+| `R-CI-6` verificación con `gh` | ✅ | `gh run list` con runs `success` (p. ej. `main` `37504812694`) |
+| `R-EN-1` entorno reproducible | ✅ | `node-version: 22`, `cache: npm`, `npm ci --ignore-scripts`, actions `v7` |
+| `R-EN-2` servicios efímeros por job | ✅ | `postgres:16-alpine` en `build-test-lint`; `postgres`+`mongo:7-jammy`+`redis:7-alpine` en `integration` |
+| `R-EN-3` evidencia en todos los runs | ✅ | `test-results.xml` con `if: always()` |
+| `R-EN-4` secretos solo en GitHub Secrets | ✅ | `build-test-lint`/`integration` sin secretos; solo `e2e.yml` usa `OPENROUTER_API_KEY` |
+| `R-EN-5` navegadores fuera del job unitario | ✅ | Chromium solo en `e2e.yml` |
+
+Desviación encontrada y corregida en esta auditoría: `e2e.yml` declaraba
+`cancel-in-progress: false` y `release.yml` **no** declaraba `concurrency`; ambos
+incumplían `R-CI-2`. Se añade el grupo por ref a `release.yml` y se unifica
+`cancel-in-progress: true` en los tres workflows. Detalle en `AUDIT-HISTORY.md`.
+
 ## Deudas abiertas (orden de ataque)
 
 1. **Sin protección de rama en el remoto (bloqueada por el plan)**: `gh api` devuelve
