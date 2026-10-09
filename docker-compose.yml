@@ -61,7 +61,7 @@ services:
       dockerfile: apps/api/Dockerfile
     env_file: .env
     environment:
-      DATABASE_URL: postgresql://scraper:scraper@postgres:5432/scraper?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER:-scraper}:${POSTGRES_PASSWORD:-scraper}@postgres:5432/${POSTGRES_DB:-scraper}?schema=public
       MONGODB_URI: mongodb://mongodb:27017/${MONGODB_DB:-scraper}
     depends_on:
       postgres:
@@ -76,7 +76,7 @@ services:
       dockerfile: apps/api/Dockerfile
     env_file: .env
     environment:
-      DATABASE_URL: postgresql://scraper:scraper@postgres:5432/scraper?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER:-scraper}:${POSTGRES_PASSWORD:-scraper}@postgres:5432/${POSTGRES_DB:-scraper}?schema=public
       MONGODB_URI: mongodb://mongodb:27017/${MONGODB_DB:-scraper}
       REDIS_URL: redis://redis:6379
       QUEUE_REDIS_URL: ${QUEUE_REDIS_URL:-redis://redis:6379}
@@ -101,7 +101,7 @@ services:
       dockerfile: apps/worker/Dockerfile
     env_file: .env
     environment:
-      DATABASE_URL: postgresql://scraper:scraper@postgres:5432/scraper?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER:-scraper}:${POSTGRES_PASSWORD:-scraper}@postgres:5432/${POSTGRES_DB:-scraper}?schema=public
       MONGODB_URI: mongodb://mongodb:27017/${MONGODB_DB:-scraper}
       REDIS_URL: redis://redis:6379
       QUEUE_REDIS_URL: ${QUEUE_REDIS_URL:-redis://redis:6379}
