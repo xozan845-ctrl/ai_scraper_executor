@@ -13,8 +13,9 @@ root) sobre `libs/{domain,application,infrastructure,shared}`. El plan, el mapeo
 [`docs/migracion-arquitectura.md`](docs/migracion-arquitectura.md); las reglas
 canónicas en [`docs/rules/architecture/03-arquitectura-hexagonal.md`](docs/rules/architecture/03-arquitectura-hexagonal.md).
 
-**Estado actual (vista de runtime de las 5 capas):** la migración **aún no se ha
-ejecutado**; el código sigue en `packages/`.
+**Estado actual:** la migración estructural a `libs/` está **completada** (`packages/`
+retirado); el runtime sigue describiéndose con la vista de 5 capas. Queda **F5**:
+adoptar Vitest como runner (ADR-29).
 
 ```
 INTERFACE (API NestJS) -> ORCHESTRATION (Jobs/Redis/BullMQ) -> INTELLIGENCE (AI Planner/OpenRouter|Custom|Ollama)
@@ -121,8 +122,6 @@ npm run test:api:fast       # solo los rápidos (sin radiografía/job/chat real)
 apps/
   api/           # NestJS API REST (POST/GET /jobs, /radiography, /metrics, /dashboard)
   worker/        # Procesador de jobs (AgentRunner + browser-engine + planner)
-packages/
-  ai/            # AIOrchestrator + prompts + context-builder
 libs/
   shared/core/           # Utilidades puras (hashHtml)
   shared/security/       # SSRF centralizado (assertPublicUrl, isBlockedHost, createAllowlist)
@@ -130,6 +129,7 @@ libs/
   domain/execution/      # JobStatus/JobLimits/DEFAULT_LIMITS/normalizeJobLimits
   domain/scraper/        # TracedValue/StructuredItem (trazabilidad)
   domain/ai/             # DSL Zod (15 comandos) + CommandValidator + normalize
+  application/ai/        # AIOrchestrator + prompts + context-builder
   infrastructure/crawler/       # CrawlerService (CheerioCrawler + PlaywrightCrawler, hybrid, SessionPool)
   infrastructure/execution/     # ExecutionEngine (HTTP/Cheerio + browserInteract) + PageCache
   infrastructure/ai-providers/  # OpenRouterProvider (fallback modelos), CustomEndpointProvider, FallbackAIProvider

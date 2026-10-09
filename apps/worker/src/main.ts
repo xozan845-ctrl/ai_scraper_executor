@@ -3,7 +3,7 @@ import { AgentRunner } from './agent-runner';
 import { processJob } from './job-processor';
 import { incMetric } from './metrics-bridge';
 import { createProductionEngine, closeProductionBrowser } from './browser-engine';
-import { AIOrchestrator } from '@ai-scraper/ai';
+import { AIOrchestrator } from '@ai-scraper/application-ai';
 import { createFallbackProvider, withCircuitBreaker } from '@ai-scraper/infrastructure-ai-providers';
 import { createJobStore, closeJobStore, createSessionStore } from '@ai-scraper/infrastructure-storage';
 import { createJobQueue, createScrapingWorker, createRedisConnection, closeJobQueue, createDeadLetterQueue, queueRedisUrl } from '@ai-scraper/infrastructure-queue';

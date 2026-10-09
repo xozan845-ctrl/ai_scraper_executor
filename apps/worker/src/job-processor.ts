@@ -4,7 +4,7 @@
  * estados, plan, comandos/pasos, páginas visitadas, resultados con
  * trazabilidad, errores e interacciones IA (stats para §56).
  */
-import { AIOrchestrator } from '@ai-scraper/ai';
+import { AIOrchestrator } from '@ai-scraper/application-ai';
 import { createAIProviderForJob, withCircuitBreaker } from '@ai-scraper/infrastructure-ai-providers';
 import { ExecutionEngine } from '@ai-scraper/infrastructure-execution';
 import { incMetric } from './metrics-bridge';

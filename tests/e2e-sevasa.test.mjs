@@ -76,7 +76,7 @@ describe('E2E Real — SevasaOnline (memoria + scraping real)', async () => {
     const { ExecutionEngine } = await import('../libs/infrastructure/execution/dist/execution-engine.js');
     const { getLearnedProfile } = await import('../libs/infrastructure/mongodb/dist/index.js');
     const { mongoRepo } = await import('../libs/infrastructure/mongodb/dist/index.js');
-    const { AIOrchestrator } = await import('../packages/ai/dist/orchestrator/ai-orchestrator.js');
+    const { AIOrchestrator } = await import('../libs/application/ai/dist/orchestrator/ai-orchestrator.js');
     const { createFallbackProvider } = await import('../libs/infrastructure/ai-providers/dist/index.js');
     const { AgentRunner } = await import('../apps/worker/dist/agent-runner.js');
 

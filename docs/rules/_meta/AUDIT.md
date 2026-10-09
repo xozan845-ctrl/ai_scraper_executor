@@ -28,7 +28,7 @@
 | Puertas de seguridad | **`npm audit` → exit 0** (high y moderate): **0 vulnerabilidades** | `npm audit` |
 | Cobertura | baseline **71.59 / 73.69 / 68.90**; umbral **70 / 72 / 67**; medido en CI (Linux) ~73.2/74.8/68.9 | `npm test` (nativo de Node) |
 | OpenAPI | **`docs/openapi.json` versionada y verificada** en CI | `G-8` |
-| Paquetes | **12** en `packages/` + 2 apps | `ls packages` |
+| Libs | **14** en `libs/*/*` + 2 apps | `ls -d libs/*/*` |
 | Modelos Prisma | **10**; migraciones **3** (`0_init`, `sessions`, `add_composite_indexes`) | `prisma/schema.prisma`, `ls prisma/migrations` |
 | Comandos del DSL | **15** literales Zod | `libs/domain/ai/src/schemas.ts` |
 | Git | **1 rama** (`main`), **88 commits, 0 merge commits**; PR #1 fusionado por `--rebase` | `git branch -a`, `git rev-list` |
@@ -52,7 +52,7 @@
 | Artifacts (`R-EN-3`) | 🟢 | `test-results.xml` (JUnit) subido en todos los runs |
 | Documentación (`R-DO`) | 🟢 | área al día; **14/14** `README.md` de paquete/app creados; `.env.production.example` versionada |
 | Contribución de IA (`R-AC`) | 🟢 | área creada y adaptada; se cumple por disciplina (PR #1) |
-| Arquitectura hexagonal (`R-HX`) | 🟡 **en migración** | Verificador de fronteras activo en `npm run lint` (`R-HX-4`; **1 excepción legacy** `ai→redis`). Migrados a `libs/`: **shared** (`core`, `security`, `observability`), **domain** (`execution`, `scraper`, `ai`) e **infrastructure** (`crawler`, `execution`, `ai-providers`, `queue`, `redis`, `mongodb`, `storage`). Solo queda `packages/ai` → `libs/application/ai` (F4) |
+| Arquitectura hexagonal (`R-HX`) | 🟢 **estructura migrada** | Verificador de fronteras activo en `npm run lint` (`R-HX-4`, **sin excepciones**). **`packages/` retirado**: 14 libs en `libs/` (shared/domain/application/infrastructure) + 2 apps. Queda **F5**: runner **Vitest** (ADR-29) y cierre de auditoría |
 
 ## Gates
 
@@ -104,13 +104,11 @@ incumplían `R-CI-2`. Se añade el grupo por ref a `release.yml` y se unifica
 
 ## Deudas abiertas (orden de ataque)
 
-0. **Migración a arquitectura hexagonal en curso** (ADR-27/ADR-30, `R-HX-9`): verificador
-   `scripts/check-boundaries.mjs` activo en `npm run lint` (`R-HX-4`) con **1 excepción
-   legacy** (`ai→redis`) que debe llegar a 0 al migrar `packages/ai`. Migrados a `libs/`:
-   **shared** (`core`, `security`, `observability`), **domain** (`execution`, `scraper`,
-   `ai`) e **infrastructure** (`crawler`, `execution`, `ai-providers`, `queue`, `redis`,
-   `mongodb`, `storage`). Solo queda `packages/ai` → `libs/application/ai` (F4) y el
-   cierre F5; el runner sigue siendo `node --test` (ADR-29 pendiente de migrar).
+0. **Migración estructural hexagonal: completada** (ADR-27/ADR-30, `R-HX-9`): `packages/`
+   retirado; 14 libs en `libs/` (shared/domain/application/infrastructure) y verificador
+   `scripts/check-boundaries.mjs` en `npm run lint` (`R-HX-4`, sin excepciones). Queda
+   **F5**: adoptar **Vitest** (ADR-29) y cerrar el snapshot. El runner sigue siendo
+   `node --test`.
 1. **Sin protección de rama en el remoto (bloqueada por el plan)**: `gh api` devuelve
    `403 Upgrade to GitHub Pro or make this repository public` — es un límite del plan
    en repos privados, no deuda del repo. `R-GE-4` se cumple por disciplina (rama + PR).
@@ -209,7 +207,7 @@ MONGODB_URI='mongodb://localhost:27017/scraper' REDIS_URL='redis://localhost:637
   npm run test:integration
 
 # Documentación (R-DO): READMEs que faltan y plantillas de entorno
-for d in apps/* packages/* libs/*/*; do [ -f "$d/README.md" ] || echo "falta $d/README.md"; done
+for d in apps/* libs/*/*; do [ -f "$d/README.md" ] || echo "falta $d/README.md"; done
 ls .env.example .env.production.example
 grep -c "^## ADR-" docs/decisiones.md
 

@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join, relative, sep } from 'node:path';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const SCOPE = ['apps', 'packages', 'libs'];
+const SCOPE = ['apps', 'libs'];
 const LAYERS = ['domain', 'application', 'infrastructure', 'shared'];
 const SOURCE_EXT = '.ts';
 
@@ -17,19 +17,8 @@ const ALLOWED = {
   app: ['app', 'infrastructure', 'application', 'domain', 'shared'],
 };
 
-// Clasificación de los paquetes vigentes (migración strangler, R-HX-9). Al mover un
-// paquete a libs/<capa>/<contexto> su capa pasa a deducirse del nombre de paquete.
-const PACKAGE_LAYERS = {
-  ai: 'application',
-};
-
-// Aristas legacy toleradas mientras convivan packages/ y libs/ (ADR-30). Se declaran
-// por ruta del paquete origen: al migrar, la clave deja de coincidir y la excepción
-// desaparece sola. Deben quedar a 0 al cerrar F5.
-const LEGACY_EXCEPTIONS = {
-  'packages/ai': new Set(['@ai-scraper/infrastructure-redis']),
-};
-
+// La capa de una lib se deduce de su ruta `libs/<capa>/<contexto>`; la de un paquete
+// importado, del prefijo de su nombre `@ai-scraper/<capa>-<contexto>` (R-HX-6).
 function layerFromDir(relPath) {
   const parts = relPath.split(sep);
   if (parts[0] === 'apps') return { layer: 'app', pkgDir: parts.slice(0, 2).join('/') };
@@ -37,16 +26,11 @@ function layerFromDir(relPath) {
     const layer = parts[1];
     return { layer: LAYERS.includes(layer) ? layer : 'unknown', pkgDir: parts.slice(0, 3).join('/') };
   }
-  if (parts[0] === 'packages') {
-    return { layer: PACKAGE_LAYERS[parts[1]] ?? 'unknown', pkgDir: parts.slice(0, 2).join('/') };
-  }
   return { layer: 'unknown', pkgDir: '' };
 }
 
 function layerFromSpecifier(specifier) {
-  const name = specifier.replace('@ai-scraper/', '');
-  if (PACKAGE_LAYERS[name]) return PACKAGE_LAYERS[name];
-  const [maybeLayer] = name.split('-');
+  const [maybeLayer] = specifier.replace('@ai-scraper/', '').split('-');
   return LAYERS.includes(maybeLayer) ? maybeLayer : 'unknown';
 }
 
@@ -79,21 +63,18 @@ for (const scope of SCOPE) {
     const lines = readFileSync(file, 'utf8').split('\n');
     lines.forEach((line, i) => {
       for (const match of line.matchAll(IMPORT_RE)) {
-        const specifier = `@ai-scraper/${match[1]}`;
         if (sourcePkg === match[1]) continue; // auto-import
         checked += 1;
-        const toLayer = layerFromSpecifier(specifier);
+        const toLayer = layerFromSpecifier(`@ai-scraper/${match[1]}`);
         const allowed = ALLOWED[fromLayer] ?? [];
         if (allowed.includes(toLayer)) continue;
-        if (LEGACY_EXCEPTIONS[pkgDir]?.has(specifier)) continue;
-        violations.push({ file: relFile, line: i + 1, from: fromLayer, to: toLayer, specifier, pkgDir });
+        violations.push({ file: relFile, line: i + 1, from: fromLayer, to: toLayer, specifier: `@ai-scraper/${match[1]}` });
       }
     });
   }
 }
 
-const legacy = Object.entries(LEGACY_EXCEPTIONS).flatMap(([from, set]) => [...set].map((to) => `${from} → ${to}`));
-console.log(`[boundaries] ${checked} imports entre paquetes verificados; ${legacy.length} excepción(es) legacy toleradas.`);
+console.log(`[boundaries] ${checked} imports entre capas verificados (R-HX-2).`);
 
 if (violations.length > 0) {
   console.error(`[boundaries] ${violations.length} violación(es) de R-HX-2:`);

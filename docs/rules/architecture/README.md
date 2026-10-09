@@ -50,7 +50,7 @@ correspondencia con las capas hexagonales:
 ```
 INTERFACE   apps/api      NestJS REST /api/v1            → composition root (apps/)
 ORCHESTRATION libs/infrastructure/queue + storage   BullMQ + JobStore → infrastructure/
-INTELLIGENCE packages/ai + ai-providers  plan y decisiones → application/ + infrastructure/
+INTELLIGENCE libs/application/ai + ai-providers  plan y decisiones → application/ + infrastructure/
 EXECUTION   libs/domain/ai + execution-engine + crawler → domain/ (DSL) + infrastructure/
 DATA        libs/infrastructure/mongodb + redis + storage   Postgres · MongoDB · Redis → infrastructure/
 ```
@@ -75,13 +75,12 @@ Una capa solo depende de las que están **debajo**; un lib nunca importa de `app
 
 - **Fronteras (`R-HX-4`)**: activas vía
   [`scripts/check-boundaries.mjs`](../../../scripts/check-boundaries.mjs) dentro de
-  `npm run lint`; queda **1 excepción legacy** (`ai→redis`) que
-  se cierran al migrar esos paquetes (ADR-30). Se descartó `eslint-plugin-boundaries`
+  `npm run lint`; **sin excepciones legacy**. Se descartó `eslint-plugin-boundaries`
   por vulnerabilidades `high`/`critical` (ADR-28, revisión 2026-10-09).
-- **Migración a `libs/` (`R-HX-9`, R-AR-2 histórico)**: declarada pero no ejecutada.
-  El mapeo y las fases están en
+- **Migración a `libs/` (`R-HX-9`)**: **completada** — `packages/` retirado; shared,
+  domain, application e infrastructure viven en `libs/`. Mapeo y fases en
   [`../../migracion-arquitectura.md`](../../migracion-arquitectura.md) (ADR-27, ADR-30).
-- **Runner Vitest (ADR-29)**: decidido, pendiente de migrar; el área
+- **Runner Vitest (ADR-29)**: decidido, pendiente de migrar (F5); el área
   [`../test/`](../test/README.md) sigue describiendo `node --test`, que es la realidad
   vigente.
 - La puerta de seguridad (`npm audit`) ya es un paso de CI y reporta **0

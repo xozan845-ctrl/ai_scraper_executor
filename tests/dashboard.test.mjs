@@ -143,7 +143,7 @@ describe('Rate-limit §36 aceptado por Crawlee + métricas del worker', async ()
     const { __resetMetrics, metrics } = await import('../libs/shared/observability/dist/index.js');
     __resetMetrics();
     const { processJob } = await import('../apps/worker/dist/job-processor.js');
-    const { AIOrchestrator } = await import('../packages/ai/dist/orchestrator/ai-orchestrator.js');
+    const { AIOrchestrator } = await import('../libs/application/ai/dist/orchestrator/ai-orchestrator.js');
     const { ExecutionEngine } = await import('../libs/infrastructure/execution/dist/execution-engine.js');
     const { InMemoryJobStore } = await import('../libs/infrastructure/storage/dist/memory-store.js');
     const fake = {

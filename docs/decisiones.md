@@ -593,7 +593,7 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
 - **Contexto**: el modelo vigente de «5 capas» (`R-AR-2`) es una **vista de runtime**
   (interface→orquestación→inteligencia→ejecución→datos) útil para explicar el flujo de
   un job, pero **no** impone una dirección de dependencia verificable: nada impide que
-  `packages/ai` importe Prisma o que un adaptador se mezcle con la lógica de negocio. El
+  `libs/application/ai` importe Prisma o que un adaptador se mezcle con la lógica de negocio. El
   dominio (DSL, límites, máquina de estados, reglas de scraping) no puede probarse sin
   infraestructura y cambiar un proveedor de LLM o de persistencia obliga a tocar código
   de negocio. Con el producto creciendo, se necesita una separación explícita entre

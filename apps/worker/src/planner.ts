@@ -8,12 +8,12 @@
  * - Selección de modelo por job §18: input.ai.model → opts/context → proveedor.
  * - FASE 12: inyecta perfil aprendido (selectores, paginación, needsBrowser) al contexto de la IA.
  */
-import { AIOrchestrator } from '@ai-scraper/ai';
+import { AIOrchestrator } from '@ai-scraper/application-ai';
 import { CommandValidator, normalizeRawPlan, clampCommandLimits } from '@ai-scraper/domain-ai';
 import { normalizeJobLimits, type JobLimits } from '@ai-scraper/domain-execution';
 import { createAIProviderForJob } from '@ai-scraper/infrastructure-ai-providers';
 import { getLearnedProfile } from '@ai-scraper/infrastructure-mongodb';
-import type { AIProviderCallOpts, PlanningContext } from '@ai-scraper/ai';
+import type { AIProviderCallOpts, PlanningContext } from '@ai-scraper/application-ai';
 
 const DEBUG = process.env.DEBUG === '1' || process.env.LOG_LEVEL === 'debug';
 

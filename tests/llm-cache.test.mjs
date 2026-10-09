@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 describe('AIOrchestrator caché de respuestas (Etapa 1)', async () => {
-  const { AIOrchestrator } = await import('../packages/ai/dist/orchestrator/ai-orchestrator.js');
+  const { AIOrchestrator } = await import('../libs/application/ai/dist/orchestrator/ai-orchestrator.js');
   const { MemoryJsonCache } = await import('../libs/infrastructure/redis/dist/kv.js');
 
   function fakeProvider() {
