@@ -88,7 +88,7 @@ apps/worker     AgentRunner (planner + loop Observe→Think→Act + recovery), b
 libs/shared/core          utilidades puras (hashHtml)
 libs/domain/execution     JobStatus/JobLimits/DEFAULT_LIMITS/normalizeJobLimits (fuente única)
 libs/domain/scraper       TracedValue/StructuredItem (trazabilidad)
-packages/commands         DSL Zod (schemas.ts) + CommandValidator (validator.ts) + normalize.ts
+libs/domain/ai            DSL Zod (schemas.ts) + CommandValidator (validator.ts) + normalize.ts
 packages/crawler          CrawlerService (CheerioCrawler/PlaywrightCrawler hybrid, interact())
 packages/execution-engine ExecutionEngine (HTTP/Cheerio + browserInteract), PageCache
 packages/ai               AIOrchestrator, prompts, context-builder
@@ -109,7 +109,7 @@ libs/shared/observability logger JSON + MetricsCollector (Prometheus)  # migrado
    con `rootDir: src` y `outDir: dist`. Los tests cargan `dist/`, así que edita TS y **rebuild** antes de testear.
 2. **Seguridad**: toda validación de URL pasa por `@ai-scraper/security` (`assertPublicUrl`). La IA nunca
    ejecuta código arbitrario. SSRF/allowlist en `CommandValidator`. No duplicar lógica SSRF.
-3. **DSL**: los 15 comandos están en `packages/commands/src/schemas.ts` (Zod). La IA solo emite estos.
+3. **DSL**: los 15 comandos están en `libs/domain/ai/src/schemas.ts` (Zod). La IA solo emite estos.
    Los modelos débiles se corrigen en `normalize.ts` ANTES de validar; la validación sigue estricta.
 4. **Trazabilidad §33**: cada item extraído lleva `_source { url, selector, scrapedAt }`.
 5. **Fallbacks**: Mongo/Redis/Prisma tienen fallback en memoria avisado por log. Nunca fallar en silencio.

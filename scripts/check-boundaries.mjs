@@ -20,9 +20,8 @@ const ALLOWED = {
 // Clasificación de los paquetes vigentes (migración strangler, R-HX-9). Al mover un
 // paquete a libs/<capa>/<contexto> su capa pasa a deducirse del nombre de paquete.
 const PACKAGE_LAYERS = {
-  commands: 'domain',
   ai: 'application',
-  security: 'infrastructure',
+  security: 'shared',
   crawler: 'infrastructure',
   'execution-engine': 'infrastructure',
   'ai-providers': 'infrastructure',
@@ -37,7 +36,6 @@ const PACKAGE_LAYERS = {
 // desaparece sola. Deben quedar a 0 al cerrar F5.
 const LEGACY_EXCEPTIONS = {
   'packages/ai': new Set(['@ai-scraper/redis']),
-  'packages/commands': new Set(['@ai-scraper/security']),
 };
 
 function layerFromDir(relPath) {

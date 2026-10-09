@@ -10,7 +10,7 @@ import fc from 'fast-check';
  */
 
 const core = await import('../libs/domain/execution/dist/index.js');
-const { normalizeRawCommand, normalizeRawPlan } = await import('../packages/commands/dist/index.js');
+const { normalizeRawCommand, normalizeRawPlan } = await import('../libs/domain/ai/dist/index.js');
 const { normalizeDomain, isAllowedHost } = await import('../packages/security/dist/index.js');
 
 const KEYS = Object.keys(core.DEFAULT_LIMITS);

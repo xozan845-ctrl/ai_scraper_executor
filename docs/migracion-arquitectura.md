@@ -28,8 +28,8 @@ dependencia y las aristas prohibidas son `R-HX-2`; la verificación por lint es 
 | Hoy (`packages/`) | Destino | Capa | Notas |
 |---|---|---|---|
 | `core` | `libs/domain/execution` + `libs/domain/scraper` + `libs/shared/core` | dominio + shared | ✅ **migrado**: `JobStatus`/`JobLimits`/límites → `@ai-scraper/domain-execution`; `TracedValue` → `@ai-scraper/domain-scraper`; `hashHtml` → `@ai-scraper/shared-core` |
-| `commands` | `libs/domain/ai` | dominio | DSL Zod, normalizador y `CommandValidator`; el host/SSRF se resuelve por un **puerto** implementado en `infrastructure/security` |
-| `security` | `libs/infrastructure/security` | infraestructura | Sin dependencias externas; candidata a `shared/security` si el dominio la usa de forma pura (revisar en su PR) |
+| `commands` | `libs/domain/ai` | dominio | ✅ **migrado** (paquete `@ai-scraper/domain-ai`): DSL Zod, normalizador y `CommandValidator`; valida URLs con `@ai-scraper/security` (shared kernel) |
+| `security` | `libs/shared/security` | shared | **Shared kernel** (cero dependencias, lo usan todas las capas, incluido el dominio) → reclasificado de infraestructura a `shared` (evidencia: `domain/ai` lo usa de forma pura); `safeFetchText` (I/O) y `crypto` conviven aquí |
 | `observability` | `libs/shared/observability` | shared | ✅ **migrado** (paquete `@ai-scraper/shared-observability`); Logger + métricas, transversal pura |
 | `crawler` | `libs/infrastructure/crawler` | infraestructura | Cheerio/Playwright; implementa el puerto de navegación |
 | `execution-engine` | `libs/infrastructure/execution` | infraestructura | Implementa el puerto `IExecutionEngine` del dominio `scraper` |
@@ -52,10 +52,10 @@ permanece verde en todo momento (`R-HX-9`). Orden por dependencia (de hojas a ra
 
 | Fase | Alcance | Salida |
 |---|---|---|
-| **F0 — Andamiaje** ✅ | Verificador de fronteras sin dependencias (`scripts/check-boundaries.mjs`, integrado en `npm run lint`); crear `libs/` con README raíz. Sin mover código | `R-HX-4` **activo** (con 2 excepciones legacy); `libs/` existe |
+| **F0 — Andamiaje** ✅ | Verificador de fronteras sin dependencias (`scripts/check-boundaries.mjs`, integrado en `npm run lint`); crear `libs/` con README raíz. Sin mover código | `R-HX-4` **activo**; `libs/` existe |
 | **F1 — `shared/`** | `observability` → `libs/shared/observability` ✅; `core` se reparte en F2 (no se crea `shared/core` vacío) | `shared` sin dependencias de otras capas |
-| **F2 — `domain/`** | `core` repartido a `domain/execution` + `domain/scraper` + `shared/core` ✅; `commands` → `domain/ai` (pendiente); declarar puertos que hoy están implícitos | Dominio testeable **sin infra** |
-| **F3 — `infrastructure/`** | `security`, `crawler`, `execution-engine`, `ai-providers`, `queue`, `redis`, `mongodb`, `storage` | Adaptadores implementan los puertos de F2 |
+| **F2 — `domain/`** | `core` repartido a `domain/execution` + `domain/scraper` + `shared/core` ✅; `commands` → `domain/ai` ✅ | Dominio testeable **sin infra** |
+| **F3 — infra + `shared/security`** | `crawler`, `execution-engine`, `ai-providers`, `queue`, `redis`, `mongodb`, `storage` (infraestructura) y `security` → `libs/shared/security` | Adaptadores implementan los puertos de F2 |
 | **F4 — `application/`** | `ai` → `application/{ai,scraper,execution}` (casos de uso) | Lógica de orquestación fuera de infraestructura |
 | **F5 — Cierre** | `apps/*` como composition root puro; retirar `packages/` de `workspaces`/`tsconfig`/lint; migrar el runner a **Vitest** (ADR-29) | `packages/` desaparece; fronteras `R-HX` cerradas |
 
@@ -68,7 +68,7 @@ permanece verde en todo momento (`R-HX-9`). Orden por dependencia (de hojas a ra
 3. **Sin big-bang** (`R-HX-9`): los paquetes no migrados conservan ruta, nombre e imports.
 4. **Boundaries primero** (F0 ✅): `R-HX-4` está activo desde F0 (script sin
    dependencias en `npm run lint`), para que cada movimiento nazca conforme a `R-HX-2`.
-   Las 2 excepciones legacy deben llegar a 0 en F5.
+   Las excepciones legacy deben llegar a 0 en F5 (hoy queda 1: `ai→redis`).
 5. **Documentación viaja**: README del módulo (`R-DO-1`, `R-DO-8`) y las referencias de
    reglas que citan `packages/<x>` se actualizan **en el PR de ese paquete**.
 6. **Interfaz pública estable**: los endpoints `/api/v1/**` no cambian durante la

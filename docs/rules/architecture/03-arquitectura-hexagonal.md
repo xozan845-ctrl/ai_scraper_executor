@@ -57,7 +57,7 @@ ls packages 2>/dev/null; ls libs 2>/dev/null
 
 - **Excepciones legacy de fronteras** (`R-HX-4`): el verificador está **activo** y
   falla ante cualquier arista prohibida nueva, pero tolera dos aristas heredadas de
-  `packages/` (`ai→redis`, `commands→security`). Deben quedar a **0** al cerrar F5, sin
+  `packages/` (`ai→redis`). Deben quedar a **0** al cerrar F5, sin
   tocar el verificador (desaparecen al migrar el paquete, ADR-30).
 - **Migración en curso** (`R-HX-9`): los paquetes siguen en `packages/`; el orden de
   movida y su mapeo viven en [`../../migracion-arquitectura.md`](../../migracion-arquitectura.md)

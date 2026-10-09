@@ -2,8 +2,8 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 describe('DSL + CommandValidator (FASE 0-2)', async () => {
-  const { ScrapingPlanSchema } = await import('../packages/commands/dist/index.js');
-  const { CommandValidator } = await import('../packages/commands/dist/validator.js');
+  const { ScrapingPlanSchema } = await import('../libs/domain/ai/dist/index.js');
+  const { CommandValidator } = await import('../libs/domain/ai/dist/validator.js');
 
   it('acepta plan NAVIGATE + EXTRACT_LIST válido', () => {
     const plan = ScrapingPlanSchema.parse({

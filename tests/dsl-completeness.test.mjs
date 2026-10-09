@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
  * pasaría la suite en verde.
  */
 
-const commands = await import('../packages/commands/dist/index.js');
+const commands = await import('../libs/domain/ai/dist/index.js');
 const providers = await import('../packages/ai-providers/dist/index.js');
 
 const TYPES = Object.values(commands.CommandType);

@@ -1,10 +1,10 @@
-# @ai-scraper/commands
+# @ai-scraper/domain-ai
 
 El **DSL** que la IA puede emitir y su validación. Es la frontera entre «qué decide
 el modelo» y «cómo lo ejecuta el motor» (`R-AR-1`).
 
-- **Capa**: ejecución (la consumen `execution-engine`, `ai`/`ai-providers` y `apps/worker`).
-- **Dependencias exclusivas**: `@ai-scraper/security` (valida toda URL del plan) y `zod`.
+- **Capa**: `libs/domain/ai` (dominio puro; la consumen `execution-engine`, `ai`/`ai-providers` y `apps/worker`).
+- **Dependencias exclusivas**: `@ai-scraper/security` (shared kernel: valida toda URL del plan) y `zod`.
 - **Superficie pública**:
   - `CommandType` — los **15** comandos (`NAVIGATE`, `EXTRACT`, `EXTRACT_LIST`,
     `FOLLOW_LINKS`, `PAGINATE`, `SCROLL`, `CLICK`, `TYPE`, `WAIT`, `FINISH`,
@@ -21,6 +21,6 @@ el modelo» y «cómo lo ejecuta el motor» (`R-AR-1`).
 ## Comandos
 
 ```bash
-npm run build -w @ai-scraper/commands
+npm run build -w @ai-scraper/domain-ai
 node --test tests/dsl.test.mjs tests/normalize.test.mjs tests/property.test.mjs
 ```

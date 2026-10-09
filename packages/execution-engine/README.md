@@ -4,7 +4,7 @@ El **intérprete del DSL**: ejecuta, comando a comando, lo que la IA planificó.
 donde vive la trazabilidad de cada item extraído.
 
 - **Capa**: ejecución.
-- **Dependencias exclusivas**: `@ai-scraper/commands` (los comandos), `@ai-scraper/security`
+- **Dependencias exclusivas**: `@ai-scraper/domain-ai` (los comandos), `@ai-scraper/security`
   (revalidación de URLs), `@ai-scraper/shared-observability` (spans) y `cheerio`.
 - **Superficie pública**:
   - `ExecutionEngine` — ejecuta cada comando del plan respetando el transporte

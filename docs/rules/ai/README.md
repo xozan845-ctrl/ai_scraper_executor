@@ -29,7 +29,7 @@ abierto).
 
 ## Los 15 comandos del DSL
 
-Fuente única: [`../../../packages/commands/src/schemas.ts`](../../../packages/commands/src/schemas.ts).
+Fuente única: [`../../../libs/domain/ai/src/schemas.ts`](../../../libs/domain/ai/src/schemas.ts).
 
 ```
 NAVIGATE · EXTRACT · EXTRACT_LIST · FOLLOW_LINKS · PAGINATE · SCROLL · CLICK · TYPE

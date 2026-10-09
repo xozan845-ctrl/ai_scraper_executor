@@ -359,7 +359,7 @@ ejemplo, exigiendo el campo `"type"` en MAYÚSCULAS y prohibiendo comandos inven
 
 ### 3. Normalizador de comandos (anti-alucinación)
 
-Los modelos débiles suelen desviarse. `packages/commands/src/normalize.ts` **corrige antes de validar**:
+Los modelos débiles suelen desviarse. `libs/domain/ai/src/normalize.ts` **corrige antes de validar**:
 
 | El modelo devuelve | Se normaliza a |
 |---|---|
