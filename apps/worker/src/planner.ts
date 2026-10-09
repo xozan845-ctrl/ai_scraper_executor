@@ -134,8 +134,8 @@ export async function generatePlan(input: PlanJobInput, deps?: PlannerDeps): Pro
   debugLog('VALIDANDO Y RECORTANDO ACCIONES', { rawActionsCount: actionsRaw.length, limits });
   const actions: PlanAction[] = [];
   for (const a of actionsRaw) {
+    clampCommandLimits(a as Record<string, unknown>, { maxPages: limits.maxPages, maxItems: limits.maxItems });
     const valid = validator.validateCommand(a) as unknown as PlanAction;
-    clampCommandLimits(valid as Record<string, unknown>, { maxPages: limits.maxPages, maxItems: limits.maxItems });
     actions.push(valid);
   }
 
