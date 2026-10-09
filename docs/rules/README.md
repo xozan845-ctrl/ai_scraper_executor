@@ -27,7 +27,7 @@ rules/
 ├── observability/      logs JSON + correlación y métricas + dashboard (R-OB/R-TM)
 ├── documentation/      READMEs, ADRs, plantillas de entorno y OpenAPI (R-DO)
 │
-├── test/               node --test: unit, integración, E2E, contrato, gates (R-U/R-I/…)
+├── test/               Vitest: unit, integración, E2E, contrato, gates (R-U/R-I/…)
 ├── git/                stage, commits, push, PR y ramas (R-GA/R-GC/R-GP/R-PR/R-GE)
 ├── ci/                 los workflows reales: gatillos, runner, evidencia (R-CI/R-EN)
 ├── cd/                 entrega: compose, imágenes, entornos, rollback (R-CD)
@@ -58,7 +58,7 @@ rules/
 | `db/` | ✅ activa | [`README.md`](./db/README.md) | Postgres con Prisma (migraciones, índices, transacciones), MongoDB (radiografía y perfiles aprendidos), Redis (cola, caché, rate limit, métricas) y el fallback en memoria (`R-DB`/`R-MO`/`R-RD`) |
 | `observability/` | ✅ activa | [`README.md`](./observability/README.md) | Logs JSON con `correlationId` por `AsyncLocalStorage`, niveles, sanitización; métricas Prometheus `scraper_*` con label `instance`, RED, métricas distribuidas por Redis, `/api/v1/health` y `/api/v1/dashboard` (`R-OB`/`R-TM`) |
 | `documentation/` | ✅ activa | [`README.md`](./documentation/README.md) | READMEs por paquete/app, sincronización del root, plantillas de entorno sin secretos, comentarios/JSDoc, ADRs, spec OpenAPI versionada y `_meta` (`R-DO`) |
-| `test/` | ✅ activa | [`README.md`](./test/README.md) | El runner es **`node --test`** sobre `tests/*.test.mjs` (no Jest): unit, integración, E2E, contrato, robustez, cobertura y QA gates (`R-U`/`R-I`/`R-E`/`R-C`/`G-*`) |
+| `test/` | ✅ activa | [`README.md`](./test/README.md) | El runner es **Vitest** sobre `tests/*.test.mjs` (no Jest): unit, integración, E2E, contrato, robustez, cobertura y QA gates (`R-U`/`R-I`/`R-E`/`R-C`/`G-*`) |
 | `git/` | ✅ activa | [`README.md`](./git/README.md) | Flujo git: `git add` explícito, Conventional Commits, `git push` sin fuerza, `gh pr` con evidencia, y el modelo de ramas real (hoy una sola rama `main`) (`R-GA`/`R-GC`/`R-GP`/`R-PR`/`R-GE`) |
 | `ci/` | ✅ activa | [`README.md`](./ci/README.md) | Los workflows reales: [`ci.yml`](../../.github/workflows/ci.yml) (jobs `build-test-lint` + `integration`) y [`e2e.yml`](../../.github/workflows/e2e.yml) (release); gatillos, Node 22, `npm ci`, evidencia (`R-CI`/`R-EN`) |
 | `cd/` | ✅ activa | [`README.md`](./cd/README.md) | Entrega: `docker-compose.yml` (postgres+mongodb+redis+migrate+api+worker), Dockerfiles, migraciones solo hacia adelante, entornos, smoke y rollback (`R-CD`) |
@@ -108,7 +108,7 @@ este repo.
 | `db/02-supabase.md` (`R-SB`) | [`db/02-mongodb.md`](./db/02-mongodb.md) + [`db/03-redis.md`](./db/03-redis.md) (`R-MO`/`R-RD`) | No hay Supabase, RLS ni `auth.uid()`. Hay MongoDB (memoria) y Redis (cola/caché/métricas). |
 | CQRS, outbox, coreografía, Event Sourcing | — | Este repo no usa CQRS ni outbox: el IPC es BullMQ y el estado de un job es una fila. |
 | `Money`/centavos, stock, partida doble, liquidaciones | [`data/01-integridad.md`](./data/01-integridad.md) (`R-DI`) reescrita | El activo de datos es el **resultado de scraping con trazabilidad**, no el dinero. |
-| `@nestjs/swagger` + Jest + `coverageThreshold` por workspace | [`test/`](./test/README.md) con `node --test` | El runner es el nativo de Node sobre `.test.mjs`; no hay Jest. La cobertura es la **nativa de Node** con umbrales medidos (`G-3`, `R-COV-4/5`). |
+| `@nestjs/swagger` + Jest + `coverageThreshold` por workspace | [`test/`](./test/README.md) con **Vitest** | El runner es Vitest sobre `.test.mjs`; no hay Jest. La cobertura es v8 de Vitest con umbrales medidos (`G-3`, `R-COV-4/5`). |
 | 4 jobs de CI (`security-gate`/`lint`/`test`/`build`) | [`ci/01-flujos.md`](./ci/01-flujos.md) (`R-CI`) reescrito | [`ci.yml`](../../.github/workflows/ci.yml) tiene **2 jobs** (`build-test-lint` + `integration`) y hay un workflow `e2e.yml` de release. |
 | `develop` → `staging` → `main` con Dockploy | [`git/00-entornos.md`](./git/00-entornos.md) (`R-GE`) reescrito | El repo tiene **una sola rama `main`**. La promoción a dos entornos queda como deuda explícita, no como norma vigente. |
 | `infra/db/init/*.sql` | [`db/01-database.md`](./db/01-database.md) (`R-DB-6`) reescrito | El esquema vive en migraciones de Prisma (`prisma/migrations/`). |

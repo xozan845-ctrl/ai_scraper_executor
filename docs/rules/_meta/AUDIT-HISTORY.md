@@ -1699,3 +1699,29 @@ el stack es local, no de producción (allí el scrape debe llevar `x-api-key`, `
 - Runner: sigue siendo **`node --test`**; Vitest es objetivo (ADR-29).
 - Gates: `G-1..G-9` sin cambios; la verificación `build` + `lint` + `test` queda en verde
   y `npm audit` en 0.
+
+---
+
+# AUDIT — Migración hexagonal completada + Vitest (F0–F5)
+
+- **Fecha:** 2026-10-09
+- **Disparador:** cierre de la migración a arquitectura hexagonal (F1–F4) y adopción del
+  runner **Vitest** (F5, ADR-29), en PRs atómicos sobre `main`.
+
+## Qué cambió
+
+- **Estructura**: `packages/` retirado; 14 libs en `libs/{shared,domain,application,infrastructure}`
+  (`@ai-scraper/<capa>-<contexto>`), 2 apps como composition root. Verificador
+  `scripts/check-boundaries.mjs` en `npm run lint` (`R-HX-4`), **sin excepciones legacy**.
+- **Runner**: `node --test` (ADR-03) → **Vitest** (ADR-29) + `@vitest/coverage-v8`;
+  `vitest.config.mjs`. 31 ficheros de test migrados; `before`/`after` → `beforeAll`/`afterAll`.
+- **Cobertura**: base dist (Node) → fuentes **TS** (Vitest); medido 66.6 / 55.06 / 57.06;
+  umbral re-basado a **65 / 54 / 56** (`R-COV-5`, ADR-29). `R-MT-1`: el disparador
+  (runner soportado por Stryker) **se cumple** con Vitest.
+- Pruebas: **167 tests / 28 ficheros** en `npm test`, 9 de contrato y 7 de integración.
+
+## Estado
+
+- `packages/` no existe; `tsconfig.base.json` solo mapea `libs/*/*/dist`; `npm audit` **0**.
+- Gates `G-1..G-9` verdes (Vitest para `G-1`/`G-3`, contrato `G-5`, integración `G-4`).
+- Deuda viva: adoptar **Stryker** sobre `src`; sin protección de rama; promoción entre entornos.

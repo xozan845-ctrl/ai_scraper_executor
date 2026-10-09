@@ -21,11 +21,14 @@ if (files.length === 0) {
   process.exit(1);
 }
 
+// Runner = Vitest (ADR-29); sin cobertura para no repetir el umbral en cada iteración.
+const vitestBin = join(root, 'node_modules', '.bin', 'vitest');
+
 console.log(`[repeat] ${runs} iteraciones de ${files.length} ficheros (R-FL-1)`);
 let failures = 0;
 for (let i = 1; i <= runs; i++) {
   const started = Date.now();
-  const result = spawnSync(process.execPath, ['--test', '--test-concurrency=1', ...files], {
+  const result = spawnSync(vitestBin, ['run', ...files], {
     cwd: root,
     stdio: 'inherit',
   });

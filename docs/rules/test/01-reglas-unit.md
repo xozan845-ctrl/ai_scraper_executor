@@ -5,8 +5,8 @@ salir a la red ni a un almacén real: el DSL y su normalizador, el motor de ejec
 el crawler, los proveedores de IA, los límites, la seguridad, la observabilidad y los
 stores en memoria.
 
-> **Cómo se ejecuta un test aquí:** ficheros `tests/*.test.mjs` con el runner nativo
-> (`node --test`), usando `node:test` (`describe`/`it`) y `node:assert`. Sin Jest, sin
+> **Cómo se ejecuta un test aquí:** ficheros `tests/*.test.mjs` con **Vitest**
+> (`describe`/`it` importados de `vitest`, ADR-29) y `node:assert`. Sin Jest, sin
 > `@testing-library`, sin `ts-jest`. Los dobles se escriben a mano o con el
 > `http.createServer` local; `fetch` se sustituye cuando la prueba lo requiere.
 
@@ -15,7 +15,7 @@ stores en memoria.
 | ID | Regla |
 |---|---|
 | R-U-1 | **Assert contra el requisito, no contra la implementación.** Si cambia la implementación pero el requisito no, el test no debe cambiar (y al revés). Prohibido "actualizar el expected para que pase". Ejemplo canónico de este repo: el test de trazabilidad aserta que cada item lleva `_source { url, selector, scrapedAt }` —el requisito— y no que "se llame a `result.data.push`". |
-| R-U-2 | **El nombre dice comportamiento y condición**: `debe <comportamiento> cuando <condición>` (`debe normalizar a NAVIGATE cuando el modelo devuelve action:navigate`). Nunca `test 1`, `should work`, `ok`. Con `node:test` el nombre es el string que se pasa a `it()`. |
+| R-U-2 | **El nombre dice comportamiento y condición**: `debe <comportamiento> cuando <condición>` (`debe normalizar a NAVIGATE cuando el modelo devuelve action:navigate`). Nunca `test 1`, `should work`, `ok`. Con `vitest` el nombre es el string que se pasa a `it()`. |
 | R-U-3 | **Un test, una situación.** Nada de "y" concatenando escenarios en un solo `it`: dos comportamientos son dos tests, porque si uno falla hay que saber cuál. |
 | R-U-4 | **El test tiene que poder fallar.** Si se elimina la lógica bajo prueba, el test falla. Prohibidos los asserts triviales (`assert.ok(true)`, "solo assert que no lanza" cuando la función no hace nada observable). Un test que verifica que un número es un número no prueba nada. |
 
@@ -60,7 +60,7 @@ stores en memoria.
 MONGODB_MOCK=1 npm test
 
 # Un solo fichero, para iterar rápido
-node --test tests/dsl.test.mjs
+vitest tests/dsl.test.mjs
 
 # Los ficheros de lógica pura y sus tests existen en paralelo
 ls tests/*.test.mjs | wc -l

@@ -24,7 +24,7 @@ entradas no es un extra: es la función.
 
 | ID | Regla |
 |---|---|
-| R-MT-1 | Los **módulos críticos** (el DSL y su validación, el SSRF, la normalización de límites, la trazabilidad) se someten a mutation testing (Stryker u otra herramienta) con periodicidad pre-release. **Decisión vigente (ADR-20): diferido a propósito**, no en silencio. Stryker 10 solo ofrece runners para jest/vitest/tap, y los tests de este repo cargan el **build** (`dist`) con `node --test` (ADR-03). **Reevaluado el 2026-10-06**, cuando se cerraron `G-4`/`G-5`: el disparador «suite con runner soportado» no se cumple, porque el runner sigue siendo `node --test`; cerrar capas de test no cambia el runner. El disparador real es **adoptar un runner soportado por Stryker** (jest/vitest/tap como framework), algo que ADR-03 evita a propósito y que exigiría enmendar ese ADR. Mientras tanto, la cobertura del riesgo la dan los property tests (`R-PB-*`) y el test de completitud del DSL (`R-AI-2`), que ya encontraron defectos reales. |
+| R-MT-1 | Los **módulos críticos** (el DSL y su validación, el SSRF, la normalización de límites, la trazabilidad) se someten a mutation testing (Stryker u otra herramienta) con periodicidad pre-release. **Decisión vigente (ADR-20): diferido a propósito**, no en silencio. **Reevaluado 2026-10-09 (ADR-29):** con **Vitest** implementado, el disparador «runner soportado por Stryker» **ya se cumple** (Stryker ofrece runner de Vitest); queda adoptar la herramienta y ejecutar la mutación sobre `src`. Mientras tanto, la cobertura del riesgo la dan los property tests (`R-PB-*`) y el test de completitud del DSL (`R-AI-2`), que ya encontraron defectos reales. |
 | R-MT-2 | **Rangos de mutantes eliminados**: ≥ 90 % para el DSL/SSRF/límites (la frontera de seguridad), ≥ 80 % para el resto, y por debajo de **70 %** el release queda bloqueado. Mutantes supervivientes → tests débiles a corregir antes del release. Estos umbrales aplican **el día que la herramienta exista**; hoy no se pueden evaluar (`R-COV-4`) porque la herramienta está diferida (`R-MT-1`, ADR-20). |
 | R-MT-3 | Un test que no mata ningún mutante se mejora o se elimina (equivale a un test que no comprueba el requisito). |
 
@@ -43,18 +43,18 @@ entradas no es un extra: es la función.
 |---|---|
 | R-FL-1 | **Cero tolerancia a tests intermitentes.** Un test que falla 1 de cada 20 corre en CI: se arregla o se marca en cuarentena con issue y fecha máxima de reparación. La herramienta de detección es **`npm run test:repeat -- <n>`** ([`scripts/repeat-tests.mjs`](../../../scripts/repeat-tests.mjs)), que repite la suite `n` veces (por defecto 5) y falla si alguna iteración queda en rojo mientras otras están en verde. **No es un gate de PR** (es lento, ~25 s por iteración): se ejecuta antes de un release o al investigar un fallo esporádico. |
 | R-FL-2 | **Prohibido el `sleep` arbitrario** para esperar una condición; usar esperas activas sobre la condición real (el job llegó a estado terminal, el endpoint responde) con su propio timeout. |
-| R-FL-3 | **Sin dependencia del orden entre tests** ni de la zona horaria/máquina. `node --test` ejecuta los ficheros de un directorio; cada test prepara lo que necesita y no asume estado previo. |
+| R-FL-3 | **Sin dependencia del orden entre tests** ni de la zona horaria/máquina. `vitest` ejecuta los ficheros de un directorio; cada test prepara lo que necesita y no asume estado previo. |
 | R-FL-4 | **Sin dependencia de red externa ni de terceros** en la suite unitaria (`npm test`): `fetch`, el LLM y los sitios se doblan. La única capa que habla con la red real es el E2E (`03-reglas-e2e.md`), y por eso va en otro comando. |
-| R-FL-5 | **La suite unitaria es serial (`--test-concurrency=1`), y esa es la decisión**: Crawlee usa almacenamiento local en disco; ejecutar tests en paralelo lo corrompe y produce fallos intermitentes no reproducibles. Mientras Crawlee tenga ese almacenamiento, la concurrencia se queda en 1; parallelizar exige primero aislar ese storage (deuda abierta de esta regla). |
+| R-FL-5 | **La suite unitaria es serial (`fileParallelism: false`), y esa es la decisión**: Crawlee usa almacenamiento local en disco; ejecutar tests en paralelo lo corrompe y produce fallos intermitentes no reproducibles. Mientras Crawlee tenga ese almacenamiento, la concurrencia se queda en 1; parallelizar exige primero aislar ese storage (deuda abierta de esta regla). |
 
 ## Verificación
 
 ```bash
 # La suite es serial a propósito (R-FL-5)
-grep -n "test-concurrency" package.json
+grep -n "fileParallelism" vitest.config.mjs
 
 # Property tests (R-PB-*): corren dentro de npm test
-node --test tests/property.test.mjs
+npx vitest run tests/property.test.mjs
 
 # El fuzz de la salida del LLM tiene casos (R-RB-1)
 grep -rn "inventado\|malformado\|desvi" tests/normalize.test.mjs tests/dsl.test.mjs | head

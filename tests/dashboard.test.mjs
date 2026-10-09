@@ -1,4 +1,4 @@
-import { describe, it, before, after } from 'node:test';
+import { describe, it, beforeAll, afterAll } from 'vitest';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 
@@ -114,7 +114,7 @@ describe('Rate-limit §36 aceptado por Crawlee + métricas del worker', async ()
   let server;
   let base;
 
-  before(async () => {
+  beforeAll(async () => {
     process.env.ALLOW_PRIVATE_HOSTS = '1';
     await new Promise((resolve) => {
       server = http
@@ -127,7 +127,7 @@ describe('Rate-limit §36 aceptado por Crawlee + métricas del worker', async ()
     base = `http://127.0.0.1:${server.address().port}`;
   });
 
-  after(() => new Promise((r) => server.close(r)));
+  afterAll(() => new Promise((r) => server.close(r)));
 
   it('inspectSinglePage con maxRequestsPerMinute funciona', async () => {
     const svc = new CrawlerService();

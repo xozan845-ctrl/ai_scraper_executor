@@ -58,7 +58,7 @@ aquí**: son reglas de testing y siguen en
 | `G-1` | Suite unitaria completa en verde | ✅ paso `Test` |
 | `G-7` | Build y lint sin errores | ✅ pasos `Build` y `Lint` |
 | `G-9` | Migraciones sin deriva | ✅ `prisma validate` + `prisma migrate deploy` + `prisma migrate diff --exit-code` sobre un Postgres efímero |
-| `G-3` | Cobertura ≥ umbral | ✅ el propio `npm test` (nativo de Node; 70/72/67) |
+| `G-3` | Cobertura ≥ umbral | ✅ el propio `npm test` (Vitest v8; 65/54/56) |
 | `G-4` | Integración con BD real | ✅ job `integration` (Postgres/Mongo/Redis efímeros) |
 | `G-5` | Contrato de API | ✅ paso `Contract` (`npm run test:contract`) |
 | `G-6` | E2E antes de release | ✅ workflow `e2e.yml` (`release`/`workflow_dispatch`) |

@@ -1,4 +1,4 @@
-import { describe, it, before, after } from 'node:test';
+import { describe, it, beforeAll, afterAll } from 'vitest';
 import assert from 'node:assert/strict';
 
 /**
@@ -13,7 +13,7 @@ describe('E2E Real — SevasaOnline (memoria + scraping real)', async () => {
   let redisConnected = false;
   let unavailable = false;
 
-  before(async () => {
+  beforeAll(async () => {
     // Verificar conexiones reales
     const { connectMongo, isMongoMock } = await import('../libs/infrastructure/mongodb/dist/connection.js');
     const { isRedisHealthy } = await import('../libs/infrastructure/redis/dist/connection.js');
@@ -39,7 +39,7 @@ describe('E2E Real — SevasaOnline (memoria + scraping real)', async () => {
     }
   });
 
-  after(async () => {
+  afterAll(async () => {
     // Cleanup opcional
   });
 

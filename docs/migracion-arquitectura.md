@@ -1,9 +1,9 @@
 # Migración a arquitectura hexagonal — plan y mapeo
 
-> **Estado: migración estructural COMPLETADA (2026-10-09).** `packages/` está retirado;
-> las 14 libs viven en `libs/{shared,domain,application,infrastructure}` y las 2 apps son
-> el composition root. La decisión está en [`decisiones.md`](./decisiones.md) (ADR-27..30)
-> y las reglas canónicas en
+> **Estado: migración COMPLETADA (F0–F5, 2026-10-09).** `packages/` está retirado; las 14
+> libs viven en `libs/{shared,domain,application,infrastructure}`, las 2 apps son el
+> composition root y el runner es **Vitest** (ADR-29). La decisión está en
+> [`decisiones.md`](./decisiones.md) (ADR-27..30) y las reglas canónicas en
 > [`rules/architecture/03-arquitectura-hexagonal.md`](./rules/architecture/03-arquitectura-hexagonal.md).
 > Queda **F5**: adoptar **Vitest** (ADR-29) y cerrar el snapshot de auditoría.
 
@@ -57,7 +57,7 @@ como lote homogéneo aprobado— dejando el repo verde en cada PR (`R-HX-9`).
 | **F2 — `domain/`** | `core` → `domain/{execution,scraper}` + `shared/core`; `commands` → `domain/ai` | ✅ |
 | **F3 — `shared/security` + infra** | `security` → `libs/shared/security`; los 7 adaptadores → `libs/infrastructure/*` | ✅ |
 | **F4 — `application/` + retirada de `packages/`** | `ai` → `libs/application/ai`; `packages/` retirado de `workspaces`/`tsconfig`/cobertura/lint | ✅ |
-| **F5 — Cierre** | Adoptar **Vitest** (ADR-29) con cobertura re-medida sin bajar; cerrar el snapshot | ⏳ |
+| **F5 — Cierre** | Adoptar **Vitest** (ADR-29): 31 ficheros a `vitest`, scripts y cobertura re-medida (65/54/56 sobre fuentes TS); cerrar el snapshot | ✅ |
 
 ## 4. Reglas de la migración (no negociables)
 
@@ -78,12 +78,12 @@ como lote homogéneo aprobado— dejando el repo verde en cada PR (`R-HX-9`).
 |---|---|---|
 | Doble mapeo `packages/` + `libs/` en `tsconfig` | ✅ Resuelto: `packages/` retirado en F4 | [`rules/_meta/AUDIT.md`](./rules/_meta/AUDIT.md) |
 | Enforcement de fronteras | ✅ Verificador propio sin dependencias en `npm run lint` (se descartó `eslint-plugin-boundaries` por vulnerabilidades) | ADR-28, `R-HX-4` |
-| 153 tests en `.mjs` sobre `dist` | Vitest ejecuta `.mjs` sin reescritura; migrar en F5 | ADR-29 |
+| 153 tests en `.mjs` | ✅ Resuelto: Vitest ejecuta `.mjs` sin reescritura (solo cambia el import a `vitest`) | ADR-29 |
 | Sin `affected`/cache de tareas | Aceptado; re-evaluar Nx/Turbo con ADR nuevo | ADR-28 |
 
 ## 6. Cómo se cierra
 
-La migración estructural ya cerró: `packages/` no existe, `tsconfig.base.json` solo mapea
-`libs/*/*/dist` y el lint aplica `R-HX-2` sin excepciones. **F5** cierra cuando el runner
-es **Vitest** (ADR-29) con umbral de cobertura re-medido y sin bajar; entonces se actualiza
-[`_meta/AUDIT.md`](./rules/_meta/AUDIT.md) y se marca `R-HX-9` como cumplida.
+La migración **está completada**: `packages/` no existe, `tsconfig.base.json` solo mapea
+`libs/*/*/dist`, el lint aplica `R-HX-2` sin excepciones y el runner es **Vitest**
+(ADR-29) con umbrales de cobertura re-medidos sobre fuentes TS (65 / 54 / 56). El cierre
+del snapshot vive en [`_meta/AUDIT.md`](./rules/_meta/AUDIT.md).

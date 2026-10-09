@@ -1,4 +1,4 @@
-import { describe, it } from 'node:test';
+import { describe, it } from 'vitest';
 import assert from 'node:assert/strict';
 
 describe('Escala FASE 11 ETAPA 6 (prioridades + caché + dedupe)', async () => {

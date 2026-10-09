@@ -2,7 +2,7 @@
 
 Guía para agentes de IA que trabajen en **ai-scraping-executor**. Monorepo npm workspaces
 (`apps/*` + `libs/*/*`), TypeScript, Node ≥20 (la CI y las imágenes usan 22), runner
-nativo `node --test` (no Vitest/Jest).
+**Vitest** (`npm test`).
 
 `LA IA ES EL CEREBRO. CRAWLEE ES EL MOTOR.` La IA decide QUÉ (DSL de 15 comandos); el motor decide CÓMO.
 
@@ -21,10 +21,10 @@ nativo `node --test` (no Vitest/Jest).
 npm install                    # instalar (si algún día hay conflicto de peers: --legacy-peer-deps)
 
 npm run build                  # compila TODO en orden de dependencias (packages → apps)
-npm run build:core             # solo packages base (sin apps)
-npm run lint                   # eslint apps packages scripts (debe quedar 0 errors/0 warnings)
+npm run build:core             # solo libs base (sin apps)
+npm run lint                   # eslint apps libs scripts + boundaries (0 errors/0 warnings)
 npm run typecheck              # alias de build
-npm test                       # 153 tests unitarios + propiedades (mocks, sin BD reales)
+npm test                       # 167 tests unitarios + propiedades (mocks, sin BD reales)
 MONGODB_MOCK=1 npm test        # fuerza mock MongoDB (recomendado en local sin Docker)
 npm run test:contract          # contrato de la API /api/v1 (G-5), sin infra
 npm run test:integration       # integración con Postgres/Mongo/Redis reales (G-4)
@@ -131,7 +131,7 @@ libs/application/ai               AIOrchestrator, prompts, context-builder  # pe
 
 ## Testing
 
-- Runner: `node --test` con `--test-concurrency=1` (Crawlee usa storage local; paralelo causa flakiness).
+- Runner: **Vitest** en serie (`fileParallelism: false`; Crawlee usa storage local, paralelo causa flakiness). Config en `vitest.config.mjs`.
 - `npm test` **no** toca red, BD real ni LLM: todo doblado (`R-QA-2`); usa `http.createServer` local,
   proveedor LLM falso y `MONGODB_MOCK=1`.
 - El smoke de Prisma corre **solo** si `DATABASE_URL` responde; sin Docker se salta (esperado).

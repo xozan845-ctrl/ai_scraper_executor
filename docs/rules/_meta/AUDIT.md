@@ -19,14 +19,14 @@
 
 | Métrica | Valor | Cómo se midió |
 |---|---|---|
-| Tests unitarios | **153 / 153 en verde, 38 suites** (6 propiedades de `fast-check` + 4 de completitud del DSL) | `MONGODB_MOCK=1 npm test` |
+| Tests unitarios | **167 / 167 en verde, 28 ficheros** (6 propiedades de `fast-check` + 4 de completitud del DSL) | `MONGODB_MOCK=1 npm test` |
 | Ficheros de test | **31 en disco, 28 en `npm test`** | `ls tests/*.test.mjs` vs script `test` |
 | Tests de contrato / integración | **9 / 7**, en verde | `npm run test:contract`, `npm run test:integration` |
-| Runner | `node --test --test-concurrency=1` | script `test` de `package.json` |
-| Lint | **0 errores, 0 warnings** (alcance `apps`, `packages`, `scripts`) | `npm run lint` |
-| Build | **exit 0**, 0 errores TS, 12 paquetes + 2 apps | `npm run build` |
+| Runner | **Vitest** (`vitest run --coverage`); config `vitest.config.mjs` | script `test` de `package.json` |
+| Lint | **0 errores, 0 warnings** (alcance `apps`, `libs`, `scripts`) | `npm run lint` |
+| Build | **exit 0**, 0 errores TS, 14 libs + 2 apps | `npm run build` |
 | Puertas de seguridad | **`npm audit` → exit 0** (high y moderate): **0 vulnerabilidades** | `npm audit` |
-| Cobertura | baseline **71.59 / 73.69 / 68.90**; umbral **70 / 72 / 67**; medido en CI (Linux) ~73.2/74.8/68.9 | `npm test` (nativo de Node) |
+| Cobertura | Vitest v8 sobre fuentes TS; medido **66.6 / 55.06 / 57.06**; umbral **65 / 54 / 56** | `npm test` (Vitest v8) |
 | OpenAPI | **`docs/openapi.json` versionada y verificada** en CI | `G-8` |
 | Libs | **14** en `libs/*/*` + 2 apps | `ls -d libs/*/*` |
 | Modelos Prisma | **10**; migraciones **3** (`0_init`, `sessions`, `add_composite_indexes`) | `prisma/schema.prisma`, `ls prisma/migrations` |
@@ -38,15 +38,15 @@
 
 | Capa | Estado | Evidencia |
 |---|---|---|
-| Unit / integración con dobles | 🟢 | **153 tests / 38 suites**, sin red y sin Docker (`MONGODB_MOCK=1`) |
+| Unit / integración con dobles | 🟢 | **167 tests / 28 ficheros**, sin red y sin Docker (`MONGODB_MOCK=1`) |
 | Frontend | **N/A** | No hay `frontend/`. `G-2` y `R-COV-5` **reservados, nunca reutilizados** |
 | Integración con almacén real | 🟢 | `tests/integration.test.mjs` (7 tests, Postgres/Mongo/Redis); job `integration` |
 | Contrato de API | 🟢 | `tests/contract.test.mjs` (9 tests, incluye la instrumentación RED); paso `Contract` |
 | E2E real | 🟢 | workflow [`e2e.yml`](../../../.github/workflows/e2e.yml) en `release`; necesita Chromium + `OPENROUTER_API_KEY` |
 | OpenAPI | 🟢 | `docs/openapi.json` + `npm run openapi:check` |
-| Cobertura | 🟢 | nativa de Node, umbrales 70/72/67 en el script `test` |
+| Cobertura | 🟢 | Vitest v8 sobre fuentes TS; umbrales **65/54/56** en `vitest.config.mjs` |
 | Property-based | 🟢 | `fast-check` + `tests/property.test.mjs`; encontró **3 defectos reales** |
-| Mutation testing | 🔴 diferido | `R-MT-1`/ADR-20: Stryker 10 no tiene runner para `node --test`. **Reevaluado 2026-10-06** al cerrar `G-4`/`G-5`: sigue diferido (el disparador real es adoptar jest/vitest/tap, que ADR-03 evita) |
+| Mutation testing | 🟡 disparador cumplido | `R-MT-1`/ADR-20: con **Vitest** (ADR-29) Stryker tiene runner; falta adoptar Stryker y mutar `src` |
 | Lint / Build (`G-7`) | 🟢 | 0 errores / 0 warnings; `npm run build` exit 0 |
 | Security gate (`R-QA-6`/`R-SE-16`) | 🟢 | `npm audit` → 0 vulnerabilidades; paso `Security audit` |
 | Artifacts (`R-EN-3`) | 🟢 | `test-results.xml` (JUnit) subido en todos los runs |
@@ -60,9 +60,9 @@ Verificado contra `.github/workflows/` (`ci.yml` + `e2e.yml`). Todos con run ver
 
 | Gate | Estado | Evidencia |
 |---|---|---|
-| `G-1` suite unitaria | ✅ | paso `Test`: 153/153 |
+| `G-1` suite unitaria | ✅ | paso `Test`: 167/167 (Vitest) |
 | `G-2` unit frontend | **N/A** | sin frontend (ID reservado) |
-| `G-3` cobertura | ✅ | `--test-coverage-lines=70 --test-coverage-branches=72 --test-coverage-functions=67` |
+| `G-3` cobertura | ✅ | `vitest run --coverage`; umbrales 65/54/56 en `vitest.config.mjs` |
 | `G-4` integración | ✅ | job `integration` (Postgres/Mongo/Redis efímeros) → 7/7 |
 | `G-5` contrato | ✅ | paso `Contract` → 9/9 |
 | `G-6` E2E | ✅ | workflow `e2e.yml` (release) |
@@ -104,20 +104,17 @@ incumplían `R-CI-2`. Se añade el grupo por ref a `release.yml` y se unifica
 
 ## Deudas abiertas (orden de ataque)
 
-0. **Migración estructural hexagonal: completada** (ADR-27/ADR-30, `R-HX-9`): `packages/`
-   retirado; 14 libs en `libs/` (shared/domain/application/infrastructure) y verificador
-   `scripts/check-boundaries.mjs` en `npm run lint` (`R-HX-4`, sin excepciones). Queda
-   **F5**: adoptar **Vitest** (ADR-29) y cerrar el snapshot. El runner sigue siendo
-   `node --test`.
+0. **Migración hexagonal: COMPLETADA** (ADR-27/ADR-30/ADR-29): `packages/` retirado, 14
+   libs en `libs/` y runner **Vitest** (cobertura re-basada a 65/54/56 sobre fuentes TS).
+   Verificador `scripts/check-boundaries.mjs` en `npm run lint` (`R-HX-4`, sin excepciones).
 1. **Sin protección de rama en el remoto (bloqueada por el plan)**: `gh api` devuelve
    `403 Upgrade to GitHub Pro or make this repository public` — es un límite del plan
    en repos privados, no deuda del repo. `R-GE-4` se cumple por disciplina (rama + PR).
 2. **Promoción entre entornos sin implementar** (`R-GE-5`): una sola rama, un solo
    juego de secretos. Deuda asumida, no norma.
-3. **Mutation testing diferido a propósito** (`R-MT-1`, ADR-20): Stryker 10 no tiene
-   runner para `node --test` y los tests cargan `dist`. **Reevaluado 2026-10-06** al
-   cerrar `G-4`/`G-5`: el disparador «suite con runner soportado» **no** se cumple (el
-   runner no cambia); el disparador real es adoptar jest/vitest/tap, que ADR-03 evita.
+3. **Mutation testing pendiente de adoptar** (`R-MT-1`, ADR-20): con **Vitest** (ADR-29)
+   el disparador «runner soportado por Stryker» **ya se cumple**; queda añadir Stryker y
+   mutar sobre `src`. Los property tests y la completitud del DSL cubren el riesgo mientras tanto.
    Los property tests y la completitud del DSL cubren el riesgo mientras tanto.
 4. **`overrides` de transitivas** (ADR-16/ADR-18): **revisado 2026-10-06** y reducido
    de **8 a 1** (`deepmerge-ts: ^8.0.0`). Los otros siete (`multer`, `qs`,
