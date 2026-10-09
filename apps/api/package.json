@@ -7,7 +7,7 @@
     "start:dev": "ts-node --transpile-only src/main.ts"
   },
   "dependencies": {
-    "@ai-scraper/core": "^0.1.0",
+    "@ai-scraper/domain-execution": "^0.1.0",
     "@ai-scraper/mongodb": "^0.1.0",
     "@ai-scraper/shared-observability": "^0.1.0",
     "@ai-scraper/queue": "^0.1.0",

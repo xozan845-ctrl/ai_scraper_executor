@@ -4,7 +4,7 @@ La **verdad transaccional** del sistema en código: el acceso a Postgres para jo
 sesiones y sus artefactos. Es la capa de orquestación de datos (`R-AR-2`).
 
 - **Capa**: orquestación/datos.
-- **Dependencias exclusivas**: `@prisma/client` y `@ai-scraper/core`.
+- **Dependencias exclusivas**: `@prisma/client` y `@ai-scraper/domain-execution`.
 - **Superficie pública**:
   - `createJobStore` / `PrismaJobStore` / `InMemoryJobStore` — el `JobStore` real
     (Prisma) o el de memoria cuando no hay `DATABASE_URL`, que **avisa** al degradar

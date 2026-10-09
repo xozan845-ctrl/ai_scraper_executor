@@ -20,7 +20,6 @@ const ALLOWED = {
 // Clasificación de los paquetes vigentes (migración strangler, R-HX-9). Al mover un
 // paquete a libs/<capa>/<contexto> su capa pasa a deducirse del nombre de paquete.
 const PACKAGE_LAYERS = {
-  core: 'shared',
   commands: 'domain',
   ai: 'application',
   security: 'infrastructure',

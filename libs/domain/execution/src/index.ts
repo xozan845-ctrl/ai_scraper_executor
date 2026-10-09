@@ -1,6 +1,8 @@
 /**
- * @ai-scraper/core — tipos compartidos (§41, §35, §42)
- * Principio: la IA decide QUÉ, el motor decide CÓMO (§4).
+ * @ai-scraper/domain-execution — bounded context de ejecución.
+ * Entidades y presupuestos del ciclo de vida de un job. Dominio **puro**: sin
+ * frameworks, sin I/O y sin dependencias de infraestructura (`R-HX-3`).
+ * Principio: la IA decide QUÉ, el motor decide CÓMO.
  */
 
 export enum JobStatus {
@@ -89,30 +91,4 @@ export interface JobRecord extends CreateJobInput {
   status: JobStatus;
   createdAt: string;
   updatedAt: string;
-}
-
-export interface TracedValue<T = unknown> {
-  value: T;
-  source: {
-    url: string;
-    selector?: string;
-    scrapedAt: string;
-    confidence?: number;
-  };
-}
-
-export interface StructuredItem {
-  [key: string]: TracedValue | unknown;
-}
-
-/**
- * Hash estable y barato del HTML (no criptográfico): solo detección de cambios/drift.
- * Fuente única compartida por crawler y mongodb.
- */
-export function hashHtml(html: string): string {
-  let hash = 0;
-  for (let i = 0; i < html.length; i++) {
-    hash = ((hash << 5) - hash + html.charCodeAt(i)) | 0;
-  }
-  return (hash >>> 0).toString(36);
 }

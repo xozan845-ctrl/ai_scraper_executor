@@ -14,7 +14,7 @@
  */
 import { AIOrchestrator, type AIProviderCallOpts } from '@ai-scraper/ai';
 import { CommandValidator, normalizeRawCommand, clampCommandLimits } from '@ai-scraper/commands';
-import { normalizeJobLimits } from '@ai-scraper/core';
+import { normalizeJobLimits } from '@ai-scraper/domain-execution';
 import { ExecutionEngine } from '@ai-scraper/execution-engine';
 import { generatePlan, type PlanJobInput, type PlanAction } from './planner';
 import { getLearnedProfile, mongoRepo } from '@ai-scraper/mongodb';

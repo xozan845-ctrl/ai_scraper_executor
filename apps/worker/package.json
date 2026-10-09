@@ -10,7 +10,7 @@
     "@ai-scraper/ai": "^0.1.0",
     "@ai-scraper/ai-providers": "^0.1.0",
     "@ai-scraper/commands": "^0.1.0",
-    "@ai-scraper/core": "^0.1.0",
+    "@ai-scraper/domain-execution": "^0.1.0",
     "@ai-scraper/crawler": "^0.1.0",
     "@ai-scraper/execution-engine": "^0.1.0",
     "@ai-scraper/mongodb": "^0.1.0",

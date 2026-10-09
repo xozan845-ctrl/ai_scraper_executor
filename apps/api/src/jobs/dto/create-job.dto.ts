@@ -1,7 +1,7 @@
 import { IsUrl, IsString, MinLength, IsOptional, IsObject, IsInt, IsIn, Min, Max, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { HARD_LIMITS } from '@ai-scraper/core';
+import { HARD_LIMITS } from '@ai-scraper/domain-execution';
 
 /**
  * Límites del job §35 con topes duros de servidor (HARD_LIMITS).

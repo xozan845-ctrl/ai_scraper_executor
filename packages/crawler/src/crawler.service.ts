@@ -8,7 +8,7 @@
  * - Seguridad §37: bloquea hosts privados / metadata endpoints antes de encolar.
  */
 import { CheerioCrawler, PlaywrightCrawler, RequestQueue } from 'crawlee';
-import { hashHtml } from '@ai-scraper/core';
+import { hashHtml } from '@ai-scraper/shared-core';
 import { assertSafeUrl, createAllowlist, isAllowedHost, isBlockedHost, isPrivateHostsAllowed, safeDnsLookup } from '@ai-scraper/security';
 import { BrowserPool, Semaphore } from './pool';
 

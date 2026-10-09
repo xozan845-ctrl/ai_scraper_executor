@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
  * validación del DTO. `maxAiTokens: 0`/vacío NO desactiva el presupuesto.
  */
 describe('Límites del job — topes duros y validación', async () => {
-  const { DEFAULT_LIMITS, HARD_LIMITS, normalizeJobLimits } = await import('../packages/core/dist/index.js');
+  const { DEFAULT_LIMITS, HARD_LIMITS, normalizeJobLimits } = await import('../libs/domain/execution/dist/index.js');
   const { plainToInstance } = await import('class-transformer');
   const { validate } = await import('class-validator');
   const { CreateJobDto } = await import('../apps/api/dist/jobs/dto/create-job.dto.js');

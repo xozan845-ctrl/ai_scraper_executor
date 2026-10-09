@@ -14,7 +14,7 @@ import type { ScrapingJobPayload } from '@ai-scraper/queue';
 import { AgentRunner, type AgentResult } from './agent-runner';
 import { enrichItems } from './interpret';
 import { createProductionEngine } from './browser-engine';
-import { normalizeJobLimits } from '@ai-scraper/core';
+import { normalizeJobLimits } from '@ai-scraper/domain-execution';
 
 export interface ProcessJobDeps {
   store: JobStore;

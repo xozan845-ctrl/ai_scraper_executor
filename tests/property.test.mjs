@@ -9,7 +9,7 @@ import fc from 'fast-check';
  * normalize/limits/security.
  */
 
-const core = await import('../packages/core/dist/index.js');
+const core = await import('../libs/domain/execution/dist/index.js');
 const { normalizeRawCommand, normalizeRawPlan } = await import('../packages/commands/dist/index.js');
 const { normalizeDomain, isAllowedHost } = await import('../packages/security/dist/index.js');
 
