@@ -27,6 +27,7 @@ export class InMemoryJobStore implements JobStore {
   private results = new Map<string, ResultRow[]>();
   private errors = new Map<string, ErrorRow[]>();
   private interactions: Array<{ jobId: string } & AIInteractionInput> = [];
+  private idempotency = new Map<string, string>();
 
   async createJob(input: CreateJobInput): Promise<JobRecord> {
     const rec: JobRecord = {
@@ -40,6 +41,26 @@ export class InMemoryJobStore implements JobStore {
     this.jobs.set(rec.id, rec);
     this.order.push(rec.id);
     return { ...rec };
+  }
+
+  async getOrCreateJob(input: CreateJobInput, idempotencyKey: string): Promise<{ record: JobRecord; created: boolean }> {
+    const existingId = this.idempotency.get(idempotencyKey);
+    if (existingId) {
+      const existing = this.jobs.get(existingId);
+      if (existing) return { record: { ...existing }, created: false };
+    }
+    const record: JobRecord = {
+      ...input,
+      ownerScope: input.ownerScope ?? 'anon',
+      id: nid('job'),
+      status: 'QUEUED',
+      createdAt: now(),
+      updatedAt: now(),
+    };
+    this.jobs.set(record.id, record);
+    this.order.push(record.id);
+    this.idempotency.set(idempotencyKey, record.id);
+    return { record: { ...record }, created: true };
   }
 
   async getJob(id: string): Promise<JobRecord | null> {

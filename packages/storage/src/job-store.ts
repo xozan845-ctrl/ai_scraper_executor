@@ -32,6 +32,8 @@ export interface ListJobsOptions {
 export interface JobStore {
   readonly kind: 'prisma' | 'memory';
   createJob(input: CreateJobInput): Promise<JobRecord>;
+  /** Creación atómica para Idempotency-Key; `created=false` evita encolar dos veces. */
+  getOrCreateJob(input: CreateJobInput, idempotencyKey: string): Promise<{ record: JobRecord; created: boolean }>;
   getJob(id: string): Promise<JobRecord | null>;
   listJobs(limit?: number, opts?: ListJobsOptions): Promise<JobRecord[]>;
   updateStatus(id: string, status: JobStatus): Promise<JobRecord | null>;

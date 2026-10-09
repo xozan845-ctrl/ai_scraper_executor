@@ -30,6 +30,7 @@ model Job {
   limits      Json?
   aiProvider  String    @default("openrouter")
   aiModel     String?
+  idempotencyKey String? @unique
   ownerScope  String    @default("anon")
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
