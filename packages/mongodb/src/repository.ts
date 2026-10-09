@@ -3,7 +3,7 @@ import { connectMongo, isMongoMock } from './connection';
 import { normalizeDomain as normalizeDomainBase } from '@ai-scraper/security';
 import mongoose from 'mongoose';
 
-export { hashHtml } from '@ai-scraper/core';
+export { hashHtml } from '@ai-scraper/shared-core';
 
 /** Normaliza dominio para claves de perfil: minúsculas, sin www., sin esquema/path/puerto. */
 export function normalizeDomain(raw: string): string {

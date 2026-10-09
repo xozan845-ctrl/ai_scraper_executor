@@ -85,7 +85,9 @@ No commitear ni hacer push salvo que el usuario lo pida explícitamente.
 apps/api        NestJS: /jobs /radiography /sessions /metrics /dashboard /health (prefijo /api/v1)
 apps/worker     AgentRunner (planner + loop Observe→Think→Act + recovery), browser-engine, job-processor
 
-packages/core             JobStatus/JobLimits/TracedValue (fuente única de tipos)
+libs/shared/core          utilidades puras (hashHtml)
+libs/domain/execution     JobStatus/JobLimits/DEFAULT_LIMITS/normalizeJobLimits (fuente única)
+libs/domain/scraper       TracedValue/StructuredItem (trazabilidad)
 packages/commands         DSL Zod (schemas.ts) + CommandValidator (validator.ts) + normalize.ts
 packages/crawler          CrawlerService (CheerioCrawler/PlaywrightCrawler hybrid, interact())
 packages/execution-engine ExecutionEngine (HTTP/Cheerio + browserInteract), PageCache

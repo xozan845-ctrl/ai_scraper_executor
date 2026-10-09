@@ -160,7 +160,7 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
 - **Decisión**: `normalizeJobLimits` trata cualquier valor no finito o `<= 0` como
   **ausente** y toma `DEFAULT_LIMITS`; un valor válido se recorta a
   `[1, HARD_LIMITS[key]]`. `DEFAULT_LIMITS` y `HARD_LIMITS` viven en
-  `packages/core`, y el recorte también se aplica a los límites de un comando
+  `libs/domain/execution`, y el recorte también se aplica a los límites de un comando
   (`clampCommandLimits`), de modo que el límite efectivo de un comando nunca supera
   el del job.
 - **Consecuencias**: (a) los topes son del servidor, no del cliente: un DTO manipulado

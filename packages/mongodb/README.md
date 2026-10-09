@@ -5,7 +5,7 @@ cero. No es la verdad de negocio —esa es Postgres (ver [`@ai-scraper/storage`]
 si se borra, el sistema vuelve a radiografiar (`R-MO-1`, `R-SC-14`).
 
 - **Capa**: datos.
-- **Dependencias exclusivas**: `mongoose` y, del monorepo, `@ai-scraper/core`,
+- **Dependencias exclusivas**: `mongoose` y, del monorepo, `@ai-scraper/shared-core`,
   `@ai-scraper/crawler`, `@ai-scraper/execution-engine` y `@ai-scraper/security`.
 - **Superficie pública**:
   - `connectMongo` / `disconnectMongo` / `getConnection` / `isMongoMock` — conexión

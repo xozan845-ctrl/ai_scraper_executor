@@ -122,7 +122,6 @@ apps/
   api/           # NestJS API REST (POST/GET /jobs, /radiography, /metrics, /dashboard)
   worker/        # Procesador de jobs (AgentRunner + browser-engine + planner)
 packages/
-  core/          # Tipos compartidos (JobStatus, JobLimits, TracedValue)
   commands/      # DSL Zod (15 comandos) + CommandValidator (SSRF/allowlist) + normalize (anti-alucinación)
   crawler/       # CrawlerService (CheerioCrawler + PlaywrightCrawler, hybrid, SessionPool)
   execution-engine/  # ExecutionEngine (HTTP/Cheerio + delegado browser CLICK/SCROLL + PageCache)
@@ -134,7 +133,10 @@ packages/
   security/      # SSRF centralizado (assertPublicUrl, isBlockedHost, createAllowlist)
   storage/       # JobStore (Prisma + InMemory)
 libs/
-  shared/observability/  # Logger JSON + MetricsCollector (Prometheus, instance labels) — migrado desde packages/ (ADR-30)
+  shared/core/           # Utilidades puras (hashHtml) — migrado desde packages/core (ADR-30)
+  shared/observability/  # Logger JSON + MetricsCollector (Prometheus, instance labels) — migrado (ADR-30)
+  domain/execution/      # JobStatus/JobLimits/DEFAULT_LIMITS/normalizeJobLimits — migrado desde packages/core (ADR-30)
+  domain/scraper/        # TracedValue/StructuredItem (trazabilidad) — migrado desde packages/core (ADR-30)
 prisma/
   schema.prisma  # 8 tablas: User, Job, ScrapingPlan, Command, Page, Result, JobError, AIInteraction
 docker-compose.yml # postgres + mongodb + redis + migrate + api + worker

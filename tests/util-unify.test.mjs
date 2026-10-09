@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
  * divergir entre los paquetes que las reexportan.
  */
 describe('Utilidades unificadas (hashHtml / normalizeDomain)', async () => {
-  const { hashHtml: coreHash } = await import('../packages/core/dist/index.js');
+  const { hashHtml: coreHash } = await import('../libs/shared/core/dist/index.js');
   const { hashHtml: crawlerHash } = await import('../packages/crawler/dist/crawler.service.js');
   const { hashHtml: mongoHash, normalizeDomain: mongoNorm } = await import('../packages/mongodb/dist/repository.js');
   const { normalizeDomain: secNorm } = await import('../packages/security/dist/allowlist.js');

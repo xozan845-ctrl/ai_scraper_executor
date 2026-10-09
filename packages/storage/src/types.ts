@@ -1,13 +1,13 @@
 /**
  * Tipos de persistencia (§11, §40).
- * Fuente única: JobStatus/JobLimits/DEFAULT_LIMITS viven en @ai-scraper/core.
+ * Fuente única: JobStatus/JobLimits/DEFAULT_LIMITS viven en @ai-scraper/domain-execution.
  * Aquí se re-exportan para compatibilidad (ETAPA 1: elimina duplicación).
  */
-import { JobStatus as CoreStatus } from '@ai-scraper/core';
-import type { JobLimits } from '@ai-scraper/core';
+import { JobStatus as CoreStatus } from '@ai-scraper/domain-execution';
+import type { JobLimits } from '@ai-scraper/domain-execution';
 
-export { JobStatus as CoreStatus, DEFAULT_LIMITS } from '@ai-scraper/core';
-export type { JobLimits } from '@ai-scraper/core';
+export { JobStatus as CoreStatus, DEFAULT_LIMITS } from '@ai-scraper/domain-execution';
+export type { JobLimits } from '@ai-scraper/domain-execution';
 
 /** Unión de strings derivada del enum core — acepta 'QUEUED' y JobStatus.QUEUED. */
 export type JobStatus = `${CoreStatus}`;

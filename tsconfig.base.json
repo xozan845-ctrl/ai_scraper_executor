@@ -12,7 +12,9 @@
     "sourceMap": true,
     "baseUrl": ".",
     "paths": {
-      "@ai-scraper/core": ["packages/core/dist"],
+      "@ai-scraper/shared-core": ["libs/shared/core/dist"],
+      "@ai-scraper/domain-execution": ["libs/domain/execution/dist"],
+      "@ai-scraper/domain-scraper": ["libs/domain/scraper/dist"],
       "@ai-scraper/commands": ["packages/commands/dist"],
       "@ai-scraper/crawler": ["packages/crawler/dist"],
       "@ai-scraper/execution-engine": ["packages/execution-engine/dist"],
