@@ -3,7 +3,7 @@
  * Muta el **JS compilado** (`dist`), que es lo que importan los tests (ADR-29). */
 export default {
   testRunner: 'vitest',
-  vitest: { configFile: 'vitest.config.mjs' },
+  vitest: { configFile: 'vitest.stryker.config.mjs' },
   // Área crítica R-MT-2: DSL/límites/trazabilidad + SSRF (la frontera de seguridad).
   mutate: [
     'libs/domain/**/dist/**/*.js',
