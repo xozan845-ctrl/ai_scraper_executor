@@ -1,6 +1,6 @@
 # 01 — Reglas Doradas de Logs y correlación
 
-Aplica a: [`../../../packages/observability/src/logger.ts`](../../../packages/observability/src/logger.ts)
+Aplica a: [`../../../libs/shared/observability/src/logger.ts`](../../../libs/shared/observability/src/logger.ts)
 y a todo punto del repo que registre algo.
 
 ## Reglas
@@ -18,11 +18,11 @@ y a todo punto del repo que registre algo.
 
 ```bash
 # El logger emite JSON con los campos base
-grep -n "ts\|level\|msg\|instance" packages/observability/src/logger.ts | head
+grep -n "ts\|level\|msg\|instance" libs/shared/observability/src/logger.ts | head
 
 # El contexto de correlación se propaga a la cola y al worker
-grep -rn "runWithContext\|updateContext" apps packages --include=*.ts | head
+grep -rn "runWithContext\|updateContext" apps packages libs --include=*.ts | head
 
 # Sin secretos en logs
-grep -rniE "logger?\.(info|warn|error).*(authorization|cookie|password|apikey)" apps packages --include=*.ts
+grep -rniE "logger?\.(info|warn|error).*(authorization|cookie|password|apikey)" apps packages libs --include=*.ts
 ```

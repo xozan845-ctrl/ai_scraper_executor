@@ -21,7 +21,7 @@
       "@ai-scraper/storage": ["packages/storage/dist"],
       "@ai-scraper/queue": ["packages/queue/dist"],
       "@ai-scraper/security": ["packages/security/dist"],
-      "@ai-scraper/observability": ["packages/observability/dist"],
+      "@ai-scraper/shared-observability": ["libs/shared/observability/dist"],
       "@ai-scraper/mongodb": ["packages/mongodb/dist"],
       "@ai-scraper/redis": ["packages/redis/dist"]
     }

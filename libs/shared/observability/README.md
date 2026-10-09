@@ -1,9 +1,9 @@
-# @ai-scraper/observability
+# @ai-scraper/shared-observability
 
 Logs estructurados y métricas: la capa que hace **seguible** un job de extremo a
 extremo. No depende de nada.
 
-- **Capa**: transversal (API, worker y todos los packages).
+- **Capa**: transversal — `libs/shared/observability` (API, worker y todos los packages; `R-HX-1`).
 - **Dependencias**: ninguna (solo `typescript` en desarrollo).
 - **Superficie pública**:
   - `logger`, `log`, `withSpan` — JSON de una línea por evento (`ts`, `level`, `msg`,
@@ -17,6 +17,6 @@ extremo. No depende de nada.
 ## Comandos
 
 ```bash
-npm run build -w @ai-scraper/observability
+npm run build -w @ai-scraper/shared-observability
 node --test tests/observability.test.mjs tests/logging.test.mjs tests/metrics-labels.test.mjs
 ```

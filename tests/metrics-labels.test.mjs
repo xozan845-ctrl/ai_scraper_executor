@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
  * `instance:labels` (el JSON de labels contiene ':').
  */
 describe('Métricas: gauges con labels y parseo de campos', async () => {
-  const { MetricsCollector } = await import('../packages/observability/dist/metrics.js');
+  const { MetricsCollector } = await import('../libs/shared/observability/dist/metrics.js');
   const { parseGaugeField } = await import('../packages/redis/dist/metrics.js');
 
   it('gauges con labels distintos coexisten; misma etiqueta se actualiza', () => {

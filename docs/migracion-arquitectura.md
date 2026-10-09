@@ -30,7 +30,7 @@ dependencia y las aristas prohibidas son `R-HX-2`; la verificación por lint es 
 | `core` | `libs/domain/execution` + `libs/domain/scraper` + `libs/shared/core` | dominio + shared | `JobStatus`/`JobLimits`/límites → `domain/execution`; `TracedValue` → `domain/scraper`; utilidades puras → `shared/core` |
 | `commands` | `libs/domain/ai` | dominio | DSL Zod, normalizador y `CommandValidator`; el host/SSRF se resuelve por un **puerto** implementado en `infrastructure/security` |
 | `security` | `libs/infrastructure/security` | infraestructura | Sin dependencias externas; candidata a `shared/security` si el dominio la usa de forma pura (revisar en su PR) |
-| `observability` | `libs/shared/observability` | shared | Logger + métricas; transversal pura |
+| `observability` | `libs/shared/observability` | shared | ✅ **migrado** (paquete `@ai-scraper/shared-observability`); Logger + métricas, transversal pura |
 | `crawler` | `libs/infrastructure/crawler` | infraestructura | Cheerio/Playwright; implementa el puerto de navegación |
 | `execution-engine` | `libs/infrastructure/execution` | infraestructura | Implementa el puerto `IExecutionEngine` del dominio `scraper` |
 | `ai` | `libs/application/ai` + `libs/domain/ai` | aplicación + dominio | Casos de uso (planner, loop, recovery) en `application`; puertos (`IAIProvider`, orquestador) en `domain/ai/ports` |
@@ -53,7 +53,7 @@ permanece verde en todo momento (`R-HX-9`). Orden por dependencia (de hojas a ra
 | Fase | Alcance | Salida |
 |---|---|---|
 | **F0 — Andamiaje** ✅ | Verificador de fronteras sin dependencias (`scripts/check-boundaries.mjs`, integrado en `npm run lint`); crear `libs/` con README raíz. Sin mover código | `R-HX-4` **activo** (con 2 excepciones legacy); `libs/` existe |
-| **F1 — `shared/`** | `observability` → `libs/shared/observability`; crear `libs/shared/core` (utilidades puras) | `shared` sin dependencias de otras capas |
+| **F1 — `shared/`** | `observability` → `libs/shared/observability` ✅; `core` se reparte en F2 (no se crea `shared/core` vacío) | `shared` sin dependencias de otras capas |
 | **F2 — `domain/`** | Repartir `core` a `domain/{execution,scraper}`; `commands` → `domain/ai`; declarar puertos que hoy están implícitos | Dominio testeable **sin infra** |
 | **F3 — `infrastructure/`** | `security`, `crawler`, `execution-engine`, `ai-providers`, `queue`, `redis`, `mongodb`, `storage` | Adaptadores implementan los puertos de F2 |
 | **F4 — `application/`** | `ai` → `application/{ai,scraper,execution}` (casos de uso) | Lógica de orquestación fuera de infraestructura |

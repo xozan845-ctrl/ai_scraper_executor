@@ -1,6 +1,6 @@
 # 02 — Reglas Doradas de Telemetría (métricas, health y dashboard)
 
-Aplica a: [`../../../packages/observability/src/metrics.ts`](../../../packages/observability/src/metrics.ts),
+Aplica a: [`../../../libs/shared/observability/src/metrics.ts`](../../../libs/shared/observability/src/metrics.ts),
 [`../../../packages/redis/src/metrics.ts`](../../../packages/redis/src/metrics.ts) y a los
 endpoints `GET /api/v1/metrics`, `GET /api/v1/metrics/prometheus`, `GET /api/v1/health`,
 `GET /api/v1/health/ready` y `GET /api/v1/dashboard`.
@@ -23,10 +23,10 @@ endpoints `GET /api/v1/metrics`, `GET /api/v1/metrics/prometheus`, `GET /api/v1/
 
 ```bash
 # El prefijo scraper_ y el label instance se aplican en el collector
-grep -n "prefix\|instance" packages/observability/src/metrics.ts | head
+grep -n "prefix\|instance" libs/shared/observability/src/metrics.ts | head
 
 # Las distributed van con su propio prefijo
-grep -rn "scraper_distributed" packages apps --include=*.ts | head
+grep -rn "scraper_distributed" packages apps libs --include=*.ts | head
 
 # Liveness sin dependencias; readiness con 503
 grep -n "check\|ready\|ServiceUnavailable" apps/api/src/health/health.controller.ts

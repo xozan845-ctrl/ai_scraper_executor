@@ -8,7 +8,7 @@ import { createFallbackProvider, withCircuitBreaker } from '@ai-scraper/ai-provi
 import { createJobStore, closeJobStore, createSessionStore } from '@ai-scraper/storage';
 import { createJobQueue, createScrapingWorker, createRedisConnection, closeJobQueue, createDeadLetterQueue, queueRedisUrl } from '@ai-scraper/queue';
 import { disconnectMongo } from '@ai-scraper/mongodb';
-import { runWithContext } from '@ai-scraper/observability';
+import { runWithContext } from '@ai-scraper/shared-observability';
 import { decryptJson } from '@ai-scraper/security';
 
 /**

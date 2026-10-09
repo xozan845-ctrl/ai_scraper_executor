@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 describe('Observabilidad distribuida ETAPA 5 (instance + uptime + stats)', async () => {
-  const obs = await import('../packages/observability/dist/index.js');
+  const obs = await import('../libs/shared/observability/dist/index.js');
 
   it('toPrometheus etiqueta cada serie con instance + info/uptime', () => {
     process.env.INSTANCE_ID = 'test-replica-1';

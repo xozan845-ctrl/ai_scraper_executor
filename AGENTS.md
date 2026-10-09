@@ -95,15 +95,16 @@ packages/mongodb          SiteProfile/PageRadiography, MongoRepository, performR
 packages/redis            RedisPageCache/RedisRateLimiter/RedisMetricsAggregator (fallback memoria)
 packages/queue            JobQueue (BullMQ + InMemory)
 packages/security         SSRF centralizado: assertPublicUrl/isBlockedHost/createAllowlist
-packages/observability    logger JSON + MetricsCollector (Prometheus)
 packages/storage          JobStore (Prisma + InMemory)
+
+libs/shared/observability logger JSON + MetricsCollector (Prometheus)  # migrado desde packages/ (ADR-30)
 ```
 
 ## Reglas del proyecto (importantes)
 
-1. **Build order**: `packages/security` y `core` primero; `tsconfig.base.json` mapea `paths` a `packages/*/dist`
-   (NO a `src`). Cada paquete tiene su propio `tsconfig.json` con `rootDir: src` y `outDir: dist`.
-   Los tests cargan `dist/`, así que edita TS y **rebuild** antes de testear.
+1. **Build order**: `packages/security` y `core` primero; `tsconfig.base.json` mapea `paths` a
+   `packages/*/dist` y `libs/*/*/dist` (NO a `src`). Cada paquete/lib tiene su propio `tsconfig.json`
+   con `rootDir: src` y `outDir: dist`. Los tests cargan `dist/`, así que edita TS y **rebuild** antes de testear.
 2. **Seguridad**: toda validación de URL pasa por `@ai-scraper/security` (`assertPublicUrl`). La IA nunca
    ejecuta código arbitrario. SSRF/allowlist en `CommandValidator`. No duplicar lógica SSRF.
 3. **DSL**: los 15 comandos están en `packages/commands/src/schemas.ts` (Zod). La IA solo emite estos.
