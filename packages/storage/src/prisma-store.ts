@@ -55,6 +55,7 @@ export class PrismaJobStore implements JobStore {
         aiProvider: input.aiProvider ?? 'openrouter',
         aiModel: input.aiModel,
         sessionId: input.sessionId ?? null,
+        ownerScope: input.ownerScope ?? 'anon',
       },
     });
     return toRecord(j);
