@@ -12,6 +12,7 @@ despliegue con entornos.
 > | Composición | **Un `docker-compose.yml`** en la raíz con 6 servicios: `postgres`, `mongodb`, `redis`, `migrate` (one-shot), `api`, `worker` |
 > | Migraciones | Servicio `migrate` que corre `npx prisma migrate deploy` y **bloquea** el arranque de `api` y `worker` (`condition: service_completed_successfully`) |
 > | Release por tag | **Existe** ([`release.yml`](../../../.github/workflows/release.yml)): tag `v*.*.*` o dispatch con `dry_run`; imágenes en GHCR con etiquetas OCI (`R-CD-1..8`) |
+> | Promoción entre entornos | **Existe** ([`promote.yml`](../../../.github/workflows/promote.yml)): `workflow_dispatch` con *environment* (`staging`/`production`) que reetiqueta el mismo digest (`R-GE-5`, ADR-32) |
 > | Entornos | **No hay**: ni `staging` ni `produccion`; una sola rama (`R-GE-1`) y un solo conjunto de secretos |
 > | Health | `HEALTHCHECK` en la imagen de la API contra `/api/v1/health` |
 >

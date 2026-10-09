@@ -758,6 +758,32 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
 
 ---
 
+## ADR-32: Promoción entre entornos por imágenes inmutables + GitHub Environments
+
+- **Fecha**: 2026-10-09
+- **Estado**: Aceptado
+- **Contexto**: `R-GE-5` era la última deuda de entrega: una sola rama, un solo juego de
+  secretos y ningún camino de promoción. `release.yml` ya publica imágenes **inmutables**
+  en GHCR por tag semver (ADR-22), lo que da la pieza que faltaba: promover es **mover una
+  etiqueta**, no reconstruir.
+- **Decisión**: definir dos **GitHub Environments** (`staging`, `production`) con sus
+  reglas de protección (aprobación) y sus secretos, y un workflow
+  [`promote.yml`](../.github/workflows/promote.yml) (`workflow_dispatch`, `dry_run` por
+  defecto) que promo­ciona una release ya publicada (tag `vX.Y.Z`) **reetiquetando la misma
+  imagen** (`docker buildx imagetools create`) como `:<environment>`, sin reconstruir. El
+  job valida el tag, que el commit esté en `main` y que tenga un run de `ci` verde
+  (mismo criterio que `release.yml`) y corre bajo `environment: ${{ inputs.environment }}`,
+  de modo que la aprobación de producción es una regla de entorno, no código.
+- **Consecuencias**: (a) `R-GE-5` deja de ser deuda: hay un camino de promoción con IDs y
+  workflow; (b) `staging` y `production` corren el **mismo digest** (inmutabilidad,
+  `R-CD-3`); (c) el repo **no** conoce el target de despliegue — el workflow deja la imagen
+  etiquetada por entorno y **el deploy real lo ejecuta el entorno** con sus secretos
+  (documentado en `git/00-entornos.md` y `cd/`); (d) es un **cuarto workflow** aceptado por
+  `R-CI-4`; (e) activar la promoción (crear los environments y sus aprobaciones) es
+  responsabilidad del operador, igual que los secretos.
+
+---
+
 ## Deudas que estos ADR dejan abiertas
 
 | Deuda | ADR relacionado | Dónde está registrada |
@@ -766,7 +792,7 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
 | Cobertura solo de ficheros cargados por la suite | ADR-17 | `rules/test/06-estandares-cobertura.md` (`R-COV-4`) |
 | Almacenamiento de Crawlee impide paralelizar la suite | ADR-04, ADR-11 | `rules/test/05-reglas-robustez.md` (`R-FL-5`) |
 | Mutation testing con Stryker: baseline bajo a mejorar (`R-MT-3`) | ADR-31 | `rules/test/05-reglas-robustez.md` (`R-MT-1`) |
-| Promoción entre entornos sin implementar | ADR-15 | `rules/git/00-entornos.md` (`R-GE-5`) |
+| Entornos `staging`/`production` declarados (ADR-32) pero su **protección/aprobación y el deploy real** los configura el operador | ADR-32 | `rules/git/00-entornos.md` (`R-GE-5`) |
 | Separación caché/cola de Redis: soportada pero **opt-in** (default compartido) | ADR-23 | `rules/db/03-redis.md` (`R-RD-1`) |
 | Retención de `Page`/`Command`/`AIInteraction` sin declarar | — | `rules/data/01-integridad.md` (`R-DI-8`) |
 | Migración a hexagonal DDD **declarada pero no ejecutada** (conviven `packages/` y `libs/`) | ADR-27, ADR-30 | `migracion-arquitectura.md`; `rules/architecture/03-arquitectura-hexagonal.md` (`R-HX-9`) |

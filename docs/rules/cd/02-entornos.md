@@ -6,11 +6,11 @@ Reglas de la entrega **que sí existe**: un `docker-compose.yml` en la raíz con
 [`../git/00-entornos.md`](../git/00-entornos.md) (`R-GE-*`): aquí se despliega lo que
 `main` decide.
 
-> **No hay entornos múltiples.** No existe `staging` ni `produccion`, ni un panel con
-> *environments*: hay un solo conjunto de servicios y un solo juego de secretos. La
-> promoción entre entornos está registrada como **deuda** en
-> [`../git/00-entornos.md`](../git/00-entornos.md) (`R-GE-5`), y estas reglas
-> norman la entrega única que hay, no un ritual de promoción inexistente.
+> **Promoción por imágenes inmutables.** El compose sigue siendo un único conjunto de
+> servicios; la promoción a `staging`/`production` es de **imágenes** (etiqueta de entorno
+> sobre el mismo digest de GHCR) y la gobierna
+> [`promote.yml`](../../../.github/workflows/promote.yml) (ADR-32, `R-GE-5`), no un compose
+> por entorno. Estas reglas norman la entrega; los entornos los configura el operador.
 
 ## Reglas
 

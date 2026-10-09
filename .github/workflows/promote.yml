@@ -1,0 +1,118 @@
+name: promote
+
+# Promoción entre entornos (R-GE-5, ADR-32): promueve una release YA publicada
+# (`tag` vX.Y.Z) a `staging` o `production` **reetiquetando la misma imagen
+# inmutable** (sin reconstruir), de modo que ambos entornos corren el mismo digest.
+# El *environment* de GitHub aplica sus reglas de protección (aprobación) y sus
+# secretos. `workflow_dispatch` trae `dry_run: true` por defecto (R-CD-8).
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Entorno destino
+        type: choice
+        options:
+          - staging
+          - production
+        required: true
+      tag:
+        description: Tag de release ya publicado (vX.Y.Z)
+        type: string
+        required: true
+      dry_run:
+        description: Simular la promoción sin reetiquetar
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  packages: write
+  actions: read
+
+concurrency:
+  group: promote-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.meta.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+      - name: Validar tag y procedencia
+        id: meta
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="${{ inputs.tag }}"
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]; then
+            echo "::error::tag inválido: $TAG (se espera v<major>.<minor>.<patch>[-prerelease])"
+            exit 1
+          fi
+          SHA="$(git rev-parse HEAD)"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
+          # R-GE-5: el commit promovido tiene que estar en main.
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "$SHA" origin/main; then
+            echo "::error::el commit $SHA no está en main"
+            exit 1
+          fi
+
+          # R-GE-5: y tener un run de ci verde en ese mismo SHA.
+          COUNT="$(curl -fsSL \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/runs?head_sha=$SHA&status=completed&conclusion=success&per_page=1" \
+            | grep -o '"total_count": *[0-9]*' | head -1 | grep -o '[0-9]*$')"
+          if [[ -z "${COUNT:-}" || "$COUNT" -lt 1 ]]; then
+            echo "::error::no hay ningún run de ci en success para el commit $SHA"
+            exit 1
+          fi
+          echo "procedencia OK: $TAG @ $SHA"
+
+  promote:
+    needs: validate
+    runs-on: ubuntu-latest
+    # R-GE-5: el entorno destino aplica sus reglas de protección (aprobación) y secretos.
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Login en GHCR
+        if: ${{ inputs.dry_run == false }}
+        run: echo "${{ github.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Promover imágenes (retag inmutable, sin reconstruir)
+        env:
+          ENV: ${{ inputs.environment }}
+          TAG: ${{ inputs.tag }}
+          DRY: ${{ inputs.dry_run }}
+          SHA: ${{ needs.validate.outputs.sha }}
+        run: |
+          set -euo pipefail
+          SHORT="$(echo "$SHA" | cut -c1-7)"
+          for app in api worker; do
+            IMAGE="ghcr.io/${{ github.repository }}-$app"
+            SRC="$IMAGE:$TAG"
+            DST="$IMAGE:$ENV"
+            if [[ "$DRY" == "true" ]]; then
+              echo "[dry_run] promovería $SRC -> $DST"
+              continue
+            fi
+            # Mismo manifest/digest, solo cambia la etiqueta del entorno.
+            docker buildx imagetools create -t "$DST" "$SRC"
+            DIGEST="$(docker buildx imagetools inspect "$DST" --format '{{json .Manifest.Digest}}' 2>/dev/null || true)"
+            {
+              echo "### $app → $ENV"
+              echo ""
+              echo "- origen: $SRC"
+              echo "- destino: $DST"
+              echo "- digest: ${DIGEST:-<no reportado>}"
+            } >> "$GITHUB_STEP_SUMMARY"
+          done
+          echo "promoción a $ENV completada (sha $SHORT)"
