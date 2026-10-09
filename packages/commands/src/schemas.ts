@@ -27,7 +27,7 @@ export type CommandType = (typeof CommandType)[keyof typeof CommandType];
 const BaseCommand = z.object({
   type: z.nativeEnum(CommandType),
   reason: z.string().optional(),
-});
+}).strict();
 
 const NavigateCommand = BaseCommand.extend({
   type: z.literal(CommandType.NAVIGATE),
@@ -58,7 +58,7 @@ const AuthenticateCommand = BaseCommand.extend({
 
 const ExtractField = z.union([
   z.string(),
-  z.object({ selector: z.string(), attribute: z.string().optional() }),
+  z.object({ selector: z.string(), attribute: z.string().optional() }).strict(),
 ]);
 
 const ExtractListCommand = BaseCommand.extend({
@@ -87,6 +87,24 @@ const FollowLinksCommand = BaseCommand.extend({
   sameDomainOnly: z.boolean().default(true),
 });
 
+const InspectPageCommand = BaseCommand.extend({ type: z.literal(CommandType.INSPECT_PAGE) });
+const InspectLinksCommand = BaseCommand.extend({ type: z.literal(CommandType.INSPECT_LINKS) });
+const InspectElementsCommand = BaseCommand.extend({ type: z.literal(CommandType.INSPECT_ELEMENTS) });
+const ScrollCommand = BaseCommand.extend({
+  type: z.literal(CommandType.SCROLL),
+  selector: z.string().min(1).max(500).optional(),
+});
+const WaitCommand = BaseCommand.extend({
+  type: z.literal(CommandType.WAIT),
+  ms: z.number().int().min(0).max(5000).optional(),
+});
+const GetAttributeCommand = BaseCommand.extend({
+  type: z.literal(CommandType.GET_ATTRIBUTE),
+  selector: z.string().min(1).max(500),
+  attribute: z.string().min(1).max(200),
+});
+const FinishCommand = BaseCommand.extend({ type: z.literal(CommandType.FINISH) });
+
 export const ScrapingCommandSchema = z.discriminatedUnion('type', [
   NavigateCommand,
   ClickCommand,
@@ -96,13 +114,13 @@ export const ScrapingCommandSchema = z.discriminatedUnion('type', [
   ExtractCommand,
   PaginateCommand,
   FollowLinksCommand,
-  z.object({ type: z.literal('INSPECT_PAGE') }).passthrough(),
-  z.object({ type: z.literal('INSPECT_LINKS') }).passthrough(),
-  z.object({ type: z.literal('INSPECT_ELEMENTS') }).passthrough(),
-  z.object({ type: z.literal('SCROLL') }).passthrough(),
-  z.object({ type: z.literal('WAIT') }).passthrough(),
-  z.object({ type: z.literal('GET_ATTRIBUTE') }).passthrough(),
-  z.object({ type: z.literal('FINISH') }).passthrough(),
+  InspectPageCommand,
+  InspectLinksCommand,
+  InspectElementsCommand,
+  ScrollCommand,
+  WaitCommand,
+  GetAttributeCommand,
+  FinishCommand,
 ]);
 
 export type ScrapingCommand = z.infer<typeof ScrapingCommandSchema>;
@@ -110,6 +128,6 @@ export type ScrapingCommand = z.infer<typeof ScrapingCommandSchema>;
 export const ScrapingPlanSchema = z.object({
   version: z.literal('1.0'),
   actions: z.array(ScrapingCommandSchema).min(1).max(50),
-});
+}).strict();
 
 export type ScrapingPlan = z.infer<typeof ScrapingPlanSchema>;

@@ -23,6 +23,12 @@ export class CommandValidator {
     if ('url' in cmd && typeof (cmd as { url?: string }).url === 'string') {
       this.assertSameDomain((cmd as { url: string }).url);
     }
+    if (cmd.type === 'PAGINATE' && cmd.maxPages !== undefined && cmd.maxPages > this.opts.maxPages) {
+      throw new Error(`PAGINATE excede maxPages del job (${this.opts.maxPages})`);
+    }
+    if (cmd.type === 'FOLLOW_LINKS' && cmd.maxLinks !== undefined && cmd.maxLinks > this.opts.maxPages) {
+      throw new Error(`FOLLOW_LINKS excede maxPages del job (${this.opts.maxPages})`);
+    }
     return cmd;
   }
 
