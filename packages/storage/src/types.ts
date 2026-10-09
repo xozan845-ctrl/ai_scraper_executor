@@ -20,6 +20,8 @@ export interface CreateJobInput {
   aiModel?: string;
   /** Sesión (chat) de origen, si el job se creó desde /sessions. */
   sessionId?: string;
+  /** Identidad opaca derivada de la API key; nunca contiene la clave en claro. */
+  ownerScope?: string;
 }
 
 export interface JobRecord extends CreateJobInput {

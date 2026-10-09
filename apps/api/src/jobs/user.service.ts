@@ -1,6 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
-import { User, connectMongo, isMongoMock } from '@ai-scraper/mongodb';
+import { getPrismaClient } from '@ai-scraper/storage';
 import { generateApiKey } from './password.util';
 
 export type UserRole = 'superadmin' | 'user';
@@ -20,29 +20,30 @@ interface MemoryUser {
   createdAt: Date;
 }
 
-/** SHA-256 de la API key: en BD solo se guarda el hash, nunca la clave en claro. */
 export function hashApiKey(key: string): string {
   return createHash('sha256').update(key).digest('hex');
 }
 
-/**
- * Usuarios del sistema (registro inicial + verificación de API keys de BD).
- * Reutiliza el modelo `User` de @ai-scraper/mongodb (sin @nestjs/mongoose ni
- * segunda conexión) y cae a memoria bajo MONGODB_MOCK=1, igual que el resto.
- */
+/** Usuarios y claves API. PostgreSQL es la fuente única en producción. */
 @Injectable()
 export class UserService {
   private readonly logger = new Logger(UserService.name);
   private readonly memory = new Map<string, MemoryUser>();
+  private readonly prisma = getPrismaClient();
 
-  private async ensureReady(): Promise<void> {
-    await connectMongo();
+  private useMemory(): boolean {
+    return !process.env.DATABASE_URL && process.env.NODE_ENV !== 'production';
+  }
+
+  private ensureReady(): void {
+    if (!this.useMemory() && !process.env.DATABASE_URL) {
+      throw new Error('DATABASE_URL requerido para usuarios en producción');
+    }
   }
 
   async countUsers(): Promise<number> {
-    await this.ensureReady();
-    if (isMongoMock()) return this.memory.size;
-    return User.countDocuments({});
+    this.ensureReady();
+    return this.useMemory() ? this.memory.size : this.prisma.user.count();
   }
 
   async createUser(data: {
@@ -51,52 +52,72 @@ export class UserService {
     role: UserRole;
     apiKeyHash: string | null;
   }): Promise<CreatedUser> {
-    await this.ensureReady();
+    this.ensureReady();
     const email = data.email.trim().toLowerCase();
-    if (isMongoMock()) {
-      const u: MemoryUser = {
-        id: randomUUID(),
-        email,
-        passwordHash: data.passwordHash,
-        role: data.role,
-        apiKeyHash: data.apiKeyHash,
-        createdAt: new Date(),
+    if (this.useMemory()) {
+      const user: MemoryUser = {
+        id: randomUUID(), email, passwordHash: data.passwordHash,
+        role: data.role, apiKeyHash: data.apiKeyHash, createdAt: new Date(),
       };
-      this.memory.set(u.id, u);
-      return { email: u.email, role: u.role, createdAt: u.createdAt };
+      this.memory.set(user.id, user);
+      return { email: user.email, role: user.role, createdAt: user.createdAt };
     }
-    const created = await User.create({
-      email,
-      passwordHash: data.passwordHash,
-      role: data.role,
-      apiKeyHash: data.apiKeyHash ?? undefined,
-    });
-    return {
-      email: created.email,
-      role: (created.role as UserRole) ?? 'user',
-      createdAt: created.createdAt ?? new Date(),
-    };
+    const created = await this.prisma.user.create({ data: {
+      email, passwordHash: data.passwordHash, role: data.role, apiKeyHash: data.apiKeyHash,
+    } });
+    return { email: created.email, role: created.role as UserRole, createdAt: created.createdAt };
+  }
+
+  async createFirstUser(data: {
+    email: string;
+    passwordHash: string;
+    apiKeyHash: string;
+  }): Promise<CreatedUser> {
+    this.ensureReady();
+    const email = data.email.trim().toLowerCase();
+    if (this.useMemory()) {
+      if (this.memory.size > 0) throw new ConflictException('Ya existe un usuario; el registro inicial está cerrado.');
+      const user: MemoryUser = {
+        id: randomUUID(), email, passwordHash: data.passwordHash,
+        role: 'superadmin', apiKeyHash: data.apiKeyHash, createdAt: new Date(),
+      };
+      this.memory.set(user.id, user);
+      return { email: user.email, role: user.role, createdAt: user.createdAt };
+    }
+    if ((await this.prisma.user.count()) > 0) {
+      throw new ConflictException('Ya existe un usuario; el registro inicial está cerrado.');
+    }
+    try {
+      const created = await this.prisma.user.create({ data: {
+        email, passwordHash: data.passwordHash, role: 'superadmin',
+        apiKeyHash: data.apiKeyHash, bootstrap: true,
+      } });
+      return { email: created.email, role: 'superadmin', createdAt: created.createdAt };
+    } catch (error) {
+      if ((error as { code?: string }).code === 'P2002') {
+        throw new ConflictException('Ya existe un usuario; el registro inicial está cerrado.');
+      }
+      throw error;
+    }
   }
 
   async findByEmail(email: string): Promise<{ email: string; role: UserRole } | null> {
-    await this.ensureReady();
+    this.ensureReady();
     const normalized = email.trim().toLowerCase();
-    if (isMongoMock()) {
-      const found = [...this.memory.values()].find((u) => u.email === normalized);
+    if (this.useMemory()) {
+      const found = [...this.memory.values()].find((user) => user.email === normalized);
       return found ? { email: found.email, role: found.role } : null;
     }
-    const user = await User.findOne({ email: normalized });
-    return user ? { email: user.email, role: (user.role as UserRole) ?? 'user' } : null;
+    const user = await this.prisma.user.findUnique({ where: { email: normalized } });
+    return user ? { email: user.email, role: user.role as UserRole } : null;
   }
 
-  /** true si la API key presentada corresponde a un usuario registrado (hash). */
   async verifyApiKey(presented: string): Promise<boolean> {
     if (!presented) return false;
-    await this.ensureReady();
+    this.ensureReady();
     const hash = hashApiKey(presented);
-    if (isMongoMock()) return [...this.memory.values()].some((u) => u.apiKeyHash === hash);
-    const found = await User.findOne({ apiKeyHash: hash }).select({ _id: 1 }).lean();
-    return Boolean(found);
+    if (this.useMemory()) return [...this.memory.values()].some((user) => user.apiKeyHash === hash);
+    return Boolean(await this.prisma.user.findUnique({ where: { apiKeyHash: hash }, select: { id: true } }));
   }
 
   generateApiKey(): string {
@@ -105,8 +126,10 @@ export class UserService {
 
   async recordLogin(email: string): Promise<void> {
     this.logger.debug(`User login recorded: ${email}`);
-    if (isMongoMock()) return;
-    await this.ensureReady();
-    await User.updateOne({ email: email.trim().toLowerCase() }, { lastLoginAt: new Date() }).catch(() => undefined);
+    this.ensureReady();
+    if (this.useMemory()) return;
+    await this.prisma.user.update({
+      where: { email: email.trim().toLowerCase() }, data: { lastLoginAt: new Date() },
+    }).catch(() => undefined);
   }
 }

@@ -40,6 +40,16 @@ export class JobsService {
     @Inject(JOB_QUEUE) private readonly queue: JobQueue,
   ) {}
 
+  private publicJob<T extends { ownerScope?: string }>(record: T): Omit<T, 'ownerScope'> {
+    const { ownerScope: _ownerScope, ...publicRecord } = record;
+    return publicRecord;
+  }
+
+  private async ownedJob(id: string, scope: string) {
+    const job = await this.store.getJob(id);
+    return job?.ownerScope === scope ? job : null;
+  }
+
   async create(dto: CreateJobDto, idempotencyKey?: string, sessionId?: string, scope = 'anon') {
     // Idempotencia con ámbito (scope = hash de API key/sesión): evita que la
     // misma clave de dos clientes distintos devuelva el job de otro.
@@ -49,9 +59,9 @@ export class JobsService {
       const existingId = await cache.get<string>(idemKey);
       if (existingId) {
         const existing = await this.store.getJob(existingId);
-        if (existing) {
+        if (existing && existing.ownerScope === scope) {
           console.log(`[JOB] ${existing.id} reutilizado (idempotency-key)`);
-          return existing;
+          return this.publicJob(existing);
         }
       }
     }
@@ -64,6 +74,7 @@ export class JobsService {
       aiProvider: dto.ai?.provider ?? 'openrouter',
       aiModel: dto.ai?.model,
       sessionId,
+      ownerScope: scope,
     });
     try {
       await this.queue.enqueue({
@@ -87,18 +98,19 @@ export class JobsService {
     if (idemKey && cache) {
       await cache.set(idemKey, record.id, 24 * 3600 * 1000).catch(() => undefined);
     }
-    return record;
+    return this.publicJob(record);
   }
 
-  findOne(id: string) {
-    return this.store.getJob(id);
+  async findOne(id: string, scope = 'anon') {
+    const job = await this.ownedJob(id, scope);
+    return job ? this.publicJob(job) : null;
   }
 
-  list(limit?: number, opts?: { cursor?: string; status?: string }) {
+  list(limit?: number, opts?: { cursor?: string; status?: string }, scope = 'anon') {
     const n = Math.min(Math.max(Number(limit) || 20, 1), 100);
-    return this.store.listJobs(n + 1, opts).then((rows) => {
+    return this.store.listJobs(n + 1, { ...opts, ownerScope: scope }).then((rows) => {
       const hasMore = rows.length > n;
-      const items = hasMore ? rows.slice(0, n) : rows;
+      const items = (hasMore ? rows.slice(0, n) : rows).map((job) => this.publicJob(job));
       return {
         items,
         nextCursor: hasMore ? items[items.length - 1]!.id : null,
@@ -106,8 +118,8 @@ export class JobsService {
     });
   }
 
-  async results(id: string) {
-    const job = await this.store.getJob(id);
+  async results(id: string, scope = 'anon') {
+    const job = await this.ownedJob(id, scope);
     if (!job) return null;
     const rows = await this.store.getResults(id);
     return {
@@ -136,8 +148,8 @@ export class JobsService {
     };
   }
 
-  async execution(id: string) {
-    const job = await this.store.getJob(id);
+  async execution(id: string, scope = 'anon') {
+    const job = await this.ownedJob(id, scope);
     if (!job) return null;
     const [commands, pages, errors] = await Promise.all([
       this.store.getCommands(id),
@@ -147,20 +159,21 @@ export class JobsService {
     return { jobId: id, status: job.status, commands, pages, errors };
   }
 
-  async cancel(id: string) {
-    const job = await this.store.getJob(id);
+  async cancel(id: string, scope = 'anon') {
+    const job = await this.ownedJob(id, scope);
     if (!job) return null;
-    if (['COMPLETED', 'FAILED', 'CANCELLED'].includes(job.status)) return job;
+    if (['COMPLETED', 'FAILED', 'CANCELLED', 'TIMEOUT'].includes(job.status)) return this.publicJob(job);
     await this.queue.remove(id).catch(() => false);
     metrics().inc('jobs_cancelled_total');
-    return this.store.updateStatus(id, 'CANCELLED');
+    const updated = await this.store.updateStatus(id, 'CANCELLED');
+    return updated ? this.publicJob(updated) : null;
   }
 
   /** Reencola un job FAILED (replay manual / DLQ). Limpia artefactos previos. */
-  async retry(id: string) {
-    const job = await this.store.getJob(id);
+  async retry(id: string, scope = 'anon') {
+    const job = await this.ownedJob(id, scope);
     if (!job) return null;
-    if (job.status !== 'FAILED') return job; // solo se reintentan fallidos
+    if (!['FAILED', 'TIMEOUT'].includes(job.status)) return this.publicJob(job);
     await this.store.clearJobArtifacts(id);
     await this.store.updateStatus(id, 'QUEUED');
     await this.queue.enqueue({
@@ -172,11 +185,12 @@ export class JobsService {
       ...(getContext().correlationId ? { correlationId: getContext().correlationId } : {}),
     });
     metrics().inc('jobs_retried_total');
-    return this.store.getJob(id);
+    const updated = await this.store.getJob(id);
+    return updated ? this.publicJob(updated) : null;
   }
 
-  async aiInteractions(id: string, limit = 50) {
-    const job = await this.store.getJob(id);
+  async aiInteractions(id: string, limit = 50, scope = 'anon') {
+    const job = await this.ownedJob(id, scope);
     if (!job) return null;
     const n = Math.min(Math.max(Number(limit) || 50, 1), 200);
     const calls = (await this.store.getAIInteractions(id)).slice(-n);

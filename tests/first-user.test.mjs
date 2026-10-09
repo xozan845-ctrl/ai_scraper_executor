@@ -32,6 +32,17 @@ describe('first-user + API key de BD (seguridad)', async () => {
         users.push(u);
         return { email: u.email, role: u.role, createdAt: u.createdAt };
       },
+      createFirstUser: async (data) => {
+        if (users.length > 0) {
+          const error = new Error('Ya existe un usuario');
+          error.getStatus = () => 409;
+          throw error;
+        }
+        const email = String(data.email).trim().toLowerCase();
+        const u = { email, role: 'superadmin', passwordHash: data.passwordHash, apiKeyHash: data.apiKeyHash, createdAt: new Date() };
+        users.push(u);
+        return { email: u.email, role: u.role, createdAt: u.createdAt };
+      },
       generateApiKey: () => 'sk-test-1234567890abcdef',
       verifyApiKey: async (presented) => users.some((u) => u.apiKeyHash === hashApiKey(presented)),
     };
@@ -61,6 +72,18 @@ describe('first-user + API key de BD (seguridad)', async () => {
       () => ctrl.registerFirst({ email: 'b@x.com', password: 'clave-segura' }, req()),
       (e) => e.getStatus() === 409,
     );
+  });
+
+  it('dos registros concurrentes crean exactamente un superadmin', async () => {
+    const svc = fakeUserService();
+    const ctrl = new FirstUserController(svc);
+    const outcomes = await Promise.allSettled([
+      ctrl.registerFirst({ email: 'a@x.com', password: 'clave-segura' }, req()),
+      ctrl.registerFirst({ email: 'b@x.com', password: 'clave-segura' }, req()),
+    ]);
+    assert.equal(outcomes.filter((result) => result.status === 'fulfilled').length, 1);
+    assert.equal(outcomes.filter((result) => result.status === 'rejected').length, 1);
+    assert.equal(svc.users.length, 1);
   });
 
   it('producción sin FIRST_RUN_TOKEN → 403 (fail-closed)', async () => {

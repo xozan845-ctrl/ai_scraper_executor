@@ -31,7 +31,7 @@ export class SessionsService {
     };
   }
 
-  async create(dto: CreateSessionDto) {
+  async create(dto: CreateSessionDto, scope = 'anon') {
     assertJobUrlAllowed(dto.url);
     let credentials: string | null = null;
     if (dto.credentials?.headers && Object.keys(dto.credentials.headers).length > 0) {
@@ -44,6 +44,7 @@ export class SessionsService {
       url: dto.url,
       domain: normalizeDomain(dto.url),
       credentials,
+      ownerScope: scope,
     });
     // Radiografía en background (el cliente hace polling de /status).
     void this.runRadiography(session.id, dto.url, dto.credentials?.headers);
@@ -101,8 +102,8 @@ export class SessionsService {
     });
   }
 
-  async list() {
-    const rows = await this.sessions.listSessions(100);
+  async list(scope = 'anon') {
+    const rows = await this.sessions.listSessions(100, scope);
     return Promise.all(rows.map(async (s) => this.view(await this.reconcileStale(s))));
   }
 
@@ -115,8 +116,8 @@ export class SessionsService {
     return s;
   }
 
-  async get(id: string) {
-    const found = await this.sessions.getSession(id);
+  async get(id: string, scope = 'anon') {
+    const found = await this.sessions.getSession(id, scope);
     if (!found) return null;
     const s = await this.reconcileStale(found);
     const messages = await this.sessions.getMessages(id);
@@ -124,8 +125,8 @@ export class SessionsService {
     const enriched = await Promise.all(
       messages.map(async (m) => {
         if (m.role !== 'assistant' || !m.jobId) return m;
-        const job = await this.jobs.findOne(m.jobId).catch(() => null);
-        const res = job ? await this.jobs.results(m.jobId).catch(() => null) : null;
+        const job = await this.jobs.findOne(m.jobId, scope).catch(() => null);
+        const res = job ? await this.jobs.results(m.jobId, scope).catch(() => null) : null;
         return { ...m, jobStatus: job?.status ?? null, results: res?.items ?? null };
       }),
     );
@@ -150,21 +151,21 @@ export class SessionsService {
     return { ...this.view(s), messages: enriched, profile };
   }
 
-  async status(id: string) {
-    const found = await this.sessions.getSession(id);
+  async status(id: string, scope = 'anon') {
+    const found = await this.sessions.getSession(id, scope);
     if (!found) return null;
     const s = await this.reconcileStale(found);
     return { id: s.id, status: s.status, error: s.error ?? null };
   }
 
-  async sendMessage(id: string, dto: SendMessageDto) {
-    const s = await this.sessions.getSession(id);
+  async sendMessage(id: string, dto: SendMessageDto, scope = 'anon') {
+    const s = await this.sessions.getSession(id, scope);
     if (!s) return null;
     if (s.status !== 'READY') {
       throw new ConflictException('La sesión no está lista (radiografía en curso o fallida)');
     }
     await this.sessions.addMessage(id, 'user', dto.instruction);
-    const job = await this.jobs.create({ url: s.url, instruction: dto.instruction }, undefined, s.id);
+    const job = await this.jobs.create({ url: s.url, instruction: dto.instruction }, undefined, s.id, scope);
     const assistant = await this.sessions.addMessage(id, 'assistant', 'Analizando la página…', job.id);
     return { message: assistant, jobId: job.id, jobStatus: job.status };
   }

@@ -1,15 +1,9 @@
-import { Controller, Post, Get, Body, Param, Query, Headers, NotFoundException, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, Query, Headers, NotFoundException, Req, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiHeader } from '@nestjs/swagger';
-import { createHash } from 'node:crypto';
 import { JobsService } from './jobs.service';
 import { CreateJobDto } from './dto/create-job.dto';
-import { ApiKeyGuard } from './api-key.guard';
+import { ApiKeyGuard, type AuthScopedRequest } from './api-key.guard';
 import { CreateRateLimitGuard } from './rate-limit.guard';
-
-/** Ámbito de idempotencia: hash de la API key (o 'anon' en dev sin claves). */
-function idempotencyScope(apiKey?: string): string {
-  return apiKey ? createHash('sha256').update(apiKey).digest('hex').slice(0, 16) : 'anon';
-}
 
 /** API principal §42 (+ listado para dashboard FASE 9). ETAPA 4: auth + rate-limit. */
 @ApiTags('jobs')
@@ -25,9 +19,9 @@ export class JobsController {
   create(
     @Body() dto: CreateJobDto,
     @Headers('idempotency-key') idempotencyKey?: string,
-    @Headers('x-api-key') apiKey?: string,
+    @Req() req?: AuthScopedRequest,
   ) {
-    return this.jobs.create(dto, idempotencyKey || undefined, undefined, idempotencyScope(apiKey));
+    return this.jobs.create(dto, idempotencyKey || undefined, undefined, req?.authScope ?? 'anon');
   }
 
   @ApiOperation({ summary: 'Lista jobs (paginación por cursor + filtro por estado)' })
@@ -36,48 +30,49 @@ export class JobsController {
     @Query('limit') limit?: string,
     @Query('cursor') cursor?: string,
     @Query('status') status?: string,
+    @Req() req?: AuthScopedRequest,
   ) {
-    return this.jobs.list(limit ? Number(limit) : undefined, { cursor, status });
+    return this.jobs.list(limit ? Number(limit) : undefined, { cursor, status }, req?.authScope ?? 'anon');
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string) {
-    const job = await this.jobs.findOne(id);
+  async findOne(@Param('id') id: string, @Req() req?: AuthScopedRequest) {
+    const job = await this.jobs.findOne(id, req?.authScope ?? 'anon');
     if (!job) throw new NotFoundException(`Job ${id} no encontrado`);
     return job;
   }
 
   @Get(':id/results')
-  async results(@Param('id') id: string) {
-    const r = await this.jobs.results(id);
+  async results(@Param('id') id: string, @Req() req?: AuthScopedRequest) {
+    const r = await this.jobs.results(id, req?.authScope ?? 'anon');
     if (!r) throw new NotFoundException(`Job ${id} no encontrado`);
     return r;
   }
 
   @Get(':id/execution')
-  async execution(@Param('id') id: string) {
-    const r = await this.jobs.execution(id);
+  async execution(@Param('id') id: string, @Req() req?: AuthScopedRequest) {
+    const r = await this.jobs.execution(id, req?.authScope ?? 'anon');
     if (!r) throw new NotFoundException(`Job ${id} no encontrado`);
     return r;
   }
 
   @Get(':id/ai')
-  async ai(@Param('id') id: string, @Query('limit') limit?: string) {
-    const r = await this.jobs.aiInteractions(id, limit ? Number(limit) : undefined);
+  async ai(@Param('id') id: string, @Query('limit') limit?: string, @Req() req?: AuthScopedRequest) {
+    const r = await this.jobs.aiInteractions(id, limit ? Number(limit) : undefined, req?.authScope ?? 'anon');
     if (!r) throw new NotFoundException(`Job ${id} no encontrado`);
     return r;
   }
 
   @Post(':id/cancel')
-  async cancel(@Param('id') id: string) {
-    const r = await this.jobs.cancel(id);
+  async cancel(@Param('id') id: string, @Req() req?: AuthScopedRequest) {
+    const r = await this.jobs.cancel(id, req?.authScope ?? 'anon');
     if (!r) throw new NotFoundException(`Job ${id} no encontrado`);
     return r;
   }
 
   @Post(':id/retry')
-  async retry(@Param('id') id: string) {
-    const r = await this.jobs.retry(id);
+  async retry(@Param('id') id: string, @Req() req?: AuthScopedRequest) {
+    const r = await this.jobs.retry(id, req?.authScope ?? 'anon');
     if (!r) throw new NotFoundException(`Job ${id} no encontrado`);
     return r;
   }

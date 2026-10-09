@@ -55,7 +55,9 @@ describe('API hardening ETAPA 4 (auth + allowlist + rate-limit + ai paging)', as
     const guard = new ApiKeyGuard();
     await assert.rejects(() => guard.canActivate(ctx({ headers: {}, query: {} })), /API key/);
     await assert.rejects(() => guard.canActivate(ctx({ headers: { 'x-api-key': 'wrong' }, query: {} })), /API key/);
-    assert.equal(await guard.canActivate(ctx({ headers: { 'x-api-key': 'k2' }, query: {} })), true);
+    const authorized = { headers: { 'x-api-key': 'k2' }, query: {} };
+    assert.equal(await guard.canActivate(ctx(authorized)), true);
+    assert.match(authorized.authScope, /^[a-f0-9]{64}$/);
     // La clave por query string YA NO se acepta (fuga en logs/Referer).
     await assert.rejects(() => guard.canActivate(ctx({ headers: {}, query: { apiKey: 'k1' } })), /API key/);
   });

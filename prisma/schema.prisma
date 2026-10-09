@@ -11,10 +11,15 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  createdAt DateTime @default(now())
-  jobs      Job[]
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String?
+  role         String    @default("user")
+  apiKeyHash   String?   @unique
+  bootstrap    Boolean?  @unique
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  jobs         Job[]
 }
 
 model Job {
@@ -25,6 +30,7 @@ model Job {
   limits      Json?
   aiProvider  String    @default("openrouter")
   aiModel     String?
+  ownerScope  String    @default("anon")
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   userId      String?
@@ -42,6 +48,7 @@ model Job {
   @@index([status, createdAt])
   @@index([userId, createdAt])
   @@index([sessionId])
+  @@index([ownerScope, createdAt])
 }
 
 // Sesión tipo "chat": una URL a analizar con su contexto (radiografía) e historial.
@@ -52,6 +59,7 @@ model Session {
   status      String   @default("RADIOGRAPHY") // RADIOGRAPHY | READY | FAILED
   credentials String?  // JSON cifrado (AES-256-GCM)
   error       String?
+  ownerScope  String   @default("anon")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   messages    SessionMessage[]
@@ -59,6 +67,7 @@ model Session {
 
   // Índices (R-DB-4/R-DB-5): sesiones de un dominio por recencia.
   @@index([domain, updatedAt])
+  @@index([ownerScope, updatedAt])
 }
 
 model SessionMessage {

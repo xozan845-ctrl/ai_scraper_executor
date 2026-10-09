@@ -1,8 +1,8 @@
-import { Controller, Post, Get, Body, Param, UseGuards, NotFoundException } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, Req, UseGuards, NotFoundException } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { SessionsService } from './sessions.service';
 import { CreateSessionDto, SendMessageDto } from './dto/session.dto';
-import { ApiKeyGuard } from './api-key.guard';
+import { ApiKeyGuard, type AuthScopedRequest } from './api-key.guard';
 import { CreateRateLimitGuard } from './rate-limit.guard';
 
 /** Sesiones tipo "chat" sobre una URL (interfaz /app). */
@@ -15,36 +15,36 @@ export class SessionsController {
   @ApiOperation({ summary: 'Crea una sesión (URL + credenciales) y lanza la radiografía' })
   @UseGuards(CreateRateLimitGuard)
   @Post()
-  create(@Body() dto: CreateSessionDto) {
-    return this.sessions.create(dto);
+  create(@Body() dto: CreateSessionDto, @Req() req?: AuthScopedRequest) {
+    return this.sessions.create(dto, req?.authScope ?? 'anon');
   }
 
   @ApiOperation({ summary: 'Historial de sesiones' })
   @Get()
-  list() {
-    return this.sessions.list();
+  list(@Req() req?: AuthScopedRequest) {
+    return this.sessions.list(req?.authScope ?? 'anon');
   }
 
   @ApiOperation({ summary: 'Detalle de la sesión (mensajes + perfil aprendido)' })
   @Get(':id')
-  async get(@Param('id') id: string) {
-    const r = await this.sessions.get(id);
+  async get(@Param('id') id: string, @Req() req?: AuthScopedRequest) {
+    const r = await this.sessions.get(id, req?.authScope ?? 'anon');
     if (!r) throw new NotFoundException(`Sesión ${id} no encontrada`);
     return r;
   }
 
   @ApiOperation({ summary: 'Estado de la radiografía (RADIOGRAPHY|READY|FAILED)' })
   @Get(':id/status')
-  async status(@Param('id') id: string) {
-    const r = await this.sessions.status(id);
+  async status(@Param('id') id: string, @Req() req?: AuthScopedRequest) {
+    const r = await this.sessions.status(id, req?.authScope ?? 'anon');
     if (!r) throw new NotFoundException(`Sesión ${id} no encontrada`);
     return r;
   }
 
   @ApiOperation({ summary: 'Envía una instrucción (crea un job con el contexto de la sesión)' })
   @Post(':id/messages')
-  async message(@Param('id') id: string, @Body() dto: SendMessageDto) {
-    const r = await this.sessions.sendMessage(id, dto);
+  async message(@Param('id') id: string, @Body() dto: SendMessageDto, @Req() req?: AuthScopedRequest) {
+    const r = await this.sessions.sendMessage(id, dto, req?.authScope ?? 'anon');
     if (!r) throw new NotFoundException(`Sesión ${id} no encontrada`);
     return r;
   }
