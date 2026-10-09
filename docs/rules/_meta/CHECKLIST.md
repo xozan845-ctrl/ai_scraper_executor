@@ -45,7 +45,7 @@ Marcar las capas ✅ que apliquen y **justificar las que no**.
 - [ ] **R-U-4** — El test puede fallar (sin asserts triviales; ver `R-COV-6`).
 - [ ] **R-U-5/6** — Fechas ISO 8601 UTC con `Z`; los límites se prueban en sus extremos.
 - [ ] **R-PB-1/2/3** — Si el PR toca una función pura de transformación (DSL, límites, dominios), añadir/actualizar su propiedad en `tests/property.test.mjs`.
-- [ ] **R-MT-1** — Mutation testing diferido (ADR-20); no se exige en el PR, pero un bug de una función pura debería haber sido cazado por una propiedad.
+- [ ] **R-MT-1** — Mutation testing con Stryker (`npm run test:mutation`, pre-release; no gate de PR); un bug de una función pura debería haber sido cazado por una propiedad o por un mutante.
 - [ ] **R-RB-2** — `limits` en 0, negativos, `NaN`, por encima de `HARD_LIMITS`, y `maxAiTokens: 0` (que **no** desactiva).
 - [ ] **R-RB-1** — La salida del LLM se prueba con JSON roto, `type` inventado, campos de más, números como strings.
 - [ ] **R-REG-1** — Si es bug: primero el test que falla, luego la fix; marcado `regression: <ref>`.

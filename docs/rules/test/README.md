@@ -143,10 +143,9 @@ npm run test:api:fast
 
 ## Pendientes (deuda abierta)
 
-- **Mutation testing** (`R-MT-1`, ADR-20): su disparador —un runner soportado por Stryker—
-  **ya se cumple** con Vitest (ADR-29). Queda adoptar Stryker (p. ej. con mutación sobre
-  `src`); mientras tanto, los property tests (`tests/property.test.mjs`, `fast-check`)
-  siguen cubriendo el riesgo.
+- **Mutation testing** (`R-MT-1`, ADR-31): **adoptado** — Stryker con runner de Vitest,
+  `npm run test:mutation` (muta el `dist` del área crítica; no es gate de PR). El primer
+  baseline es **bajo**: los mutantes supervivientes guían la mejora de tests (`R-MT-3`).
 - **Cobertura sobre fuentes TS** (`R-COV-4`, ADR-29): Vitest mide el TS (por sourcemaps),
   no el `dist`; umbral vigente **65 / 54 / 56**.
 - **Cliente real de la API (`npm run test:api`) no es un gate**: es un smoke de flujos

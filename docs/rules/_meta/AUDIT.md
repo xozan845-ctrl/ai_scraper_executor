@@ -46,7 +46,7 @@
 | OpenAPI | 🟢 | `docs/openapi.json` + `npm run openapi:check` |
 | Cobertura | 🟢 | Vitest v8 sobre fuentes TS; umbrales **65/54/56** en `vitest.config.mjs` |
 | Property-based | 🟢 | `fast-check` + `tests/property.test.mjs`; encontró **3 defectos reales** |
-| Mutation testing | 🟡 disparador cumplido | `R-MT-1`/ADR-20: con **Vitest** (ADR-29) Stryker tiene runner; falta adoptar Stryker y mutar `src` |
+| Mutation testing | 🟢 provisionado | `R-MT-1`/ADR-31: **Stryker** + runner de Vitest (`npm run test:mutation`, muta el `dist` del área crítica). Baseline bajo → mejora de tests (`R-MT-3`). No es gate de PR |
 | Lint / Build (`G-7`) | 🟢 | 0 errores / 0 warnings; `npm run build` exit 0 |
 | Security gate (`R-QA-6`/`R-SE-16`) | 🟢 | `npm audit` → 0 vulnerabilidades; paso `Security audit` |
 | Artifacts (`R-EN-3`) | 🟢 | `test-results.xml` (JUnit) subido en todos los runs |
@@ -112,9 +112,9 @@ incumplían `R-CI-2`. Se añade el grupo por ref a `release.yml` y se unifica
    en repos privados, no deuda del repo. `R-GE-4` se cumple por disciplina (rama + PR).
 2. **Promoción entre entornos sin implementar** (`R-GE-5`): una sola rama, un solo
    juego de secretos. Deuda asumida, no norma.
-3. **Mutation testing pendiente de adoptar** (`R-MT-1`, ADR-20): con **Vitest** (ADR-29)
-   el disparador «runner soportado por Stryker» **ya se cumple**; queda añadir Stryker y
-   mutar sobre `src`. Los property tests y la completitud del DSL cubren el riesgo mientras tanto.
+3. **Mutation testing: baseline bajo a mejorar** (`R-MT-1`/`R-MT-3`, ADR-31): **Stryker**
+   adoptado (runner de Vitest, muta el `dist` crítico). Los mutantes supervivientes son el
+   trabajo pendiente de endurecer los tests; el umbral de release (≥70 %) se evalúa a mano.
    Los property tests y la completitud del DSL cubren el riesgo mientras tanto.
 4. **`overrides` de transitivas** (ADR-16/ADR-18): **revisado 2026-10-06** y reducido
    de **8 a 1** (`deepmerge-ts: ^8.0.0`). Los otros siete (`multer`, `qs`,

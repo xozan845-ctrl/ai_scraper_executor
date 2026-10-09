@@ -442,6 +442,10 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
   (`R-REG-1`); (b) el ADR-03 (sin transform runner) sigue en pie; (c) la
   mutación queda documentada, con su disparador, en `R-MT-1`.
 
+> **Revisión 2026-10-09 (ADR-29/ADR-31):** el disparador se cumplió y el mutation testing
+> **deja de estar diferido**: se adoptó **Stryker** con runner de Vitest (ver ADR-31). La
+> parte de property-based de este ADR sigue vigente.
+
 ---
 
 ## ADR-21: Capas de test completas — contrato e integración en CI, E2E de release
@@ -731,6 +735,29 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
 
 ---
 
+## ADR-31: Mutation testing con Stryker sobre el build (runner Vitest)
+
+- **Fecha**: 2026-10-09
+- **Estado**: Aceptado
+- **Contexto**: ADR-20 difirió el mutation testing porque Stryker no tenía runner para
+  `node --test`. ADR-29 adoptó **Vitest**, que Stryker sí soporta, así que el disparador
+  documentado en `R-MT-1` **se cumple**.
+- **Decisión**: adoptar `@stryker-mutator/core` + `@stryker-mutator/vitest-runner`
+  (devDependencies) con `stryker.config.mjs` y `npm run test:mutation`. Se **muta el JS
+  compilado** (`libs/domain/*/dist`, `libs/shared/core/dist`, `libs/shared/security/dist`)
+  porque los tests importan `dist` (ADR-29), no `src`. **No es un gate de PR** (es lento):
+  se ejecuta a mano pre-release. Umbrales de `R-MT-2` (≥90 % DSL/SSRF/límites, ≥80 %
+  resto, <70 % bloquea release) en la config; `break: null` hasta medir el baseline. Para
+  mantener `npm audit` en **0** (`R-QA-6`) se añade un `override` de `qs ^6.16.0` (Stryker
+  arrastra `typed-rest-client` → `qs` vulnerable).
+- **Consecuencias**: (a) `R-MT-1` deja de estar diferido; (b) el primer baseline es **bajo**
+  (los tests actuales matan pocos mutantes de boilerplate/límites) → trabajo de mejora de
+  tests guiado por supervivientes (`R-MT-3`); (c) se muta el build, así que un cambio en
+  `src` exige `npm run build` antes de mutar; (d) no entra en CI (tiempo), por lo que su
+  evidencia es la ejecución manual documentada.
+
+---
+
 ## Deudas que estos ADR dejan abiertas
 
 | Deuda | ADR relacionado | Dónde está registrada |
@@ -738,7 +765,7 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
 | `overrides` de transitivas (hoy `deepmerge-ts`; revisar al actualizar `prisma`) | ADR-16, ADR-18 | `rules/ci/02-entorno.md`, `rules/_meta/AUDIT.md` |
 | Cobertura solo de ficheros cargados por la suite | ADR-17 | `rules/test/06-estandares-cobertura.md` (`R-COV-4`) |
 | Almacenamiento de Crawlee impide paralelizar la suite | ADR-04, ADR-11 | `rules/test/05-reglas-robustez.md` (`R-FL-5`) |
-| Mutation testing diferido (runner incompatible) | ADR-20 | `rules/test/05-reglas-robustez.md` (`R-MT-1`) |
+| Mutation testing con Stryker: baseline bajo a mejorar (`R-MT-3`) | ADR-31 | `rules/test/05-reglas-robustez.md` (`R-MT-1`) |
 | Promoción entre entornos sin implementar | ADR-15 | `rules/git/00-entornos.md` (`R-GE-5`) |
 | Separación caché/cola de Redis: soportada pero **opt-in** (default compartido) | ADR-23 | `rules/db/03-redis.md` (`R-RD-1`) |
 | Retención de `Page`/`Command`/`AIInteraction` sin declarar | — | `rules/data/01-integridad.md` (`R-DI-8`) |

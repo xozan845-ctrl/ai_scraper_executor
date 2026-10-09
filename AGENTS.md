@@ -137,6 +137,7 @@ libs/application/ai               AIOrchestrator, prompts, context-builder  # pe
 - El smoke de Prisma corre **solo** si `DATABASE_URL` responde; sin Docker se salta (esperado).
 - Tests por área en `tests/*.test.mjs`; el E2E real es `tests/e2e-sevasa.test.mjs` (no está en `npm test`).
 - Funciones puras (DSL, límites, dominios) deben traer su propiedad en `tests/property.test.mjs`.
+- **Mutation testing** (ADR-31): `npm run test:mutation` (Stryker + runner de Vitest, muta el `dist` crítico). No es gate de PR; se corre pre-release.
 
 ## Entorno
 

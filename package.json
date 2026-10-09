@@ -23,6 +23,7 @@
     "test:contract": "vitest run tests/contract.test.mjs",
     "test:integration": "vitest run tests/integration.test.mjs",
     "test:repeat": "node scripts/repeat-tests.mjs",
+    "test:mutation": "stryker run",
     "retention:prune": "node scripts/retention.mjs",
     "test:api": "node scripts/run-all.mjs",
     "test:api:fast": "node scripts/run-all.mjs --skip-slow",
@@ -35,6 +36,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@stryker-mutator/core": "^10.0.0",
+    "@stryker-mutator/vitest-runner": "^10.0.0",
     "@types/bcrypt": "^6.0.0",
     "@types/express": "^5.0.6",
     "@vitest/coverage-v8": "^5.0.3",
@@ -55,6 +58,7 @@
     "mongoose": "^8.24.4"
   },
   "overrides": {
-    "deepmerge-ts": "^8.0.0"
+    "deepmerge-ts": "^8.0.0",
+    "qs": "^6.16.0"
   }
 }
