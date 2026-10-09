@@ -61,6 +61,32 @@ export class PrismaJobStore implements JobStore {
     return toRecord(j);
   }
 
+  async getOrCreateJob(input: CreateJobInput, idempotencyKey: string): Promise<{ record: JobRecord; created: boolean }> {
+    const existing = await this.prisma.job.findUnique({ where: { idempotencyKey } });
+    if (existing) return { record: toRecord(existing), created: false };
+    try {
+      const created = await this.prisma.job.create({
+        data: {
+          url: input.url,
+          instruction: input.instruction,
+          status: 'QUEUED',
+          limits: (input.limits ?? {}) as never,
+          aiProvider: input.aiProvider ?? 'openrouter',
+          aiModel: input.aiModel,
+          sessionId: input.sessionId ?? null,
+          ownerScope: input.ownerScope ?? 'anon',
+          idempotencyKey,
+        },
+      });
+      return { record: toRecord(created), created: true };
+    } catch (error) {
+      if ((error as { code?: string }).code !== 'P2002') throw error;
+      const raced = await this.prisma.job.findUnique({ where: { idempotencyKey } });
+      if (!raced) throw error;
+      return { record: toRecord(raced), created: false };
+    }
+  }
+
   async getJob(id: string): Promise<JobRecord | null> {
     const j = await this.prisma.job.findUnique({ where: { id } });
     return j ? toRecord(j) : null;

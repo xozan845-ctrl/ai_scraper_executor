@@ -3,7 +3,8 @@ import { assertPublicUrl, isAllowedHost } from '@ai-scraper/security';
 import type { JobStore } from '@ai-scraper/storage';
 import type { JobQueue } from '@ai-scraper/queue';
 import { metrics, getContext } from '@ai-scraper/observability';
-import { getMetricsAggregator, getJsonCache } from '@ai-scraper/redis';
+import { getMetricsAggregator } from '@ai-scraper/redis';
+import { createHash } from 'node:crypto';
 import { JOB_STORE, JOB_QUEUE } from './providers';
 import { CreateJobDto } from './dto/create-job.dto';
 
@@ -53,21 +54,12 @@ export class JobsService {
   async create(dto: CreateJobDto, idempotencyKey?: string, sessionId?: string, scope = 'anon') {
     // Idempotencia con ámbito (scope = hash de API key/sesión): evita que la
     // misma clave de dos clientes distintos devuelva el job de otro.
-    const idemKey = idempotencyKey ? `idem:${scope}:${idempotencyKey}` : null;
-    const cache = idemKey ? await getJsonCache() : null;
-    if (idemKey && cache) {
-      const existingId = await cache.get<string>(idemKey);
-      if (existingId) {
-        const existing = await this.store.getJob(existingId);
-        if (existing && existing.ownerScope === scope) {
-          console.log(`[JOB] ${existing.id} reutilizado (idempotency-key)`);
-          return this.publicJob(existing);
-        }
-      }
-    }
+    const idemKey = idempotencyKey
+      ? createHash('sha256').update(`${scope}\0${idempotencyKey}`).digest('hex')
+      : null;
     // ETAPA 4: SSRF + allowlist ANTES de persistir (nunca jobs fantasma ni SSRF).
     assertJobUrlAllowed(dto.url);
-    const record = await this.store.createJob({
+    const input = {
       url: dto.url,
       instruction: dto.instruction,
       limits: dto.limits,
@@ -75,7 +67,15 @@ export class JobsService {
       aiModel: dto.ai?.model,
       sessionId,
       ownerScope: scope,
-    });
+    };
+    const created = idemKey
+      ? await this.store.getOrCreateJob(input, idemKey)
+      : { record: await this.store.createJob(input), created: true };
+    const record = created.record;
+    if (!created.created) {
+      console.log(`[JOB] ${record.id} reutilizado (idempotency-key)`);
+      return this.publicJob(record);
+    }
     try {
       await this.queue.enqueue({
         jobId: record.id,
@@ -95,9 +95,6 @@ export class JobsService {
     }
     console.log(`[JOB] ${record.id} QUEUED — ${dto.url} :: ${dto.instruction.slice(0, 80)}`);
     metrics().inc('jobs_created_total');
-    if (idemKey && cache) {
-      await cache.set(idemKey, record.id, 24 * 3600 * 1000).catch(() => undefined);
-    }
     return this.publicJob(record);
   }
 

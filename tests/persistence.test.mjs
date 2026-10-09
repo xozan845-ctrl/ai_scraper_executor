@@ -194,6 +194,16 @@ describe('JobsService FASE 8 (API real)', async () => {
     assert.notEqual(c.id, a.id);
   });
 
+  it('idempotency-key es atómica bajo solicitudes concurrentes', async () => {
+    const store = new InMemoryJobStore();
+    const queue = new InMemoryJobQueue();
+    const service = new JobsService(store, queue);
+    const jobs = await Promise.all(Array.from({ length: 20 }, () => service.create(dto(), 'key-concurrent')));
+    assert.equal(new Set(jobs.map((job) => job.id)).size, 1);
+    assert.equal((await store.listJobs(100)).length, 1);
+    assert.equal(await queue.pendingCount(), 1);
+  });
+
   it('aísla lectura y mutaciones de jobs por identidad autenticada', async () => {
     const store = new InMemoryJobStore();
     const service = new JobsService(store, new InMemoryJobQueue());
