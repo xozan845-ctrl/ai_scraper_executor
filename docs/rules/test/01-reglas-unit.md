@@ -64,5 +64,5 @@ node --test tests/dsl.test.mjs
 
 # Los ficheros de lógica pura y sus tests existen en paralelo
 ls tests/*.test.mjs | wc -l
-grep -rln "normalizeCommand\|clampCommandLimits\|normalizeJobLimits\|assertPublicUrl" packages/*/src
+grep -rln "normalizeCommand\|clampCommandLimits\|normalizeJobLimits\|assertPublicUrl" libs/*/*/src
 ```

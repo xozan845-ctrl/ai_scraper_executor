@@ -3,7 +3,7 @@
 Aplica a: [`../../../libs/infrastructure/ai-providers/`](../../../libs/infrastructure/ai-providers)
 (`openrouter.provider.ts`, `custom.provider.ts`, `fallback.provider.ts`,
 `circuit-breaker.ts`, `resilient.ts`, `provider.factory.ts`, `prompts.ts`) y a
-[`../../../packages/ai/`](../../../packages/ai) (`ai-orchestrator.ts`, `context-builder.ts`).
+[`../../../libs/application/ai/`](../../../libs/application/ai) (`ai-orchestrator.ts`, `context-builder.ts`).
 
 ## Reglas
 
@@ -28,5 +28,5 @@ grep -rn "OPENROUTER_FALLBACK_MODELS\|status === 404\|status === 429" libs/infra
 grep -rn "maxAiTokens" packages apps --include=*.ts | head
 
 # Ningún SDK de OpenRouter fuera de libs/infrastructure/ai-providers
-grep -rln "openrouter" packages/ai/src apps --include=*.ts
+grep -rln "openrouter" libs/application/ai/src apps --include=*.ts
 ```

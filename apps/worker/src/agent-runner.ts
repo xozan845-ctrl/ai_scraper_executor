@@ -12,7 +12,7 @@
  * - FASE 12: consulta perfil aprendido (MongoDB) para selectores y needsBrowser;
  *   registra resultado del job para mejorar perfiles futuros.
  */
-import { AIOrchestrator, type AIProviderCallOpts } from '@ai-scraper/ai';
+import { AIOrchestrator, type AIProviderCallOpts } from '@ai-scraper/application-ai';
 import { CommandValidator, normalizeRawCommand, clampCommandLimits } from '@ai-scraper/domain-ai';
 import { normalizeJobLimits } from '@ai-scraper/domain-execution';
 import { ExecutionEngine } from '@ai-scraper/infrastructure-execution';

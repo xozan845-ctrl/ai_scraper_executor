@@ -1,11 +1,11 @@
 # Migración a arquitectura hexagonal — plan y mapeo
 
-> **Estado: objetivo declarado; F0 (andamiaje) completada, código sin mover (2026-10-09).**
-> Este documento fija el *destino* del monorepo y el *orden* de la migración. La decisión
-> está en [`decisiones.md`](./decisiones.md) (ADR-27, ADR-28, ADR-29, ADR-30); las reglas
-> que rigen desde ya están en [`rules/architecture/03-arquitectura-hexagonal.md`](./rules/architecture/03-arquitectura-hexagonal.md).
-> Ya existe `libs/` (vacío) y el verificador de fronteras `npm run boundaries:check`
-> (integrado en `npm run lint`); **el código sigue en `packages/`**.
+> **Estado: migración estructural COMPLETADA (2026-10-09).** `packages/` está retirado;
+> las 14 libs viven en `libs/{shared,domain,application,infrastructure}` y las 2 apps son
+> el composition root. La decisión está en [`decisiones.md`](./decisiones.md) (ADR-27..30)
+> y las reglas canónicas en
+> [`rules/architecture/03-arquitectura-hexagonal.md`](./rules/architecture/03-arquitectura-hexagonal.md).
+> Queda **F5**: adoptar **Vitest** (ADR-29) y cerrar el snapshot de auditoría.
 
 ## 1. Modelo objetivo
 
@@ -16,79 +16,74 @@ apps/api  apps/worker            composition root: instancian adaptadores y los 
 libs/application/<contexto>      casos de uso y DTOs; coordinan puertos
 libs/domain/<contexto>           entidades, value objects, servicios puros y PUERTOS
 libs/infrastructure/<adaptador>  adaptadores concretos que implementan los puertos
-libs/shared/<utilidad>           transversal pura (core, observability, config, contracts)
-prisma/                          esquema y migraciones (consumidos por infrastructure/persistence/prisma)
+libs/shared/<utilidad>           transversal pura (core, security, observability)
+prisma/                          esquema y migraciones (los consume libs/infrastructure/storage)
 ```
 
 Contextos del dominio: **`scraper`**, **`ai`**, **`execution`**. La dirección de
 dependencia y las aristas prohibidas son `R-HX-2`; la verificación por lint es `R-HX-4`.
 
-## 2. Mapeo `packages/` → `libs/`
+## 2. Mapeo `packages/` → `libs/` (completado)
 
-| Hoy (`packages/`) | Destino | Capa | Notas |
-|---|---|---|---|
-| `core` | `libs/domain/execution` + `libs/domain/scraper` + `libs/shared/core` | dominio + shared | ✅ **migrado**: `JobStatus`/`JobLimits`/límites → `@ai-scraper/domain-execution`; `TracedValue` → `@ai-scraper/domain-scraper`; `hashHtml` → `@ai-scraper/shared-core` |
-| `commands` | `libs/domain/ai` | dominio | ✅ **migrado** (paquete `@ai-scraper/domain-ai`): DSL Zod, normalizador y `CommandValidator`; valida URLs con `@ai-scraper/shared-security` (shared kernel) |
-| `security` | `libs/shared/security` | shared | ✅ **migrado** (paquete `@ai-scraper/shared-security`): shared kernel (cero dependencias, lo usan todas las capas, incluido el dominio); `safeFetchText` (I/O) y `crypto` conviven aquí |
-| `observability` | `libs/shared/observability` | shared | ✅ **migrado** (paquete `@ai-scraper/shared-observability`); Logger + métricas, transversal pura |
-| `crawler` | `libs/infrastructure/crawler` | infraestructura | ✅ **migrado** (`@ai-scraper/infrastructure-crawler`): Cheerio/Playwright |
-| `execution-engine` | `libs/infrastructure/execution` | infraestructura | ✅ **migrado** (`@ai-scraper/infrastructure-execution`): implementa el motor HTTP/Cheerio + browser |
-| `ai` | `libs/application/ai` + `libs/domain/ai` | aplicación + dominio | Casos de uso (planner, loop, recovery) en `application`; puertos (`IAIProvider`, orquestador) en `domain/ai/ports` (F4) |
-| `ai-providers` | `libs/infrastructure/ai-providers` | infraestructura | ✅ **migrado** (`@ai-scraper/infrastructure-ai-providers`): adaptadores OpenRouter/Custom/Fallback |
-| `queue` | `libs/infrastructure/queue` | infraestructura | ✅ **migrado** (`@ai-scraper/infrastructure-queue`): BullMQ + memoria |
-| `redis` | `libs/infrastructure/redis` | infraestructura | ✅ **migrado** (`@ai-scraper/infrastructure-redis`): caché, rate limit y métricas distribuidas |
-| `mongodb` | `libs/infrastructure/mongodb` | infraestructura | ✅ **migrado** (`@ai-scraper/infrastructure-mongodb`): perfiles/radiografía |
-| `storage` | `libs/infrastructure/storage` | infraestructura | ✅ **migrado** (`@ai-scraper/infrastructure-storage`): `JobStore` Prisma + `InMemoryJobStore` |
-| `prisma/` (raíz) | `prisma/` (raíz, sin mover) | — | El adaptador que lo consume vive en `libs/infrastructure/storage` (`R-HX-7`) |
+| Origen (`packages/`, retirado) | Destino | Capa |
+|---|---|---|
+| `core` | `libs/domain/execution` + `libs/domain/scraper` + `libs/shared/core` | dominio + shared |
+| `commands` | `libs/domain/ai` | dominio |
+| `security` | `libs/shared/security` | shared (kernel) |
+| `observability` | `libs/shared/observability` | shared |
+| `crawler` | `libs/infrastructure/crawler` | infraestructura |
+| `execution-engine` | `libs/infrastructure/execution` | infraestructura |
+| `ai` | `libs/application/ai` | aplicación |
+| `ai-providers` | `libs/infrastructure/ai-providers` | infraestructura |
+| `queue` | `libs/infrastructure/queue` | infraestructura |
+| `redis` | `libs/infrastructure/redis` | infraestructura |
+| `mongodb` | `libs/infrastructure/mongodb` | infraestructura |
+| `storage` | `libs/infrastructure/storage` | infraestructura |
+| `prisma/` (raíz) | `prisma/` (raíz, sin mover) | — |
 
-Los splits (`core`, `ai`) se hacen **dentro del PR de ese paquete**: primero se copia
-el código a su capa, se recablean imports y, si un fichero pertenece a dos capas, se
-reparte en el mismo cambio con su test verde.
+Nombres de paquete: `@ai-scraper/<capa>-<contexto>` (p. ej. `@ai-scraper/domain-ai`,
+`@ai-scraper/infrastructure-redis`, `@ai-scraper/application-ai`). `application/ai` ya
+define su puerto de caché (`AICache`) localmente, así que no depende de infraestructura.
 
 ## 3. Fases (estrangular, ADR-30)
 
-Cada fase son **varios PRs pequeños**: normalmente un PR = un paquete/contexto migrado
-(excepción aprobada: el movimiento homogéneo de una capa completa, `R-HX-9`). El repo
-permanece verde en todo momento (`R-HX-9`). Orden por dependencia (de hojas a raíz):
+La migración se hizo por unidades temáticas —normalmente un contexto, o una capa completa
+como lote homogéneo aprobado— dejando el repo verde en cada PR (`R-HX-9`).
 
-| Fase | Alcance | Salida |
+| Fase | Alcance | Estado |
 |---|---|---|
-| **F0 — Andamiaje** ✅ | Verificador de fronteras sin dependencias (`scripts/check-boundaries.mjs`, integrado en `npm run lint`); crear `libs/` con README raíz. Sin mover código | `R-HX-4` **activo**; `libs/` existe |
-| **F1 — `shared/`** | `observability` → `libs/shared/observability` ✅; `core` se reparte en F2 (no se crea `shared/core` vacío) | `shared` sin dependencias de otras capas |
-| **F2 — `domain/`** | `core` repartido a `domain/execution` + `domain/scraper` + `shared/core` ✅; `commands` → `domain/ai` ✅ | Dominio testeable **sin infra** |
-| **F3 — infra + `shared/security`** | ✅ `security` → `libs/shared/security`; ✅ `crawler`, `execution-engine`, `ai-providers`, `queue`, `redis`, `mongodb`, `storage` → `libs/infrastructure/*` | Adaptadores en infraestructura; shared consolidado |
-| **F4 — `application/`** | `ai` → `application/{ai,scraper,execution}` (casos de uso) | Lógica de orquestación fuera de infraestructura |
-| **F5 — Cierre** | `apps/*` como composition root puro; retirar `packages/` de `workspaces`/`tsconfig`/lint; migrar el runner a **Vitest** (ADR-29) | `packages/` desaparece; fronteras `R-HX` cerradas |
+| **F0 — Andamiaje** | Verificador de fronteras sin dependencias (`scripts/check-boundaries.mjs`, en `npm run lint`); `libs/` con README | ✅ |
+| **F1 — `shared/`** | `observability` → `libs/shared/observability` | ✅ |
+| **F2 — `domain/`** | `core` → `domain/{execution,scraper}` + `shared/core`; `commands` → `domain/ai` | ✅ |
+| **F3 — `shared/security` + infra** | `security` → `libs/shared/security`; los 7 adaptadores → `libs/infrastructure/*` | ✅ |
+| **F4 — `application/` + retirada de `packages/`** | `ai` → `libs/application/ai`; `packages/` retirado de `workspaces`/`tsconfig`/cobertura/lint | ✅ |
+| **F5 — Cierre** | Adoptar **Vitest** (ADR-29) con cobertura re-medida sin bajar; cerrar el snapshot | ⏳ |
 
 ## 4. Reglas de la migración (no negociables)
 
-1. **Un tema por PR** (`R-PR-2`): migrar un paquete; nada de "y además" (ADR-30, `R-AC-6`).
-2. **Verde siempre**: `npm run build && npm run lint && MONGODB_MOCK=1 npm test`
-   antes del commit (`R-GC-5`); durante la convivencia `tsconfig.base.json` mapea
-   `packages/*/dist` **y** `libs/*/dist`.
-3. **Sin big-bang** (`R-HX-9`): los paquetes no migrados conservan ruta, nombre e imports.
-4. **Boundaries primero** (F0 ✅): `R-HX-4` está activo desde F0 (script sin
-   dependencias en `npm run lint`), para que cada movimiento nazca conforme a `R-HX-2`.
-   Las excepciones legacy deben llegar a 0 en F5 (hoy queda 1: `ai→redis`).
-5. **Documentación viaja**: README del módulo (`R-DO-1`, `R-DO-8`) y las referencias de
-   reglas que citan `packages/<x>` se actualizan **en el PR de ese paquete**.
-6. **Interfaz pública estable**: los endpoints `/api/v1/**` no cambian durante la
+1. **Un tema por PR** (`R-PR-2`): un contexto, o una capa completa como lote homogéneo
+   aprobado; nada de "y además" (`R-AC-6`).
+2. **Verde siempre**: `npm run build && npm run lint && MONGODB_MOCK=1 npm test` antes
+   del commit (`R-GC-5`); ningún PR de migración dejó el repo en rojo.
+3. **Boundaries desde F0** (`R-HX-4`): el verificador sin dependencias está en
+   `npm run lint`; hoy **sin excepciones legacy**.
+4. **Documentación viaja**: README del módulo (`R-DO-1`, `R-DO-8`) y referencias de
+   reglas se actualizan en el mismo PR.
+5. **Interfaz pública estable**: los endpoints `/api/v1/**` no cambiaron durante la
    migración; `G-8` (OpenAPI) sigue verde.
 
 ## 5. Riesgos y deudas declaradas
 
 | Riesgo / deuda | Mitigación | Registro |
 |---|---|---|
-| Ventana con doble mapeo `packages/` + `libs/` en `tsconfig` | Deuda temporal; se cierra en F5 | [`rules/_meta/AUDIT.md`](./rules/_meta/AUDIT.md) |
-| Fronteras sin enforcement hasta F0 | ✅ Resuelto: verificador propio sin dependencias en `npm run lint` (se descartó `eslint-plugin-boundaries` por vulnerabilidades) | ADR-28, `R-HX-4` |
-| 153 tests en `.mjs` sobre `dist` | Vitest ejecuta `.mjs` sin reescritura; migrar por capas | ADR-29 |
+| Doble mapeo `packages/` + `libs/` en `tsconfig` | ✅ Resuelto: `packages/` retirado en F4 | [`rules/_meta/AUDIT.md`](./rules/_meta/AUDIT.md) |
+| Enforcement de fronteras | ✅ Verificador propio sin dependencias en `npm run lint` (se descartó `eslint-plugin-boundaries` por vulnerabilidades) | ADR-28, `R-HX-4` |
+| 153 tests en `.mjs` sobre `dist` | Vitest ejecuta `.mjs` sin reescritura; migrar en F5 | ADR-29 |
 | Sin `affected`/cache de tareas | Aceptado; re-evaluar Nx/Turbo con ADR nuevo | ADR-28 |
-| Reglas de otras áreas citan `packages/*` | Se actualizan por paquete, no en bloque | `R-DO-8` |
 
 ## 6. Cómo se cierra
 
-La migración termina cuando: `packages/` está vacío y retirado de `workspaces`,
-`tsconfig.base.json` solo mapea `libs/*/dist`, el lint aplica `R-HX-2`, el runner es
-Vitest (ADR-29) con umbral de cobertura re-medido y sin bajar, y todo README/regla cita
-las rutas `libs/*`. En ese momento se actualiza [`_meta/AUDIT.md`](./rules/_meta/AUDIT.md)
-y se marca `R-HX-9` como cumplida.
+La migración estructural ya cerró: `packages/` no existe, `tsconfig.base.json` solo mapea
+`libs/*/*/dist` y el lint aplica `R-HX-2` sin excepciones. **F5** cierra cuando el runner
+es **Vitest** (ADR-29) con umbral de cobertura re-medido y sin bajar; entonces se actualiza
+[`_meta/AUDIT.md`](./rules/_meta/AUDIT.md) y se marca `R-HX-9` como cumplida.

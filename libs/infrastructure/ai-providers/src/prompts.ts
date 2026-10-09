@@ -1,7 +1,7 @@
 /**
  * System prompts compartidos (fuente única).
  * El contenido de página siempre viaja como user-payload (datos no confiables §37),
- * nunca como system. Ver también SYSTEM_GUARDRAILS en @ai-scraper/ai.
+ * nunca como system. Ver también SYSTEM_GUARDRAILS en @ai-scraper/application-ai.
  *
  * IMPORTANTE: los modelos (incluidos los free) DEBEN respetar EXACTAMENTE el DSL.
  * Especificamos el esquema completo + ejemplos para minimizar alucinaciones.

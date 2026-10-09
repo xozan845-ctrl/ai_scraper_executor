@@ -1,4 +1,4 @@
-# @ai-scraper/ai
+# @ai-scraper/application-ai
 
 El **orquestador de IA** del producto: compone el contexto que se envía al modelo y
 gobierna las fases (planificar, analizar, recuperar, interpretar). No habla con el
@@ -17,6 +17,6 @@ proveedor: eso es `@ai-scraper/infrastructure-ai-providers` (`R-AR-7`).
 ## Comandos
 
 ```bash
-npm run build -w @ai-scraper/ai
+npm run build -w @ai-scraper/application-ai
 node --test tests/agent.test.mjs tests/interpret.test.mjs tests/llm-cache.test.mjs
 ```

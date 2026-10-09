@@ -133,7 +133,7 @@ Marcar las capas ✅ que apliquen y **justificar las que no**.
 ## 13. Documentación y contribución de IA ([`documentation/`](../documentation/README.md), [`ai-contributions/`](../ai-contributions/README.md))
 
 - [ ] **R-DO-1** — Si el PR añade un paquete/app, trae su `README.md` (responsabilidad, dependencias, superficie, comandos).
-- [ ] **R-DO-8** — Si el PR toca la lógica de un `apps/*` o `packages/*`, el `README.md` de ese módulo está actualizado en el mismo PR, o el PR declara que el cambio no altera nada documentado.
+- [ ] **R-DO-8** — Si el PR toca la lógica de un `libs/*` o `apps/*`, el `README.md` de ese módulo está actualizado en el mismo PR, o el PR declara que el cambio no altera nada documentado.
 - [ ] **R-DO-3** — Si añade/quita variables de entorno, actualiza `.env.example` **y** `.env.production.example`; nunca un secreto real versionado.
 - [ ] **R-DO-5** — Si es una decisión estructural (herramienta, esquema, orden de build), hay un ADR en `docs/decisiones.md`.
 - [ ] **R-DO-6** — Si cambia un DTO/ruta, `docs/openapi.json` re-exportado (`npm run openapi:export`).
@@ -149,7 +149,7 @@ Marcar las capas ✅ que apliquen y **justificar las que no**.
 - [ ] **R-HX-4** — `npm run lint` (que ejecuta `boundaries:check`) pasa: ninguna arista prohibida nueva; las excepciones legacy declaradas no crecen.
 - [ ] **R-HX-5** — La instanciación de adaptadores ocurre solo en `apps/*` o en una `factory` de `infrastructure/`.
 - [ ] **R-HX-6/7** — La lib vive en `libs/<capa>/<contexto>`; Prisma sigue en `prisma/` y su adaptador en `infrastructure/persistence/prisma`.
-- [ ] **R-HX-9** — Un paquete migrado deja `build` + `lint` + `test` en verde; los no migrados conservan `packages/<x>` (sin big-bang, un tema por PR).
+- [ ] **R-HX-9** — `packages/` retirado; todo en `libs/*`; un tema por PR y el repo verde.
 - [ ] **ADR-27/ADR-30** — Si es estructural (nueva capa, cambio de orden de build, adopción de herramienta), hay ADR en [`docs/decisiones.md`](../../decisiones.md).
 
 > Estado actual de los gates y deudas: [`AUDIT.md`](./AUDIT.md) (snapshot).

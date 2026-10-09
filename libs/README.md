@@ -16,12 +16,10 @@ Contextos del dominio: `scraper`, `ai`, `execution`. Nombre de paquete:
 `@ai-scraper/<capa>-<contexto>` (p. ej. `@ai-scraper/domain-scraper`).
 
 - **Reglas:** [`docs/rules/architecture/03-arquitectura-hexagonal.md`](../docs/rules/architecture/03-arquitectura-hexagonal.md)
-  (`R-HX-1..9`), en especial `R-HX-2` (dirección de dependencia) y `R-HX-9` (strangler).
+  (`R-HX-1..9`), en especial `R-HX-2` (dirección de dependencia) y `R-HX-3` (puertos/adaptadores).
 - **Plan y mapeo `packages/` → `libs/`:** [`docs/migracion-arquitectura.md`](../docs/migracion-arquitectura.md).
 - **Enforcement:** `npm run boundaries:check` (verifica `R-HX-2`; se ejecuta dentro de
   `npm run lint`).
 
-> **Estado (F0):** esta carpeta está **vacía** a propósito. La migración es strangler
-> (ADR-30): el código sigue en `packages/` y se moverá paquete a paquete, dejando
-> `build` + `lint` + `test` en verde en cada PR. Un paquete no migrado conserva su ruta
-> `packages/<x>` y su nombre `@ai-scraper/<x>` (`R-HX-9`).
+> **Estado: migración estructural completada.** Las 14 libs viven aquí y `packages/` está
+> retirado. Queda **F5** (ADR-29): adoptar Vitest como runner.

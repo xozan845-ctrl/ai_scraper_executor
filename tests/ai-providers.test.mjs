@@ -189,7 +189,7 @@ describe('Factory + Fallback (§14, §18, §19)', async () => {
 });
 
 describe('AIOrchestrator (§20) reenvía opts y cuenta llamadas', async () => {
-  const { AIOrchestrator } = await import('../packages/ai/dist/orchestrator/ai-orchestrator.js');
+  const { AIOrchestrator } = await import('../libs/application/ai/dist/orchestrator/ai-orchestrator.js');
 
   it('delega con opts y expone providerName/callCount/lastStats', async () => {
     const seen = [];

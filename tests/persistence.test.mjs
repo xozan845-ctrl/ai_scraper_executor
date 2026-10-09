@@ -235,7 +235,7 @@ describe('JobsService FASE 8 (API real)', async () => {
 
 describe('processJob del worker (FASE 7)', async () => {
   const { processJob } = await import('../apps/worker/dist/job-processor.js');
-  const { AIOrchestrator } = await import('../packages/ai/dist/orchestrator/ai-orchestrator.js');
+  const { AIOrchestrator } = await import('../libs/application/ai/dist/orchestrator/ai-orchestrator.js');
   const { ExecutionEngine } = await import('../libs/infrastructure/execution/dist/execution-engine.js');
   const { InMemoryJobStore } = await import('../libs/infrastructure/storage/dist/memory-store.js');
 

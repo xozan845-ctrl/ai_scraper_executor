@@ -1,7 +1,7 @@
 # AGENTS.md
 
 Guía para agentes de IA que trabajen en **ai-scraping-executor**. Monorepo npm workspaces
-(`apps/*` + `packages/*`), TypeScript, Node ≥20 (la CI y las imágenes usan 22), runner
+(`apps/*` + `libs/*/*`), TypeScript, Node ≥20 (la CI y las imágenes usan 22), runner
 nativo `node --test` (no Vitest/Jest).
 
 `LA IA ES EL CEREBRO. CRAWLEE ES EL MOTOR.` La IA decide QUÉ (DSL de 15 comandos); el motor decide CÓMO.
@@ -78,8 +78,8 @@ No commitear ni hacer push salvo que el usuario lo pida explícitamente.
 > `apps/*` como composition root sobre `libs/{domain,application,infrastructure,shared}`.
 > Plan y mapeo: [`docs/migracion-arquitectura.md`](docs/migracion-arquitectura.md).
 > Reglas canónicas: [`docs/rules/architecture/03-arquitectura-hexagonal.md`](docs/rules/architecture/03-arquitectura-hexagonal.md)
-> (`R-HX-*`). **La migración aún no se ha ejecutado**: el código sigue en `packages/`.
-> En este paso, la entrega es **documentación y reglas**, no mover código.
+> (`R-HX-*`). **Migración estructural completada**: `packages/` retirado; todo vive en
+> `libs/`. Queda **F5**: adoptar **Vitest** como runner (ADR-29).
 
 ```
 apps/api        NestJS: /jobs /radiography /sessions /metrics /dashboard /health (prefijo /api/v1)
@@ -100,13 +100,13 @@ libs/infrastructure/redis            RedisPageCache/RedisRateLimiter/RedisMetric
 libs/infrastructure/queue            JobQueue (BullMQ + InMemory)
 libs/infrastructure/storage          JobStore (Prisma + InMemory)
 
-packages/ai               AIOrchestrator, prompts, context-builder  # pendiente: -> libs/application/ai (F4)
+libs/application/ai               AIOrchestrator, prompts, context-builder  # pendiente: -> libs/application/ai (F4)
 ```
 
 ## Reglas del proyecto (importantes)
 
 1. **Build order**: las libs base (`libs/shared/*`) primero; `tsconfig.base.json` mapea `paths` a
-   `packages/*/dist` y `libs/*/*/dist` (NO a `src`). Cada paquete/lib tiene su propio `tsconfig.json`
+   `libs/*/*/dist` (NO a `src`). Cada lib tiene su propio `tsconfig.json`
    con `rootDir: src` y `outDir: dist`. Los tests cargan `dist/`, así que edita TS y **rebuild** antes de testear.
 2. **Seguridad**: toda validación de URL pasa por `@ai-scraper/shared-security` (`assertPublicUrl`). La IA nunca
    ejecuta código arbitrario. SSRF/allowlist en `CommandValidator`. No duplicar lógica SSRF.
@@ -123,9 +123,9 @@ packages/ai               AIOrchestrator, prompts, context-builder  # pendiente:
    `docs/openapi.json`; el gate `G-8` (`openapi:check`) falla si no está en sync.
 10. **Migraciones**: si tocas `prisma/schema.prisma`, añade la migración en `prisma/migrations/`;
     `G-9` corre `prisma validate` + `migrate deploy` + `migrate diff --exit-code`.
-11. **Arquitectura hexagonal (R-HX)**: el destino es `libs/{domain,application,infrastructure,shared}`
-    (objetivo) con `apps/*` como composition root; hoy el código sigue en `packages/` (migración
-    strangler, ADR-30). `npm run lint` incluye `npm run boundaries:check`
+11. **Arquitectura hexagonal (R-HX)**: el código vive en `libs/{domain,application,infrastructure,shared}`
+    (ADR-27) con `apps/*` como composition root; `packages/` está **retirado**. `npm run lint` incluye
+    `npm run boundaries:check`
     (`scripts/check-boundaries.mjs`), que **falla** ante una arista prohibida de `R-HX-2`. No añadas
     dependencias sin comprobar `npm audit` (0 vulnerabilidades, `R-QA-6`).
 
@@ -151,7 +151,7 @@ packages/ai               AIOrchestrator, prompts, context-builder  # pendiente:
 
 ## Gotchas conocidos
 
-- Si `tsc` se ejecuta sin `-p packages/<x>/tsconfig.json`, puede emitir `.js` junto al `.ts` → romperá lint.
+- Si `tsc` se ejecuta sin `-p libs/<capa>/<contexto>/tsconfig.json`, puede emitir `.js` junto al `.ts` → romperá lint.
   Solución: `npm run build -w <paquete>` y borrar artefactos de `src/`.
 - Tras mover código entre paquetes, actualizar imports (`@ai-scraper/...`) y hacer `rm -rf <dist>` + rebuild.
 - Modelos OpenRouter 404 = deprecated/no disponible; 403 = sin créditos/límite; 429 = rate limit (el fallback salta).
