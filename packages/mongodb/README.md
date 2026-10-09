@@ -6,7 +6,7 @@ si se borra, el sistema vuelve a radiografiar (`R-MO-1`, `R-SC-14`).
 
 - **Capa**: datos.
 - **Dependencias exclusivas**: `mongoose` y, del monorepo, `@ai-scraper/shared-core`,
-  `@ai-scraper/crawler`, `@ai-scraper/execution-engine` y `@ai-scraper/security`.
+  `@ai-scraper/crawler`, `@ai-scraper/execution-engine` y `@ai-scraper/shared-security`.
 - **Superficie pública**:
   - `connectMongo` / `disconnectMongo` / `getConnection` / `isMongoMock` — conexión
     singleton que se cierra en el apagado (`R-MO-2`); con `MONGODB_MOCK=1` degrada al

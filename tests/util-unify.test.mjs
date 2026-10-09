@@ -9,7 +9,7 @@ describe('Utilidades unificadas (hashHtml / normalizeDomain)', async () => {
   const { hashHtml: coreHash } = await import('../libs/shared/core/dist/index.js');
   const { hashHtml: crawlerHash } = await import('../packages/crawler/dist/crawler.service.js');
   const { hashHtml: mongoHash, normalizeDomain: mongoNorm } = await import('../packages/mongodb/dist/repository.js');
-  const { normalizeDomain: secNorm } = await import('../packages/security/dist/allowlist.js');
+  const { normalizeDomain: secNorm } = await import('../libs/shared/security/dist/allowlist.js');
 
   it('hashHtml es idéntico en core, crawler y mongodb', () => {
     for (const s of ['', 'abc', '<html>hola</html>', 'x'.repeat(1000), 'áéíóú €']) {

@@ -122,7 +122,6 @@ apps/
   api/           # NestJS API REST (POST/GET /jobs, /radiography, /metrics, /dashboard)
   worker/        # Procesador de jobs (AgentRunner + browser-engine + planner)
 packages/
-  commands/      # DSL Zod (15 comandos) + CommandValidator (SSRF/allowlist) + normalize (anti-alucinación)
   crawler/       # CrawlerService (CheerioCrawler + PlaywrightCrawler, hybrid, SessionPool)
   execution-engine/  # ExecutionEngine (HTTP/Cheerio + delegado browser CLICK/SCROLL + PageCache)
   ai/            # AIOrchestrator + prompts + context-builder
@@ -130,13 +129,14 @@ packages/
   mongodb/       # SiteProfile, PageRadiography, MongoRepository, performRadiography/getLearnedProfile
   redis/         # RedisPageCache, RedisRateLimiter, RedisMetricsAggregator (fallback memoria)
   queue/         # JobQueue (BullMQJobQueue + InMemoryJobQueue) + factory
-  security/      # SSRF centralizado (assertPublicUrl, isBlockedHost, createAllowlist)
   storage/       # JobStore (Prisma + InMemory)
 libs/
-  shared/core/           # Utilidades puras (hashHtml) — migrado desde packages/core (ADR-30)
-  shared/observability/  # Logger JSON + MetricsCollector (Prometheus, instance labels) — migrado (ADR-30)
-  domain/execution/      # JobStatus/JobLimits/DEFAULT_LIMITS/normalizeJobLimits — migrado desde packages/core (ADR-30)
-  domain/scraper/        # TracedValue/StructuredItem (trazabilidad) — migrado desde packages/core (ADR-30)
+  shared/core/           # Utilidades puras (hashHtml)
+  shared/security/       # SSRF centralizado (assertPublicUrl, isBlockedHost, createAllowlist)
+  shared/observability/  # Logger JSON + MetricsCollector (Prometheus, instance labels)
+  domain/execution/      # JobStatus/JobLimits/DEFAULT_LIMITS/normalizeJobLimits
+  domain/scraper/        # TracedValue/StructuredItem (trazabilidad)
+  domain/ai/             # DSL Zod (15 comandos) + CommandValidator + normalize
 prisma/
   schema.prisma  # 8 tablas: User, Job, ScrapingPlan, Command, Page, Result, JobError, AIInteraction
 docker-compose.yml # postgres + mongodb + redis + migrate + api + worker
@@ -293,7 +293,7 @@ RATE_LIMIT_CREATE_PER_MIN=60
 
 ## Seguridad
 
-- **SSRF centralizado** (`@ai-scraper/security`): `assertPublicUrl`, `assertSafeUrl` (resuelve DNS),
+- **SSRF centralizado** (`@ai-scraper/shared-security`): `assertPublicUrl`, `assertSafeUrl` (resuelve DNS),
   `isBlockedHost`/`isBlockedIp` (IPv4/IPv6: loopback, privadas, link-local, ULA, CGNAT, IPv4-mapped),
   `safeFetchText` (revalida **cada redirect** y el tamaño del body), `createAllowlist`.
   `ALLOW_PRIVATE_HOSTS=1` solo tiene efecto fuera de `NODE_ENV=production`.

@@ -1,5 +1,5 @@
 import { ScrapingCommandSchema, ScrapingPlanSchema, type ScrapingCommand, type ScrapingPlan } from './schemas';
-import { assertPublicUrl, isAllowedHost, normalizeDomain } from '@ai-scraper/security';
+import { assertPublicUrl, isAllowedHost, normalizeDomain } from '@ai-scraper/shared-security';
 
 /**
  * Command Validator §26 — barrera de seguridad.

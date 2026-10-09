@@ -85,10 +85,13 @@ No commitear ni hacer push salvo que el usuario lo pida explícitamente.
 apps/api        NestJS: /jobs /radiography /sessions /metrics /dashboard /health (prefijo /api/v1)
 apps/worker     AgentRunner (planner + loop Observe→Think→Act + recovery), browser-engine, job-processor
 
-libs/shared/core          utilidades puras (hashHtml)
-libs/domain/execution     JobStatus/JobLimits/DEFAULT_LIMITS/normalizeJobLimits (fuente única)
-libs/domain/scraper       TracedValue/StructuredItem (trazabilidad)
-libs/domain/ai            DSL Zod (schemas.ts) + CommandValidator (validator.ts) + normalize.ts
+libs/shared/core                  utilidades puras (hashHtml)
+libs/shared/security              SSRF centralizado: assertPublicUrl/isBlockedHost/createAllowlist
+libs/shared/observability         logger JSON + MetricsCollector (Prometheus)
+libs/domain/execution             JobStatus/JobLimits/DEFAULT_LIMITS/normalizeJobLimits (fuente única)
+libs/domain/scraper               TracedValue/StructuredItem (trazabilidad)
+libs/domain/ai                    DSL Zod (schemas.ts) + CommandValidator (validator.ts) + normalize.ts
+
 packages/crawler          CrawlerService (CheerioCrawler/PlaywrightCrawler hybrid, interact())
 packages/execution-engine ExecutionEngine (HTTP/Cheerio + browserInteract), PageCache
 packages/ai               AIOrchestrator, prompts, context-builder
@@ -96,18 +99,15 @@ packages/ai-providers     OpenRouterProvider (fallback modelos), Custom, Fallbac
 packages/mongodb          SiteProfile/PageRadiography, MongoRepository, performRadiography/getLearnedProfile
 packages/redis            RedisPageCache/RedisRateLimiter/RedisMetricsAggregator (fallback memoria)
 packages/queue            JobQueue (BullMQ + InMemory)
-packages/security         SSRF centralizado: assertPublicUrl/isBlockedHost/createAllowlist
 packages/storage          JobStore (Prisma + InMemory)
-
-libs/shared/observability logger JSON + MetricsCollector (Prometheus)  # migrado desde packages/ (ADR-30)
 ```
 
 ## Reglas del proyecto (importantes)
 
-1. **Build order**: `packages/security` y `core` primero; `tsconfig.base.json` mapea `paths` a
+1. **Build order**: las libs base (`libs/shared/*`) primero; `tsconfig.base.json` mapea `paths` a
    `packages/*/dist` y `libs/*/*/dist` (NO a `src`). Cada paquete/lib tiene su propio `tsconfig.json`
    con `rootDir: src` y `outDir: dist`. Los tests cargan `dist/`, así que edita TS y **rebuild** antes de testear.
-2. **Seguridad**: toda validación de URL pasa por `@ai-scraper/security` (`assertPublicUrl`). La IA nunca
+2. **Seguridad**: toda validación de URL pasa por `@ai-scraper/shared-security` (`assertPublicUrl`). La IA nunca
    ejecuta código arbitrario. SSRF/allowlist en `CommandValidator`. No duplicar lógica SSRF.
 3. **DSL**: los 15 comandos están en `libs/domain/ai/src/schemas.ts` (Zod). La IA solo emite estos.
    Los modelos débiles se corrigen en `normalize.ts` ANTES de validar; la validación sigue estricta.

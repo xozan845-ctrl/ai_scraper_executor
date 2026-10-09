@@ -12,7 +12,7 @@ import * as cheerio from 'cheerio';
 import { createHash } from 'node:crypto';
 import type { ScrapingCommand as StrictCommand } from '@ai-scraper/domain-ai';
 import { logger } from '@ai-scraper/shared-observability';
-import { assertPublicUrl, isAllowedHost, safeFetchText } from '@ai-scraper/security';
+import { assertPublicUrl, isAllowedHost, safeFetchText } from '@ai-scraper/shared-security';
 import { PageCache, normalizeUrlForDedupe } from './page-cache';
 
 /**
@@ -93,7 +93,7 @@ function abortable<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
   });
 }
 
-/** Seguridad §37 centralizada en @ai-scraper/security (ETAPA 2). */
+/** Seguridad §37 centralizada en @ai-scraper/shared-security (ETAPA 2). */
 
 async function defaultFetchHtml(
   url: string,

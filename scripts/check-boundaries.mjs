@@ -21,7 +21,6 @@ const ALLOWED = {
 // paquete a libs/<capa>/<contexto> su capa pasa a deducirse del nombre de paquete.
 const PACKAGE_LAYERS = {
   ai: 'application',
-  security: 'shared',
   crawler: 'infrastructure',
   'execution-engine': 'infrastructure',
   'ai-providers': 'infrastructure',

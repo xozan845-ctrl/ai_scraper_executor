@@ -22,7 +22,7 @@
       "@ai-scraper/ai-providers": ["packages/ai-providers/dist"],
       "@ai-scraper/storage": ["packages/storage/dist"],
       "@ai-scraper/queue": ["packages/queue/dist"],
-      "@ai-scraper/security": ["packages/security/dist"],
+      "@ai-scraper/shared-security": ["libs/shared/security/dist"],
       "@ai-scraper/shared-observability": ["libs/shared/observability/dist"],
       "@ai-scraper/mongodb": ["packages/mongodb/dist"],
       "@ai-scraper/redis": ["packages/redis/dist"]

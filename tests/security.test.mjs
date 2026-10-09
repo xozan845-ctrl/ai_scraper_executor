@@ -1,8 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-describe('Seguridad centralizada ETAPA 2 (@ai-scraper/security)', async () => {
-  const sec = await import('../packages/security/dist/index.js');
+describe('Seguridad centralizada ETAPA 2 (@ai-scraper/shared-security)', async () => {
+  const sec = await import('../libs/shared/security/dist/index.js');
   const { CommandValidator } = await import('../libs/domain/ai/dist/validator.js');
 
   it('bloquea hosts privados, metadata y protocolos no http', () => {

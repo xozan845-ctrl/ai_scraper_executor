@@ -4,7 +4,7 @@ El **DSL** que la IA puede emitir y su validación. Es la frontera entre «qué 
 el modelo» y «cómo lo ejecuta el motor» (`R-AR-1`).
 
 - **Capa**: `libs/domain/ai` (dominio puro; la consumen `execution-engine`, `ai`/`ai-providers` y `apps/worker`).
-- **Dependencias exclusivas**: `@ai-scraper/security` (shared kernel: valida toda URL del plan) y `zod`.
+- **Dependencias exclusivas**: `@ai-scraper/shared-security` (shared kernel: valida toda URL del plan) y `zod`.
 - **Superficie pública**:
   - `CommandType` — los **15** comandos (`NAVIGATE`, `EXTRACT`, `EXTRACT_LIST`,
     `FOLLOW_LINKS`, `PAGINATE`, `SCROLL`, `CLICK`, `TYPE`, `WAIT`, `FINISH`,

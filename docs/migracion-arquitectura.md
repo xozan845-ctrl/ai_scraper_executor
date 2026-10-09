@@ -28,8 +28,8 @@ dependencia y las aristas prohibidas son `R-HX-2`; la verificación por lint es 
 | Hoy (`packages/`) | Destino | Capa | Notas |
 |---|---|---|---|
 | `core` | `libs/domain/execution` + `libs/domain/scraper` + `libs/shared/core` | dominio + shared | ✅ **migrado**: `JobStatus`/`JobLimits`/límites → `@ai-scraper/domain-execution`; `TracedValue` → `@ai-scraper/domain-scraper`; `hashHtml` → `@ai-scraper/shared-core` |
-| `commands` | `libs/domain/ai` | dominio | ✅ **migrado** (paquete `@ai-scraper/domain-ai`): DSL Zod, normalizador y `CommandValidator`; valida URLs con `@ai-scraper/security` (shared kernel) |
-| `security` | `libs/shared/security` | shared | **Shared kernel** (cero dependencias, lo usan todas las capas, incluido el dominio) → reclasificado de infraestructura a `shared` (evidencia: `domain/ai` lo usa de forma pura); `safeFetchText` (I/O) y `crypto` conviven aquí |
+| `commands` | `libs/domain/ai` | dominio | ✅ **migrado** (paquete `@ai-scraper/domain-ai`): DSL Zod, normalizador y `CommandValidator`; valida URLs con `@ai-scraper/shared-security` (shared kernel) |
+| `security` | `libs/shared/security` | shared | ✅ **migrado** (paquete `@ai-scraper/shared-security`): shared kernel (cero dependencias, lo usan todas las capas, incluido el dominio); `safeFetchText` (I/O) y `crypto` conviven aquí |
 | `observability` | `libs/shared/observability` | shared | ✅ **migrado** (paquete `@ai-scraper/shared-observability`); Logger + métricas, transversal pura |
 | `crawler` | `libs/infrastructure/crawler` | infraestructura | Cheerio/Playwright; implementa el puerto de navegación |
 | `execution-engine` | `libs/infrastructure/execution` | infraestructura | Implementa el puerto `IExecutionEngine` del dominio `scraper` |
@@ -55,7 +55,7 @@ permanece verde en todo momento (`R-HX-9`). Orden por dependencia (de hojas a ra
 | **F0 — Andamiaje** ✅ | Verificador de fronteras sin dependencias (`scripts/check-boundaries.mjs`, integrado en `npm run lint`); crear `libs/` con README raíz. Sin mover código | `R-HX-4` **activo**; `libs/` existe |
 | **F1 — `shared/`** | `observability` → `libs/shared/observability` ✅; `core` se reparte en F2 (no se crea `shared/core` vacío) | `shared` sin dependencias de otras capas |
 | **F2 — `domain/`** | `core` repartido a `domain/execution` + `domain/scraper` + `shared/core` ✅; `commands` → `domain/ai` ✅ | Dominio testeable **sin infra** |
-| **F3 — infra + `shared/security`** | `crawler`, `execution-engine`, `ai-providers`, `queue`, `redis`, `mongodb`, `storage` (infraestructura) y `security` → `libs/shared/security` | Adaptadores implementan los puertos de F2 |
+| **F3 — infra + `shared/security`** | `security` → `libs/shared/security` ✅; `crawler`, `execution-engine`, `ai-providers`, `queue`, `redis`, `mongodb`, `storage` (infraestructura) pendientes | Adaptadores implementan los puertos de F2 |
 | **F4 — `application/`** | `ai` → `application/{ai,scraper,execution}` (casos de uso) | Lógica de orquestación fuera de infraestructura |
 | **F5 — Cierre** | `apps/*` como composition root puro; retirar `packages/` de `workspaces`/`tsconfig`/lint; migrar el runner a **Vitest** (ADR-29) | `packages/` desaparece; fronteras `R-HX` cerradas |
 

@@ -69,7 +69,7 @@ describe('Credenciales (headers) en el motor (Etapa B)', async () => {
   });
 
   it('corta el body durante streaming al superar maxBytes', async () => {
-    const { safeFetchText } = await import('../packages/security/dist/index.js');
+    const { safeFetchText } = await import('../libs/shared/security/dist/index.js');
     await assert.rejects(() => safeFetchText(base + '/large', { maxBytes: 80 }), /demasiado grande/);
   });
 });

@@ -87,7 +87,7 @@ la regla nueva está mal:
 
 1. **`npm run build && npm run lint && MONGODB_MOCK=1 npm test` en verde** antes de
    dar cualquier tarea por terminada (`R-GC-5`, gate `G-7`).
-2. **Toda URL que entre al sistema pasa por `@ai-scraper/security`** (`R-SE-1`). La IA
+2. **Toda URL que entre al sistema pasa por `@ai-scraper/shared-security`** (`R-SE-1`). La IA
    nunca ejecuta código ni decide a qué host se conecta.
 3. **Ninguna regla se da por cumplida sin evidencia ejecutable**: un gate solo se marca
    ✅ con un run verde de CI, no con "está configurado" (`R-COV-3`).

@@ -45,7 +45,7 @@ tiende a desviarse (`R-AI-4`) y su test. Un comando sin schema no existe.
 | ID | Exigencia |
 |---|---|
 | `R-AI-1` | La IA no ejecuta código → es el corolario de `R-AR-1` (`../architecture/01-arquitectura.md`) |
-| `R-AI-6` | Toda URL del DSL se valida con `@ai-scraper/security` → `R-SE-1` (`../security/01-ssrf.md`) |
+| `R-AI-6` | Toda URL del DSL se valida con `@ai-scraper/shared-security` → `R-SE-1` (`../security/01-ssrf.md`) |
 | `R-AI-7` | El recorte de límites también lo aplica el motor, no solo el planner → `R-SC-2` (`../scraping/01-motor.md`) |
 | `R-AI-12` | El presupuesto de tokens corta el job → `R-DI-4` (`../data/01-integridad.md`) |
 | `R-AI-14` | La caché de respuestas LLM no es la verdad → `R-DI-5` (`../data/01-integridad.md`) y `R-RD-3` (`../db/03-redis.md`) |
