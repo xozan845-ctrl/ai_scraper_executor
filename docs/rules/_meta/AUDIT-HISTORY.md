@@ -1643,3 +1643,59 @@ el stack es local, no de producción (allí el scrape debe llevar `x-api-key`, `
 - Gates sin cambios (**8 ✅ · 1 N/A · 0 ⏸**). Es una regla de proceso: su evidencia es
   el `CHECKLIST` marcado del PR (sin gate mecánico posible); `G-8` (OpenAPI) y `G-9`
   (migraciones) siguen cubriendo lo automatizable.
+
+---
+
+# AUDIT — Objetivo arquitectura hexagonal (R-HX-1..9)
+
+- **Fecha:** 2026-10-09
+- **Disparador:** decisión de elevar el proyecto a **arquitectura hexagonal (puertos y
+  adaptadores) por bounded contexts**, empezando —según lo acordado— por **documentación
+  y reglas** que fijen el rumbo, sin mover código todavía.
+
+## Qué cambió
+
+- `decisiones.md`: **ADR-27** (modelo hexagonal canónico `domain`/`application`/
+  `infrastructure`/`shared` + `apps/*`, sustituye la vista de 5 capas), **ADR-28**
+  (gobernanza con npm workspaces + verificador de fronteras sin dependencias, sin
+  Nx/Turborepo; `eslint-plugin-boundaries` se descartó por vulnerabilidades — ver F0),
+  **ADR-29** (Vitest como runner objetivo; **sustituye ADR-03 y ADR-17**), **ADR-30**
+  (migración strangler). ADR-03 y ADR-17 quedan marcados como sustituidos.
+- Nuevo `rules/architecture/03-arquitectura-hexagonal.md` con `R-HX-1..9` (capas,
+  dirección de dependencia, puertos/adaptadores, enforcement, composition root,
+  mapeo por contexto, strangler).
+- `rules/architecture/README.md`: modelo canónico + mapa `R-HX` + cross-refs + pendientes.
+- `rules/architecture/01-arquitectura.md`: **`R-AR-2` enmendada** (ID conservado) para
+  delegar el modelo de capas en `R-HX-1`.
+- `rules/architecture/02-naming.md`: **`R-NC-10`** (estructura interna de una lib) y
+  rango `R-NC` a 1–10.
+- `rules/_meta/CHECKLIST.md`: sección **14 (arquitectura hexagonal)**.
+- `rules/_meta/AUDIT.md`: fila «Arquitectura hexagonal (`R-HX`)» 🟡 y deuda 0.
+- Nuevo `docs/migracion-arquitectura.md` (mapeo `packages/` → `libs/` y fases F0–F5).
+- `README.md` raíz y `AGENTS.md`: apuntan al objetivo sin falsear el estado.
+- `rules/test/README.md`: nota de **ADR-29** (Vitest objetivo; `node --test` vigente).
+
+## F0 — Andamiaje ejecutado (mismo día)
+
+- **`libs/`** creado (vacío, con `README.md`): hogar objetivo de las capas hexagonales.
+- **`scripts/check-boundaries.mjs`**: verificador de fronteras **sin dependencias** que
+  aplica la matriz `R-HX-2` (129 imports entre paquetes verificados). Integrado en
+  `npm run lint` (`npm run boundaries:check`), gate `G-7`.
+- **`eslint-plugin-boundaries` descartado**: al instalarlo introdujo **4 high + 1
+  critical** (`handlebars`, `micromatch`/`braces`), rompiendo `R-QA-6`. ADR-28 admitía
+  «o equivalente»; se documenta la revisión en ADR-28 y se restaura `npm audit` a **0**.
+- **2 excepciones legacy** toleradas por ruta `packages/` (`ai→redis`, `commands→security`),
+  que desaparecen solas al migrar (ADR-30).
+- `package.json`: `lint` pasa a `eslint apps packages libs scripts … && node scripts/check-boundaries.mjs`;
+  nuevo script `boundaries:check`.
+
+## Estado
+
+- **Código sin mover**: todo sigue en `packages/`; `libs/` solo tiene su README. La
+  migración F1–F5 de ADR-30 no ha comenzado.
+- `R-HX-4` (enforcement por lint) **activo** vía `scripts/check-boundaries.mjs`, con las
+  2 excepciones legacy declaradas; sin violaciones nuevas.
+- `eslint-plugin-boundaries` **no** se usa (vulnerabilidades); `npm audit` sigue en **0**.
+- Runner: sigue siendo **`node --test`**; Vitest es objetivo (ADR-29).
+- Gates: `G-1..G-9` sin cambios; la verificación `build` + `lint` + `test` queda en verde
+  y `npm audit` en 0.

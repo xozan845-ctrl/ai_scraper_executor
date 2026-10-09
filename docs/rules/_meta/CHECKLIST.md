@@ -142,4 +142,14 @@ Marcar las capas ✅ que apliquen y **justificar las que no**.
 - [ ] **R-AC-4** — Sin pases libres: gates verdes y cobertura sin bajar.
 - [ ] **R-AC-6** — Sin refactors oportunistas: lo ajeno a la tarea se registra como deuda.
 
+## 14. Arquitectura hexagonal ([`03-arquitectura-hexagonal.md`](../architecture/03-arquitectura-hexagonal.md)) — si el PR mueve código entre capas o crea una lib
+
+- [ ] **R-HX-1/2** — El código respeta la capa que le corresponde y la dirección de dependencia permitida (prohibidas `domain→application/infra`, `application→infra`, `libs→apps`).
+- [ ] **R-HX-3** — `domain`/`application` no importan SDKs (`prisma`, `mongoose`, `bullmq`, `crawlee`, `playwright`, OpenRouter) ni hacen I/O; los puertos viven en el dominio.
+- [ ] **R-HX-4** — `npm run lint` (que ejecuta `boundaries:check`) pasa: ninguna arista prohibida nueva; las excepciones legacy declaradas no crecen.
+- [ ] **R-HX-5** — La instanciación de adaptadores ocurre solo en `apps/*` o en una `factory` de `infrastructure/`.
+- [ ] **R-HX-6/7** — La lib vive en `libs/<capa>/<contexto>`; Prisma sigue en `prisma/` y su adaptador en `infrastructure/persistence/prisma`.
+- [ ] **R-HX-9** — Un paquete migrado deja `build` + `lint` + `test` en verde; los no migrados conservan `packages/<x>` (sin big-bang, un tema por PR).
+- [ ] **ADR-27/ADR-30** — Si es estructural (nueva capa, cambio de orden de build, adopción de herramienta), hay ADR en [`docs/decisiones.md`](../../decisiones.md).
+
 > Estado actual de los gates y deudas: [`AUDIT.md`](./AUDIT.md) (snapshot).

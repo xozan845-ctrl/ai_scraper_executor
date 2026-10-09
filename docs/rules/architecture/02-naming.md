@@ -1,7 +1,7 @@
 # 02 — Reglas Doradas de Nomenclatura
 
 Aplica a: nombres de archivos, clases, variables, tablas y mensajes de commit en todo
-el monorepo (`apps/*` + `packages/*`).
+el monorepo (`apps/*` + `packages/*` + `libs/*`).
 
 > **Idioma.** El código de este repo es **inglés** (`jobId`, `results`, `selector`).
 > Esa es la convención real y la que se aplica: los ficheros heredados que mezclaban
@@ -20,6 +20,7 @@ el monorepo (`apps/*` + `packages/*`).
 | R-NC-7 | **Base de datos (Prisma: `camelCase` en el modelo, `snake_case` en el SQL)**: los campos del `schema.prisma` y los tipos devueltos por el cliente Prisma usan `camelCase` (`createdAt`, `jobId`, `sourceUrl`, `sessionId`). El mapeo a columnas físicas se hace con `@map` cuando el nombre difiere. El nombre de tabla/columna en SQL crudo (migraciones escritas a mano, `scripts/`) va en `snake_case`. La API expone **camelCase**, no `snake_case`. |
 | R-NC-8 | **Valores de enum y estados como cadenas literales**: cuando un estado se persiste como `String` (columna `status` de `Job`, `Session`, `Command`), el valor es el miembro del enum de [`../../../packages/core/src/index.ts`](../../../packages/core/src/index.ts) (`'CREATED'`, `'READY'`, `'COMPLETED'`, `'PENDING'`). Se escribe el literal en mayúsculas en todas partes; nunca se inventa una variante en minúsculas ni un string que no exista en el enum. |
 | R-NC-9 | **Commits (Conventional Commits)**: todo mensaje de commit sigue el estándar Conventional Commits, en español imperativo y con el ámbito real del cambio (`packages/commands`, `api`, `worker`, `rules`, `ci`): `fix(commands): validar tipo antes de normalizar (R-AI-4)`. El detalle del formato vive en `R-GC-1..7` ([`../git/02-commits.md`](../git/02-commits.md)). |
+| R-NC-10 | **Estructura interna y nombre de una lib hexagonal**: dentro de `libs/<capa>/<contexto>/src`, las carpetas se nombran por rol y en `kebab-case`: `entities/`, `value-objects/`, `services/` y `ports/` (dominio), `use-cases/` y `dtos/` (aplicación), `adapters/` (infraestructura); `src/index.ts` expone solo la superficie pública (`R-HX-8`). El paquete se llama `@ai-scraper/<capa>-<contexto>` (`R-HX-6`). Mientras un paquete no haya migrado, conserva su ruta `packages/<x>` y su nombre `@ai-scraper/<x>` (`R-HX-9`). |
 
 ## Verificación
 

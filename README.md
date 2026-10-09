@@ -5,7 +5,16 @@ Plataforma agnóstica de scraping asistida por IA. `LA IA ES EL CEREBRO. CRAWLEE
 > Estado: **MVP funcional validado E2E contra una web real** (`https://www.sevasaonline.com/`) con LLM
 > (incluidos modelos free de OpenRouter) extrayendo datos, memoria persistente (MongoDB) y caché Redis.
 
-## Arquitectura (5 capas)
+## Arquitectura
+
+**Objetivo (ADR-27): arquitectura hexagonal por dominios** — `apps/*` (composition
+root) sobre `libs/{domain,application,infrastructure,shared}`. El plan, el mapeo de
+`packages/` → `libs/` y las fases viven en
+[`docs/migracion-arquitectura.md`](docs/migracion-arquitectura.md); las reglas
+canónicas en [`docs/rules/architecture/03-arquitectura-hexagonal.md`](docs/rules/architecture/03-arquitectura-hexagonal.md).
+
+**Estado actual (vista de runtime de las 5 capas):** la migración **aún no se ha
+ejecutado**; el código sigue en `packages/`.
 
 ```
 INTERFACE (API NestJS) -> ORCHESTRATION (Jobs/Redis/BullMQ) -> INTELLIGENCE (AI Planner/OpenRouter|Custom|Ollama)
