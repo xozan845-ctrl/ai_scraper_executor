@@ -15,7 +15,7 @@ jobs:
     timeout-minutes: 30
     services:
       postgres:
-        image: postgres:16-alpine
+        image: mirror.gcr.io/library/postgres:16-alpine
         env:
           POSTGRES_USER: scraper
           POSTGRES_PASSWORD: scraper
@@ -28,7 +28,7 @@ jobs:
           --health-timeout 3s
           --health-retries 10
       mongodb:
-        image: mongo:7-jammy
+        image: mirror.gcr.io/library/mongo:7-jammy
         ports:
           - 27017:27017
         options: >-
@@ -37,7 +37,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
       redis:
-        image: redis:7-alpine
+        image: mirror.gcr.io/library/redis:7-alpine
         ports:
           - 6379:6379
         options: >-

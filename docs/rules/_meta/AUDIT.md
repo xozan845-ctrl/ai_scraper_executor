@@ -92,7 +92,7 @@ y ejecución de sus comandos de verificación. Resultado: **11/11 ✅**.
 | `R-CI-5` `.github/` revisado como código | ✅ | todos los pasos son scripts de `package.json`, reproducibles en local |
 | `R-CI-6` verificación con `gh` | ✅ | `gh run list` con runs `success` (p. ej. `main` `37504812694`) |
 | `R-EN-1` entorno reproducible | ✅ | `node-version: 22`, `cache: npm`, `npm ci --ignore-scripts`, actions `v7` |
-| `R-EN-2` servicios efímeros por job | ✅ | `postgres:16-alpine` en `build-test-lint`; `postgres`+`mongo:7-jammy`+`redis:7-alpine` en `integration` |
+| `R-EN-2` servicios efímeros por job | ✅ | `mirror.gcr.io/library/postgres:16-alpine` en `build-test-lint`; `postgres`+`mirror.gcr.io/library/mongo:7-jammy`+`mirror.gcr.io/library/redis:7-alpine` en `integration` |
 | `R-EN-3` evidencia en todos los runs | ✅ | `test-results.xml` con `if: always()` |
 | `R-EN-4` secretos solo en GitHub Secrets | ✅ | `build-test-lint`/`integration` sin secretos; solo `e2e.yml` usa `OPENROUTER_API_KEY` |
 | `R-EN-5` navegadores fuera del job unitario | ✅ | Chromium solo en `e2e.yml` |

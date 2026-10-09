@@ -11,7 +11,7 @@ aquí**: son reglas de testing y siguen en
 > # ci.yml — push a main, pull_request y workflow_dispatch (forzar a mano)
 > concurrency: { group: ci-${{ github.ref }}, cancel-in-progress: true }
 > jobs.build-test-lint:
->   services: postgres:16-alpine (schema/deriva + contrato + unit)
+>   services: mirror.gcr.io/library/postgres:16-alpine (schema/deriva + contrato + unit)
 >   npm ci --ignore-scripts → npm audit --audit-level=high → prisma generate
 >   prisma validate → migrate deploy → migrate diff --exit-code
 >   build → openapi:check → lint → test → contract
@@ -97,7 +97,7 @@ La importancia es cerrar la evidencia: un cambio terminado es un commit con
   (high y moderate). Ver [`../_meta/AUDIT.md`](../_meta/AUDIT.md).
 - **Concurrencia y servicios efímeros (deuda cerrada)**: `R-CI-2` declara
   `concurrency` con `cancel-in-progress`; `R-EN-2` usa un servicio
-  `postgres:16-alpine` en `build-test-lint` (schema/deriva) y **`postgres` +
+  `mirror.gcr.io/library/postgres:16-alpine` en `build-test-lint` (schema/deriva) y **`postgres` +
   `mongodb` + `redis`** en el job `integration` (`G-4`).
 - **Artifacts (deuda cerrada)**: `R-EN-3` sube `test-results.xml` (reporter JUnit de
   Node) como artifact en todos los runs (`if: always()`). Sirve de evidencia de la
