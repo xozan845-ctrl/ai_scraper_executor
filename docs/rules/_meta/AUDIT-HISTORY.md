@@ -1770,3 +1770,25 @@ el stack es local, no de producción (allí el scrape debe llevar `x-api-key`, `
   *environments* `staging`/`production` con aprobación y secretos.
 - Staging y producción consumen el **mismo digest** (inmutabilidad, `R-CD-3`).
 - `npm audit` en **0**; sin cambios en gates.
+
+---
+
+# AUDIT — CI robusto ante el rate limit de Docker Hub (R-EN-2)
+
+- **Fecha:** 2026-10-09
+- **Disparador:** el run post-merge de `main` falló en "Initialize containers":
+  `toomanyrequests: You have reached your unauthenticated pull rate limit` al tirar
+  `postgres:16-alpine` (Docker Hub) en `build-test-lint` e `integration`.
+
+## Qué cambió
+
+- `ci.yml` y `e2e.yml`: las imágenes de **servicios efímeros** pasan a
+  `mirror.gcr.io/library/{postgres:16-alpine,mongo:7-jammy,redis:7-alpine}` (espejo de
+  Docker Hub sin autenticación) → sin *rate limit* en runners compartidos (`R-EN-2`).
+- `docs/rules/ci/02-entorno.md` (`R-EN-2`), `ci/README.md` y `_meta/AUDIT.md`.
+
+## Estado
+
+- Fallo de **infra** (Docker Hub), no de código: los checks de PR de #41/#42 estaban verdes.
+- `docker-compose.yml` (dev local) mantiene los tags de Docker Hub a propósito.
+- `npm audit` en **0**; gates sin cambios.
