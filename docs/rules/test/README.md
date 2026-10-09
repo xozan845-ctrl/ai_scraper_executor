@@ -144,8 +144,12 @@ npm run test:api:fast
 ## Pendientes (deuda abierta)
 
 - **Mutation testing** (`R-MT-1`, ADR-31): **adoptado** — Stryker con runner de Vitest,
-  `npm run test:mutation` (muta el `dist` del área crítica; no es gate de PR). El primer
-  baseline es **bajo**: los mutantes supervivientes guían la mejora de tests (`R-MT-3`).
+  `npm run test:mutation` (muta el `dist` del área crítica; no es gate de PR). **Limitación
+  abierta:** el runner de Vitest solo detecta con fiabilidad mutantes de **inicialización de
+  módulo**, no de **cuerpo de función** (un test que sí los mata a mano aparece como
+  superviviente) → investigar antes de usar el score como gate. Tests de contrato nuevos
+  (`tests/domain-execution.test.mjs`) subieron el score de 3.64 % a **45.45 %** en
+  `libs/domain/execution`.
 - **Cobertura sobre fuentes TS** (`R-COV-4`, ADR-29): Vitest mide el TS (por sourcemaps),
   no el `dist`; umbral vigente **65 / 54 / 56**.
 - **Cliente real de la API (`npm run test:api`) no es un gate**: es un smoke de flujos

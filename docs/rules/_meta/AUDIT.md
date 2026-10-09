@@ -46,7 +46,7 @@
 | OpenAPI | 🟢 | `docs/openapi.json` + `npm run openapi:check` |
 | Cobertura | 🟢 | Vitest v8 sobre fuentes TS; umbrales **65/54/56** en `vitest.config.mjs` |
 | Property-based | 🟢 | `fast-check` + `tests/property.test.mjs`; encontró **3 defectos reales** |
-| Mutation testing | 🟢 provisionado | `R-MT-1`/ADR-31: **Stryker** + runner de Vitest (`npm run test:mutation`, muta el `dist` del área crítica). Baseline bajo → mejora de tests (`R-MT-3`). No es gate de PR |
+| Mutation testing | 🟡 provisionado (con limitación) | `R-MT-1`/ADR-31: **Stryker** + runner de Vitest (`npm run test:mutation`). **Limitación:** solo detecta mutantes de inicialización de módulo, no de cuerpo de función → investigar antes de gatear. Baseline inicial 3.64 % → **45.45 %** tras tests de contrato (`R-MT-3`) |
 | Lint / Build (`G-7`) | 🟢 | 0 errores / 0 warnings; `npm run build` exit 0 |
 | Security gate (`R-QA-6`/`R-SE-16`) | 🟢 | `npm audit` → 0 vulnerabilidades; paso `Security audit` |
 | Artifacts (`R-EN-3`) | 🟢 | `test-results.xml` (JUnit) subido en todos los runs |
