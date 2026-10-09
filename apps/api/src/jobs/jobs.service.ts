@@ -2,7 +2,7 @@ import { Injectable, Inject, InternalServerErrorException, BadRequestException }
 import { assertPublicUrl, isAllowedHost } from '@ai-scraper/security';
 import type { JobStore } from '@ai-scraper/storage';
 import type { JobQueue } from '@ai-scraper/queue';
-import { metrics, getContext } from '@ai-scraper/observability';
+import { metrics, getContext } from '@ai-scraper/shared-observability';
 import { getMetricsAggregator } from '@ai-scraper/redis';
 import { createHash } from 'node:crypto';
 import { JOB_STORE, JOB_QUEUE } from './providers';

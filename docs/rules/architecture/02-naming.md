@@ -26,7 +26,7 @@ el monorepo (`apps/*` + `packages/*` + `libs/*`).
 
 ```bash
 # Ningún artefacto compilado dentro de src/ (R-AR-5, R-NC-2): debe imprimir vacío
-find apps packages -path '*/src/*' \( -name '*.js' -o -name '*.d.ts' -o -name '*.map' \) -not -path '*/node_modules/*'
+find apps packages libs -path '*/src/*' \( -name '*.js' -o -name '*.d.ts' -o -name '*.map' \) -not -path '*/node_modules/*'
 
 # Los tests viven en tests/ y terminan en .test.mjs (R-NC-2)
 ls tests/*.test.mjs | wc -l

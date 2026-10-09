@@ -21,7 +21,7 @@ con la implementación real.
 
 ```bash
 # READMEs de paquete/app que faltan (R-DO-1)
-for d in apps/* packages/*; do [ -f "$d/README.md" ] || echo "falta $d/README.md"; done
+for d in apps/* packages/* libs/*/*; do [ -f "$d/README.md" ] || echo "falta $d/README.md"; done
 
 # Plantillas de entorno al día (R-DO-3)
 ls .env.example .env.production.example

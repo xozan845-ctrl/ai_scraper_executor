@@ -6,7 +6,7 @@ import { ExpressAdapter } from '@nestjs/platform-express';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
-import { runWithContext } from '@ai-scraper/observability';
+import { runWithContext } from '@ai-scraper/shared-observability';
 import { closeJobStore } from '@ai-scraper/storage';
 import { closeJobQueue } from '@ai-scraper/queue';
 import { disconnectMongo } from '@ai-scraper/mongodb';

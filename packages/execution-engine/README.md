@@ -5,7 +5,7 @@ donde vive la trazabilidad de cada item extraído.
 
 - **Capa**: ejecución.
 - **Dependencias exclusivas**: `@ai-scraper/commands` (los comandos), `@ai-scraper/security`
-  (revalidación de URLs), `@ai-scraper/observability` (spans) y `cheerio`.
+  (revalidación de URLs), `@ai-scraper/shared-observability` (spans) y `cheerio`.
 - **Superficie pública**:
   - `ExecutionEngine` — ejecuta cada comando del plan respetando el transporte
     (HTTP/Cheerio o browser) y **inyecta `_source { url, selector, scrapedAt }`** en

@@ -5,7 +5,7 @@ import http from 'node:http';
 /** FASE 9 (Dashboard) + FASE 10 (métricas §56, rate-limit §36). */
 
 describe('MetricsCollector + logger (§38, §56)', async () => {
-  const obs = await import('../packages/observability/dist/index.js');
+  const obs = await import('../libs/shared/observability/dist/index.js');
 
   it('contadores, gauges, snapshot y exposition Prometheus', () => {
     obs.__resetMetrics();
@@ -95,7 +95,7 @@ describe('Stats con RECOVERED + endpoints de API (FASE 9)', async () => {
     const overview = await ctrl.overview();
     assert.ok(typeof overview.aiRecoveryRate === 'number');
     assert.ok(overview.stats);
-    const { metrics } = await import('../packages/observability/dist/index.js');
+    const { metrics } = await import('../libs/shared/observability/dist/index.js');
     metrics().inc('jobs_created_total');
     assert.match(await ctrl.prometheus(), /scraper_jobs_created_total\{[^}]*\} 1/);
   });
@@ -140,7 +140,7 @@ describe('Rate-limit §36 aceptado por Crawlee + métricas del worker', async ()
   });
 
   it('processJob incrementa el collector del worker', async () => {
-    const { __resetMetrics, metrics } = await import('../packages/observability/dist/index.js');
+    const { __resetMetrics, metrics } = await import('../libs/shared/observability/dist/index.js');
     __resetMetrics();
     const { processJob } = await import('../apps/worker/dist/job-processor.js');
     const { AIOrchestrator } = await import('../packages/ai/dist/orchestrator/ai-orchestrator.js');

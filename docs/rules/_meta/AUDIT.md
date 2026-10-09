@@ -208,7 +208,7 @@ MONGODB_URI='mongodb://localhost:27017/scraper' REDIS_URL='redis://localhost:637
   npm run test:integration
 
 # Documentación (R-DO): READMEs que faltan y plantillas de entorno
-for d in apps/* packages/*; do [ -f "$d/README.md" ] || echo "falta $d/README.md"; done
+for d in apps/* packages/* libs/*/*; do [ -f "$d/README.md" ] || echo "falta $d/README.md"; done
 ls .env.example .env.production.example
 grep -c "^## ADR-" docs/decisiones.md
 

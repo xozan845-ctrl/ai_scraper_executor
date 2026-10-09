@@ -132,8 +132,9 @@ packages/
   redis/         # RedisPageCache, RedisRateLimiter, RedisMetricsAggregator (fallback memoria)
   queue/         # JobQueue (BullMQJobQueue + InMemoryJobQueue) + factory
   security/      # SSRF centralizado (assertPublicUrl, isBlockedHost, createAllowlist)
-  observability/ # Logger JSON + MetricsCollector (Prometheus, instance labels)
   storage/       # JobStore (Prisma + InMemory)
+libs/
+  shared/observability/  # Logger JSON + MetricsCollector (Prometheus, instance labels) — migrado desde packages/ (ADR-30)
 prisma/
   schema.prisma  # 8 tablas: User, Job, ScrapingPlan, Command, Page, Result, JobError, AIInteraction
 docker-compose.yml # postgres + mongodb + redis + migrate + api + worker

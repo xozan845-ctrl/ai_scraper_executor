@@ -11,7 +11,7 @@
 import * as cheerio from 'cheerio';
 import { createHash } from 'node:crypto';
 import type { ScrapingCommand as StrictCommand } from '@ai-scraper/commands';
-import { logger } from '@ai-scraper/observability';
+import { logger } from '@ai-scraper/shared-observability';
 import { assertPublicUrl, isAllowedHost, safeFetchText } from '@ai-scraper/security';
 import { PageCache, normalizeUrlForDedupe } from './page-cache';
 

@@ -1,7 +1,7 @@
 import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { finalize } from 'rxjs/operators';
-import { metrics } from '@ai-scraper/observability';
+import { metrics } from '@ai-scraper/shared-observability';
 
 /**
  * Instrumentación RED de todas las rutas HTTP (R-TM-4): cuenta peticiones por
