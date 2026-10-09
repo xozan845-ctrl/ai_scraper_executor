@@ -133,7 +133,7 @@ export class OpenRouterProvider {
 static fromEnv(): OpenRouterProvider {
     return new OpenRouterProvider({
       apiKey: process.env.OPENROUTER_API_KEY ?? '',
-      model: process.env.OPENROUTER_MODEL ?? 'anthropic/claude-3.5-sonnet',
+      model: process.env.OPENROUTER_MODEL ?? 'openrouter/free',
       fallbackModels: (process.env.OPENROUTER_FALLBACK_MODELS ?? '').split(',').map(s => s.trim()).filter(Boolean),
       baseUrl: process.env.OPENROUTER_BASE_URL,
       temperature: num(process.env.AI_TEMPERATURE, 0.1),
