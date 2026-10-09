@@ -169,6 +169,9 @@ export async function createSessionStore(): Promise<SessionStore> {
   } else {
     console.warn('[STORAGE] SessionStore: sin DATABASE_URL — memoria');
   }
+  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_IN_MEMORY_FALLBACK !== '1') {
+    throw new Error('PostgreSQL no disponible en producción; SessionStore en memoria deshabilitado');
+  }
   sessionSingleton = new InMemorySessionStore();
   return sessionSingleton;
 }

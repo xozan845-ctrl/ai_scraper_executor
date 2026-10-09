@@ -20,6 +20,9 @@ export class HealthController {
   @Get('ready')
   async ready() {
     const checks: Record<string, string> = { store: this.store.kind, queue: this.queue.kind };
+    if (process.env.NODE_ENV === 'production' && (this.store.kind === 'memory' || this.queue.kind === 'memory')) {
+      throw new ServiceUnavailableException({ status: 'error', checks, reason: 'dependencia en memoria no apta para producción' });
+    }
     try {
       await this.store.getStats();
     } catch (e) {

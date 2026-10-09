@@ -1,4 +1,4 @@
-import { getRedisClient, probeRedis, ensureConnected, Redis } from './connection';
+import { getRedisClient, probeRedis, ensureConnected, isMemoryFallbackAllowed, Redis } from './connection';
 
 const DEFAULT_WINDOW_MS = 60_000;
 const DEFAULT_MAX = 30;
@@ -142,6 +142,7 @@ export async function getRateLimiter(opts?: { max?: number; windowMs?: number })
       console.log('[RATELIMIT] RedisRateLimiter activado');
     } else throw new Error('Redis no healthy');
   } catch {
+    if (!isMemoryFallbackAllowed()) throw new Error('Redis no disponible en producción; MemoryRateLimiter deshabilitado');
     rateLimiterInstance = new MemoryRateLimiter(opts);
     console.warn('[RATELIMIT] Redis no disponible — usando MemoryRateLimiter');
   }

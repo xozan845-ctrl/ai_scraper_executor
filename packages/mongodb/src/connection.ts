@@ -10,6 +10,9 @@ export async function connectMongo(uri?: string): Promise<typeof mongoose> {
 
   // Mock mode para tests sin MongoDB real
   if (process.env.MONGODB_MOCK === '1') {
+    if (process.env.NODE_ENV === 'production' && process.env.ALLOW_IN_MEMORY_FALLBACK !== '1') {
+      throw new Error('MONGODB_MOCK no está permitido en producción sin ALLOW_IN_MEMORY_FALLBACK=1');
+    }
     isMock = true;
     console.log('[MONGO] modo MOCK activado (MONGODB_MOCK=1)');
     return mockMongoose();

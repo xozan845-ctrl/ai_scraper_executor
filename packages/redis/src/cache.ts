@@ -1,4 +1,4 @@
-import { getRedisClient, probeRedis, ensureConnected, Redis } from './connection';
+import { getRedisClient, probeRedis, ensureConnected, isMemoryFallbackAllowed, Redis } from './connection';
 
 const DEFAULT_TTL_MS = 5 * 60 * 1000; // 5 min
 const DEFAULT_MAX_ENTRIES = 1000;
@@ -140,6 +140,7 @@ export async function getPageCache(opts?: { ttlMs?: number; maxEntries?: number 
       throw new Error('Redis no healthy');
     }
   } catch {
+    if (!isMemoryFallbackAllowed()) throw new Error('Redis no disponible en producción; MemoryPageCache deshabilitada');
     cacheInstance = new MemoryPageCache(opts);
     console.warn('[CACHE] Redis no disponible — usando MemoryPageCache');
   }

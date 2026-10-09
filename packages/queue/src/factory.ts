@@ -49,6 +49,9 @@ export async function createJobQueue(): Promise<JobQueue> {
   }
   if (url) console.warn('[QUEUE] Redis de cola no responde — usando cola en memoria');
   else console.warn('[QUEUE] Sin REDIS_URL ni QUEUE_REDIS_URL — usando cola en memoria');
+  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_IN_MEMORY_FALLBACK !== '1') {
+    throw new Error('Redis/BullMQ no disponible en producción; cola en memoria deshabilitada');
+  }
   singleton = new InMemoryJobQueue();
   return singleton;
 }

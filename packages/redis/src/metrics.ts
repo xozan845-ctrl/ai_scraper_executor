@@ -1,4 +1,4 @@
-import { getRedisClient, getRedisSubscriber, probeRedis, ensureConnected, Redis } from './connection';
+import { getRedisClient, getRedisSubscriber, probeRedis, ensureConnected, isMemoryFallbackAllowed, Redis } from './connection';
 
 const METRICS_PREFIX = 'metrics:';
 const INSTANCE_TTL = 60; // segundos
@@ -184,6 +184,7 @@ export async function getMetricsAggregator(instanceId?: string): Promise<RedisMe
       console.log('[METRICS] RedisMetricsAggregator activado');
     } else throw new Error('Redis no healthy');
   } catch {
+    if (!isMemoryFallbackAllowed()) throw new Error('Redis no disponible en producción; métricas en memoria deshabilitadas');
     metricsInstance = new MemoryMetricsAggregator(instanceId);
     console.warn('[METRICS] Redis no disponible — usando MemoryMetricsAggregator');
   }
