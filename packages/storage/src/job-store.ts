@@ -22,6 +22,7 @@ export interface SaveResultInput {
 export interface ListJobsOptions {
   cursor?: string;
   status?: string;
+  ownerScope?: string;
 }
 
 /**

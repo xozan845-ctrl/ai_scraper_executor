@@ -22,6 +22,7 @@ const toRecord = (j: {
   aiProvider: string;
   aiModel: string | null;
   sessionId?: string | null;
+  ownerScope: string;
   createdAt: Date;
   updatedAt: Date;
 }): JobRecord => ({
@@ -33,6 +34,7 @@ const toRecord = (j: {
   aiProvider: j.aiProvider,
   aiModel: j.aiModel ?? undefined,
   sessionId: j.sessionId ?? undefined,
+  ownerScope: j.ownerScope,
   createdAt: j.createdAt.toISOString(),
   updatedAt: j.updatedAt.toISOString(),
 });
@@ -65,7 +67,10 @@ export class PrismaJobStore implements JobStore {
 
   async listJobs(limit = 20, opts?: import('./job-store').ListJobsOptions): Promise<JobRecord[]> {
     const rows = await this.prisma.job.findMany({
-      where: opts?.status ? { status: opts.status } : undefined,
+      where: {
+        ...(opts?.status ? { status: opts.status } : {}),
+        ...(opts?.ownerScope ? { ownerScope: opts.ownerScope } : {}),
+      },
       orderBy: { createdAt: 'desc' },
       take: limit,
       ...(opts?.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),

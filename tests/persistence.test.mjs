@@ -194,6 +194,19 @@ describe('JobsService FASE 8 (API real)', async () => {
     assert.notEqual(c.id, a.id);
   });
 
+  it('aísla lectura y mutaciones de jobs por identidad autenticada', async () => {
+    const store = new InMemoryJobStore();
+    const service = new JobsService(store, new InMemoryJobQueue());
+    const owned = await service.create(dto(), undefined, undefined, 'scope-a');
+    assert.equal((await service.list(10, undefined, 'scope-a')).items.length, 1);
+    assert.equal((await service.list(10, undefined, 'scope-b')).items.length, 0);
+    assert.equal(await service.findOne(owned.id, 'scope-b'), null);
+    assert.equal(await service.results(owned.id, 'scope-b'), null);
+    assert.equal(await service.cancel(owned.id, 'scope-b'), null);
+    assert.equal((await store.getJob(owned.id)).status, 'QUEUED');
+    assert.equal(Object.hasOwn(owned, 'ownerScope'), false, 'el scope opaco no se expone');
+  });
+
   it('list pagina por cursor y filtra por status', async () => {
     const store = new InMemoryJobStore();
     const service = new JobsService(store, new InMemoryJobQueue());

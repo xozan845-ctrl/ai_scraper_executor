@@ -7,7 +7,6 @@ import {
   Req,
   UseGuards,
   UnauthorizedException,
-  ConflictException,
   ForbiddenException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
@@ -51,17 +50,13 @@ export class FirstUserController {
   @ApiResponse({ status: 401, description: 'X-First-Run inválido o ausente (producción)' })
   @ApiResponse({ status: 403, description: 'FIRST_RUN_TOKEN no configurado (producción)' })
   async registerFirst(@Body() dto: RegisterFirstDto, @Req() req: Request) {
-    if ((await this.userService.countUsers()) > 0) {
-      throw new ConflictException('Ya existe un usuario; el registro inicial está cerrado.');
-    }
     this.assertBootstrapAllowed(req);
 
     const passwordHash = await hashPassword(dto.password);
     const apiKey = this.userService.generateApiKey();
-    const user = await this.userService.createUser({
+    const user = await this.userService.createFirstUser({
       email: dto.email,
       passwordHash,
-      role: 'superadmin',
       apiKeyHash: hashApiKey(apiKey),
     });
 

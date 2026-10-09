@@ -13,6 +13,7 @@ export interface SessionRecord {
   error?: string | null;
   createdAt: string;
   updatedAt: string;
+  ownerScope: string;
 }
 
 export interface SessionMessageRecord {
@@ -28,14 +29,15 @@ export interface CreateSessionInput {
   url: string;
   domain: string;
   credentials?: string | null;
+  ownerScope?: string;
 }
 
 /** Persistencia de sesiones tipo "chat" (una URL + contexto + historial). */
 export interface SessionStore {
   readonly kind: 'prisma' | 'memory';
   createSession(input: CreateSessionInput): Promise<SessionRecord>;
-  getSession(id: string): Promise<SessionRecord | null>;
-  listSessions(limit?: number): Promise<SessionRecord[]>;
+  getSession(id: string, ownerScope?: string): Promise<SessionRecord | null>;
+  listSessions(limit?: number, ownerScope?: string): Promise<SessionRecord[]>;
   updateSessionStatus(id: string, status: string, error?: string | null): Promise<SessionRecord | null>;
   addMessage(sessionId: string, role: string, content: string, jobId?: string | null): Promise<SessionMessageRecord>;
   getMessages(sessionId: string): Promise<SessionMessageRecord[]>;
@@ -58,16 +60,22 @@ export class InMemorySessionStore implements SessionStore {
       error: null,
       createdAt: now(),
       updatedAt: now(),
+      ownerScope: input.ownerScope ?? 'anon',
     };
     this.sessions.set(rec.id, rec);
     this.order.push(rec.id);
     return { ...rec };
   }
-  async getSession(id: string): Promise<SessionRecord | null> {
-    return this.sessions.get(id) ?? null;
+  async getSession(id: string, ownerScope?: string): Promise<SessionRecord | null> {
+    const session = this.sessions.get(id) ?? null;
+    return session && (!ownerScope || session.ownerScope === ownerScope) ? session : null;
   }
-  async listSessions(limit = 50): Promise<SessionRecord[]> {
-    return [...this.order].reverse().slice(0, limit).map((id) => ({ ...(this.sessions.get(id) as SessionRecord) }));
+  async listSessions(limit = 50, ownerScope?: string): Promise<SessionRecord[]> {
+    return [...this.order].reverse()
+      .map((id) => this.sessions.get(id) as SessionRecord)
+      .filter((session) => !ownerScope || session.ownerScope === ownerScope)
+      .slice(0, limit)
+      .map((session) => ({ ...session }));
   }
   async updateSessionStatus(id: string, status: string, error?: string | null): Promise<SessionRecord | null> {
     const s = this.sessions.get(id);
@@ -90,12 +98,13 @@ export class InMemorySessionStore implements SessionStore {
 }
 
 const toRecord = (s: {
-  id: string; url: string; domain: string; status: string;
+  id: string; url: string; domain: string; status: string; ownerScope: string;
   credentials: string | null; error: string | null; createdAt: Date; updatedAt: Date;
 }): SessionRecord => ({
   id: s.id, url: s.url, domain: s.domain, status: s.status,
   credentials: s.credentials, error: s.error,
   createdAt: s.createdAt.toISOString(), updatedAt: s.updatedAt.toISOString(),
+  ownerScope: s.ownerScope,
 });
 
 /** Store PostgreSQL vía Prisma. */
@@ -105,16 +114,16 @@ export class PrismaSessionStore implements SessionStore {
 
   async createSession(input: CreateSessionInput): Promise<SessionRecord> {
     const s = await this.prisma.session.create({
-      data: { url: input.url, domain: input.domain, status: 'RADIOGRAPHY', credentials: input.credentials ?? null },
+      data: { url: input.url, domain: input.domain, status: 'RADIOGRAPHY', credentials: input.credentials ?? null, ownerScope: input.ownerScope ?? 'anon' },
     });
     return toRecord(s);
   }
-  async getSession(id: string): Promise<SessionRecord | null> {
-    const s = await this.prisma.session.findUnique({ where: { id } });
+  async getSession(id: string, ownerScope?: string): Promise<SessionRecord | null> {
+    const s = await this.prisma.session.findFirst({ where: { id, ...(ownerScope ? { ownerScope } : {}) } });
     return s ? toRecord(s) : null;
   }
-  async listSessions(limit = 50): Promise<SessionRecord[]> {
-    const rows = await this.prisma.session.findMany({ orderBy: { createdAt: 'desc' }, take: limit });
+  async listSessions(limit = 50, ownerScope?: string): Promise<SessionRecord[]> {
+    const rows = await this.prisma.session.findMany({ where: ownerScope ? { ownerScope } : undefined, orderBy: { createdAt: 'desc' }, take: limit });
     return rows.map(toRecord);
   }
   async updateSessionStatus(id: string, status: string, error?: string | null): Promise<SessionRecord | null> {

@@ -1,5 +1,5 @@
 import { Injectable, CanActivate, ExecutionContext, UnauthorizedException, Optional } from '@nestjs/common';
-import { timingSafeEqual } from 'node:crypto';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { UserService } from './user.service';
 
 /**
@@ -34,6 +34,15 @@ export function isAuthEnforced(): boolean {
   return configuredKeys().length > 0 || process.env.NODE_ENV === 'production';
 }
 
+export interface AuthScopedRequest {
+  headers?: Record<string, unknown>;
+  authScope?: string;
+}
+
+export function apiKeyScope(apiKey: string): string {
+  return createHash('sha256').update(apiKey).digest('hex');
+}
+
 @Injectable()
 export class ApiKeyGuard implements CanActivate {
   constructor(@Optional() private readonly userService?: UserService) {}
@@ -41,17 +50,25 @@ export class ApiKeyGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const keys = configuredKeys();
     // Dev/test sin claves de entorno: abierto (comportamiento histórico).
-    if (keys.length === 0 && process.env.NODE_ENV !== 'production') return true;
-
-    const req = context.switchToHttp().getRequest() as { headers?: Record<string, unknown> };
+    const req = context.switchToHttp().getRequest() as AuthScopedRequest;
+    if (keys.length === 0 && process.env.NODE_ENV !== 'production') {
+      req.authScope = 'anon';
+      return true;
+    }
     const presented = ((req.headers?.['x-api-key'] as string) ?? '').trim();
 
-    if (keys.length > 0 && presented && keys.some((k) => safeEqual(k, presented))) return true;
+    if (keys.length > 0 && presented && keys.some((k) => safeEqual(k, presented))) {
+      req.authScope = apiKeyScope(presented);
+      return true;
+    }
 
     // Clave de usuario en BD (sin romper si Mongo no responde: no autoriza).
     if (presented && this.userService) {
       try {
-        if (await this.userService.verifyApiKey(presented)) return true;
+        if (await this.userService.verifyApiKey(presented)) {
+          req.authScope = apiKeyScope(presented);
+          return true;
+        }
       } catch {
         /* Mongo caído → se trata como no autorizado */
       }

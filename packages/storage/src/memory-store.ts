@@ -31,6 +31,7 @@ export class InMemoryJobStore implements JobStore {
   async createJob(input: CreateJobInput): Promise<JobRecord> {
     const rec: JobRecord = {
       ...input,
+      ownerScope: input.ownerScope ?? 'anon',
       id: nid('job'),
       status: 'QUEUED',
       createdAt: now(),
@@ -48,6 +49,7 @@ export class InMemoryJobStore implements JobStore {
   async listJobs(limit = 20, opts?: import('./job-store').ListJobsOptions): Promise<JobRecord[]> {
     let ids = [...this.order].reverse(); // más recientes primero
     if (opts?.status) ids = ids.filter((id) => this.jobs.get(id)?.status === opts.status);
+    if (opts?.ownerScope) ids = ids.filter((id) => this.jobs.get(id)?.ownerScope === opts.ownerScope);
     if (opts?.cursor) {
       const idx = ids.indexOf(opts.cursor);
       if (idx >= 0) ids = ids.slice(idx + 1);
