@@ -46,7 +46,7 @@
 | OpenAPI | 🟢 | `docs/openapi.json` + `npm run openapi:check` |
 | Cobertura | 🟢 | Vitest v8 sobre fuentes TS; umbrales **65/54/56** en `vitest.config.mjs` |
 | Property-based | 🟢 | `fast-check` + `tests/property.test.mjs`; encontró **3 defectos reales** |
-| Mutation testing | 🟡 provisionado (con limitación) | `R-MT-1`/ADR-31: **Stryker** + runner de Vitest (`npm run test:mutation`). **Limitación:** solo detecta mutantes de inicialización de módulo, no de cuerpo de función → investigar antes de gatear. Baseline inicial 3.64 % → **45.45 %** tras tests de contrato (`R-MT-3`) |
+| Mutation testing | 🟢 provisionado | `R-MT-1`/ADR-31: **Stryker** con **command runner** (`npm run test:mutation`). Se descartó el runner de Vitest por **falsos supervivientes** (stryker-js #6073/#4306). `libs/domain/execution` = **92.73 %** (51/55). No es gate de PR |
 | Lint / Build (`G-7`) | 🟢 | 0 errores / 0 warnings; `npm run build` exit 0 |
 | Security gate (`R-QA-6`/`R-SE-16`) | 🟢 | `npm audit` → 0 vulnerabilidades; paso `Security audit` |
 | Artifacts (`R-EN-3`) | 🟢 | `test-results.xml` (JUnit) subido en todos los runs |
@@ -113,10 +113,10 @@ incumplían `R-CI-2`. Se añade el grupo por ref a `release.yml` y se unifica
 2. **Promoción entre entornos: mecanismo implementado; configuración del operador pendiente**
    (`R-GE-5`, ADR-32): `promote.yml` + *environments* `staging`/`production`. Falta que el
    operador cree los environments, sus aprobaciones/secretos y el deploy real de cada entorno.
-3. **Mutation testing: baseline bajo a mejorar** (`R-MT-1`/`R-MT-3`, ADR-31): **Stryker**
-   adoptado (runner de Vitest, muta el `dist` crítico). Los mutantes supervivientes son el
-   trabajo pendiente de endurecer los tests; el umbral de release (≥70 %) se evalúa a mano.
-   Los property tests y la completitud del DSL cubren el riesgo mientras tanto.
+3. **Mutation testing: baseline del resto del área crítica pendiente** (`R-MT-1`/`R-MT-3`,
+   ADR-31): **Stryker** con **command runner** (correcto; el runner de Vitest daba falsos
+   supervivientes). `libs/domain/execution` = **92.73 %**; falta medir/endurecer el resto
+   (DSL, SSRF). El umbral de release (≥70 %) se evalúa a mano (no es gate de PR).
 4. **`overrides` de transitivas** (ADR-16/ADR-18): **revisado 2026-10-06** y reducido
    de **8 a 1** (`deepmerge-ts: ^8.0.0`). Los otros siete (`multer`, `qs`,
    `body-parser`, `http-cache-semantics`, `js-yaml`, `lodash`, `file-type`) ya los

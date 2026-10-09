@@ -1773,7 +1773,24 @@ el stack es local, no de producción (allí el scrape debe llevar `x-api-key`, `
 
 ---
 
-# AUDIT — CI robusto ante el rate limit de Docker Hub (R-EN-2)
+# AUDIT — Stryker con command runner (falsos supervivientes del runner de Vitest)
+
+- **Fecha:** 2026-10-09
+- **Disparador:** el runner de Vitest de Stryker reportaba como `Survived` mutantes que un
+  test mata al aplicar el cambio a mano (bug conocido stryker-js #6073/#4306).
+
+## Qué cambió
+
+- `stryker.config.mjs`: `testRunner: 'command'` (muta el `dist` en disco y lanza los tests
+  de lógica pura en un proceso nuevo por mutante), con los tests del área crítica.
+- `libs/domain/execution`: score **45.45 % → 92.73 %** (51/55; los 4 restantes son
+  boilerplate de interoperabilidad de TS). Verificado.
+- `R-MT-1`, `ADR-31` (revisión), `test/README.md` y `_meta/AUDIT.md`.
+
+## Estado
+
+- El score vuelve a ser fiable (command runner). Falta medir/endurecer DSL y SSRF.
+- `npm audit` en **0**; gates sin cambios.
 
 - **Fecha:** 2026-10-09
 - **Disparador:** el run post-merge de `main` falló en "Initialize containers":

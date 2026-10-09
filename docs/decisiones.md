@@ -756,6 +756,14 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
   `src` exige `npm run build` antes de mutar; (d) no entra en CI (tiempo), por lo que su
   evidencia es la ejecución manual documentada.
 
+> **Revisión 2026-10-09 (misma fecha):** el *runner* de Vitest de Stryker producía **falsos
+> supervivientes** en este repo (stryker-js #6073/#4306: *under-selection* de tests y runs
+> sin tests puntuados como `Survived`). Se cambia a **command runner** (`testRunner:
+> 'command'`): muta el `dist` en disco y lanza los tests de lógica pura en un **proceso
+> nuevo** por mutante. `libs/domain/execution` pasa de 45.45 % (Vitest runner) a **92.73 %**
+> (51/55; los 4 restantes son boilerplate de interoperabilidad de TS). Es más lento; se
+> scopea con `--mutate <fichero>`.
+
 ---
 
 ## ADR-32: Promoción entre entornos por imágenes inmutables + GitHub Environments
