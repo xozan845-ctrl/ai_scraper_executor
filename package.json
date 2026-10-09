@@ -27,9 +27,10 @@
     "test:api": "node scripts/run-all.mjs",
     "test:api:fast": "node scripts/run-all.mjs --skip-slow",
     "dev:e2e": "docker compose up -d postgres mongodb redis && sleep 10 && npm run prisma:migrate:deploy && npm run build && npm run test:e2e",
-    "lint": "eslint apps packages scripts",
+    "lint": "eslint apps packages libs scripts --no-error-on-unmatched-pattern && node scripts/check-boundaries.mjs",
     "openapi:export": "node scripts/check-openapi.mjs --update",
     "openapi:check": "node scripts/check-openapi.mjs",
+    "boundaries:check": "node scripts/check-boundaries.mjs",
     "typecheck": "npm run build"
   },
   "devDependencies": {
