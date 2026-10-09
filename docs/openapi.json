@@ -303,14 +303,6 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "description": "Reutiliza el job si se repite la clave",
             "in": "header",
             "name": "Idempotency-Key",
