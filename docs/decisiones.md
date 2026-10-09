@@ -137,7 +137,7 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
 - **Contexto**: El sistema pide URLs que **no controla el usuario**: vienen en la
   petición y las va a(fetch. Un hostname que resuelva a `169.254.169.254` o a un
   `localhost` del contenedor convierte la API en un proxy interno.
-- **Decisión**: todo el filtrado vive en `packages/security` (`assertPublicUrl`,
+- **Decisión**: todo el filtrado vive en `libs/shared/security` (`assertPublicUrl`,
   `isBlockedHost`, `isBlockedIp`, `isPrivateHostsAllowed`) y **ninguna otra capa
   reimplementa esa lógica**. La validación ocurre en el borde (comando y DTO) y
   **de nuevo** en el motor, porque entre la validación y la petición hay un LLM de por

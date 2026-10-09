@@ -1,6 +1,6 @@
 import { SiteProfile, PageRadiography, ISiteProfile, IPageRadiography, DiscoveredSelector } from './models';
 import { connectMongo, isMongoMock } from './connection';
-import { normalizeDomain as normalizeDomainBase } from '@ai-scraper/security';
+import { normalizeDomain as normalizeDomainBase } from '@ai-scraper/shared-security';
 import mongoose from 'mongoose';
 
 export { hashHtml } from '@ai-scraper/shared-core';

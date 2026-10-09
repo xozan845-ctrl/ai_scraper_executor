@@ -1,5 +1,5 @@
 /**
- * @ai-scraper/security — SSRF (§37), fuente única.
+ * @ai-scraper/shared-security — SSRF (§37), fuente única.
  * Toda validación de URL del sistema debe pasar por aquí.
  * Bypass local solo con ALLOW_PRIVATE_HOSTS=1 y NUNCA en producción.
  */

@@ -9,7 +9,7 @@ import { createJobStore, closeJobStore, createSessionStore } from '@ai-scraper/s
 import { createJobQueue, createScrapingWorker, createRedisConnection, closeJobQueue, createDeadLetterQueue, queueRedisUrl } from '@ai-scraper/queue';
 import { disconnectMongo } from '@ai-scraper/mongodb';
 import { runWithContext } from '@ai-scraper/shared-observability';
-import { decryptJson } from '@ai-scraper/security';
+import { decryptJson } from '@ai-scraper/shared-security';
 
 /**
  * Worker entrypoint — FASE 7.

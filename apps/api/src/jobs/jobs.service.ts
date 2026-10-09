@@ -1,5 +1,5 @@
 import { Injectable, Inject, InternalServerErrorException, BadRequestException } from '@nestjs/common';
-import { assertPublicUrl, isAllowedHost } from '@ai-scraper/security';
+import { assertPublicUrl, isAllowedHost } from '@ai-scraper/shared-security';
 import type { JobStore } from '@ai-scraper/storage';
 import type { JobQueue } from '@ai-scraper/queue';
 import { metrics, getContext } from '@ai-scraper/shared-observability';

@@ -1,9 +1,9 @@
-# @ai-scraper/security
+# @ai-scraper/shared-security
 
 El **perímetro** del sistema: lo que decide a qué host se puede salir y cómo se
-guardan los secretos de una sesión. No depende de nada (base del orden de build).
+guardan los secretos de una sesión. No depende de nada (shared kernel).
 
-- **Capa**: base/cross-cutting (la usa `commands`, `execution-engine`, `crawler`, `mongodb`).
+- **Capa**: `libs/shared/security` (shared kernel, cross-cutting; lo usan `domain/ai`, `execution-engine`, `crawler`, `mongodb` y las apps).
 - **Dependencias**: ninguna (solo `typescript` en desarrollo).
 - **Superficie pública**:
   - `assertPublicUrl(url)` — validación **síncrona** por string; rechaza loopback,
@@ -21,6 +21,6 @@ guardan los secretos de una sesión. No depende de nada (base del orden de build
 ## Comandos
 
 ```bash
-npm run build -w @ai-scraper/security
+npm run build -w @ai-scraper/shared-security
 node --test tests/security.test.mjs tests/browser-ssrf.test.mjs
 ```

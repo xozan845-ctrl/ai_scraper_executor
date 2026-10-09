@@ -3,7 +3,7 @@
 Aplica a: [`../../../apps/api/src/jobs/api-key.guard.ts`](../../../apps/api/src/jobs/api-key.guard.ts),
 [`../../../apps/api/src/jobs/rate-limit.guard.ts`](../../../apps/api/src/jobs/rate-limit.guard.ts),
 [`../../../apps/api/src/main.ts`](../../../apps/api/src/main.ts),
-[`../../../packages/security/src/crypto.ts`](../../../packages/security/src/crypto.ts) y a la
+[`../../../libs/shared/security/src/crypto.ts`](../../../libs/shared/security/src/crypto.ts) y a la
 gestión de secretos de todo el repo.
 
 ## Reglas

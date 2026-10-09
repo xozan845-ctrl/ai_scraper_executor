@@ -1,7 +1,7 @@
 # 01 — SSRF: salir a la red sin convertirse en un proxy hacia la red interna
 
-Aplica a: [`../../../packages/security/src/ssrf.ts`](../../../packages/security/src/ssrf.ts),
-[`../../../packages/security/src/allowlist.ts`](../../../packages/security/src/allowlist.ts) y
+Aplica a: [`../../../libs/shared/security/src/ssrf.ts`](../../../libs/shared/security/src/ssrf.ts),
+[`../../../libs/shared/security/src/allowlist.ts`](../../../libs/shared/security/src/allowlist.ts) y
 a **todo** punto del repo que vaya a salir a la red.
 
 > **Riesgo propio de este producto:** un scraper recibe una URL del usuario y la pide
@@ -13,7 +13,7 @@ a **todo** punto del repo que vaya a salir a la red.
 
 | ID | Regla |
 |---|---|
-| R-SE-1 | **`@ai-scraper/security` es la fuente única de validación de URL**: toda salida a un host externo pasa por `assertPublicUrl` (síncrono), `assertSafeUrl` (resuelve DNS) o `safeFetchText` (además revalida redirects y limita el tamaño). **Prohibido** hacer `fetch`, `axios`, `got` o el `page.goto` de Playwright contra una URL sin haber pasado antes por `assertPublicUrl`/`assertSafeUrl`. No se reimplementa la lógica de SSRF en otro package: se importa. |
+| R-SE-1 | **`@ai-scraper/shared-security` es la fuente única de validación de URL**: toda salida a un host externo pasa por `assertPublicUrl` (síncrono), `assertSafeUrl` (resuelve DNS) o `safeFetchText` (además revalida redirects y limita el tamaño). **Prohibido** hacer `fetch`, `axios`, `got` o el `page.goto` de Playwright contra una URL sin haber pasado antes por `assertPublicUrl`/`assertSafeUrl`. No se reimplementa la lógica de SSRF en otro package: se importa. |
 | R-SE-2 | **Bloqueadas loopback, privadas, link-local, CGNAT, ULA e IPv4-mapped**: `isBlockedHost`/`isBlockedIp` cubren `127.0.0.0/8`, `10/8`, `172.16/12`, `192.168/16`, `169.254/16` (metadata), `100.64/10` (CGNAT), `0.0.0.0/8`, `::1`, `::`, `fc00::/7` (ULA), `fe80::/10` (link-local), las formas IPv4-mapped punteada y hexadecimal (`::ffff:a.b.c.d` y `::ffff:xxxx:xxxx`), y los nombres `localhost` y `metadata.google.internal`. **Añadir un rango a esta función exige su test con el caso exacto** (no con un caso "parecido") en `tests/security.test.mjs`. |
 | R-SE-3 | **`assertSafeUrl` cuando el host es un nombre, no una IP literal**: la comprobación por string (`assertPublicUrl`) es la rápida y barata, y es la que se usa en el camino validado; la que resuelve DNS (`assertSafeUrl`) es la que evita que `mi-sitio.example` resuelva a `127.0.0.1`. Las dos se necesitan: string para la validación inmediata, DNS antes de **conectar**. Un nombre que no resuelve o que no devuelve registros es un error, no un permiso. |
 | R-SE-4 | **`safeFetchText` revalida cada salto de redirect**: los redirects se siguen a mano (`redirect: 'manual'`) y **cada** URL intermedia se vuelve a pasar por `assertSafeUrl`. No se delega el seguimiento de redirects al cliente HTTP, porque un `302` a `http://169.254.169.254/` sería la puerta trasera del SSRF. Además: `maxRedirects` (5 por defecto) y cuerpo máximo (`maxBytes`, 2 MB por defecto), con el tamaño comprobado **tanto** por `content-length` como sobre el texto ya leído. |
@@ -26,10 +26,10 @@ a **todo** punto del repo que vaya a salir a la red.
 
 ```bash
 # Ningún fetch directo a una URL sin pasar por el módulo
-grep -rn "fetch(" apps packages --include=*.ts | grep -v "safeFetchText\|packages/security"
+grep -rn "fetch(" apps packages --include=*.ts | grep -v "safeFetchText\|libs/shared/security"
 
 # La condición de producción está dentro del módulo, no en el llamante
-grep -n "NODE_ENV !== 'production'" packages/security/src/ssrf.ts
+grep -n "NODE_ENV !== 'production'" libs/shared/security/src/ssrf.ts
 
 # El bypass está activo solo en pruebas
 grep -rn "ALLOW_PRIVATE_HOSTS" tests/*.test.mjs | head

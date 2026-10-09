@@ -16,7 +16,7 @@ describe('Sesiones tipo chat (Etapa A)', async () => {
   const { InMemoryJobQueue } = await import('../packages/queue/dist/memory-queue.js');
   const { JobsService } = await import('../apps/api/dist/jobs/jobs.service.js');
   const { SessionsService } = await import('../apps/api/dist/jobs/sessions.service.js');
-  const { encryptJson, decryptJson } = await import('../packages/security/dist/crypto.js');
+  const { encryptJson, decryptJson } = await import('../libs/shared/security/dist/crypto.js');
 
   function makeService(radiographer = async () => {}) {
     const sessions = new InMemorySessionStore();

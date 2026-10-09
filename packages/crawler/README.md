@@ -4,7 +4,7 @@ El **transporte y el navegador**: peticiones HTTP y Playwright con el guard de
 navegación. Es la única pieza que habla con el sitio objetivo.
 
 - **Capa**: ejecución.
-- **Dependencias exclusivas**: `@ai-scraper/shared-core`, `@ai-scraper/security`, `cheerio`,
+- **Dependencias exclusivas**: `@ai-scraper/shared-core`, `@ai-scraper/shared-security`, `cheerio`,
   `crawlee` y `playwright`.
 - **Superficie pública**:
   - `CrawlerService` — híbrido HTTP/Cheerio y Playwright; el navegador es el plan B

@@ -9,7 +9,7 @@
  */
 import { CheerioCrawler, PlaywrightCrawler, RequestQueue } from 'crawlee';
 import { hashHtml } from '@ai-scraper/shared-core';
-import { assertSafeUrl, createAllowlist, isAllowedHost, isBlockedHost, isPrivateHostsAllowed, safeDnsLookup } from '@ai-scraper/security';
+import { assertSafeUrl, createAllowlist, isAllowedHost, isBlockedHost, isPrivateHostsAllowed, safeDnsLookup } from '@ai-scraper/shared-security';
 import { BrowserPool, Semaphore } from './pool';
 
 export { hashHtml };
@@ -99,7 +99,7 @@ export const CANDIDATE_SELECTORS = [
   '.item',
 ];
 
-/** Seguridad §37 centralizada en @ai-scraper/security (ETAPA 2). */
+/** Seguridad §37 centralizada en @ai-scraper/shared-security (ETAPA 2). */
 
 /**
  * ¿El navegador debe bloquear esta URL? Cubre redirects y subrecursos (no solo la

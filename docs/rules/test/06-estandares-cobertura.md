@@ -48,7 +48,7 @@ Dos filas que en este repo tienen recorrido peculiar:
   falso (`R-FL-4` lo prohíbe en la suite unitaria). El cambio necesita E2E contra el
   LLM real para saber si el modelo sigue emitiendo el DSL esperado. Ese es el motivo
   por el que el E2E es gate de release y no de cada PR (`G-6`).
-- **Fila "SSRF"**: `packages/security` no depende de nada, así que su suite es
+- **Fila "SSRF"**: `libs/shared/security` no depende de nada, así que su suite es
   puramente unitaria y rápida. Es la capa con más obligaciones y la que no puede
   esperar a que exista la infraestructura.
 
