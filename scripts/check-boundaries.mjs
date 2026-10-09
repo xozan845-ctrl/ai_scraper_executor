@@ -21,20 +21,13 @@ const ALLOWED = {
 // paquete a libs/<capa>/<contexto> su capa pasa a deducirse del nombre de paquete.
 const PACKAGE_LAYERS = {
   ai: 'application',
-  crawler: 'infrastructure',
-  'execution-engine': 'infrastructure',
-  'ai-providers': 'infrastructure',
-  mongodb: 'infrastructure',
-  redis: 'infrastructure',
-  storage: 'infrastructure',
-  queue: 'infrastructure',
 };
 
 // Aristas legacy toleradas mientras convivan packages/ y libs/ (ADR-30). Se declaran
 // por ruta del paquete origen: al migrar, la clave deja de coincidir y la excepción
 // desaparece sola. Deben quedar a 0 al cerrar F5.
 const LEGACY_EXCEPTIONS = {
-  'packages/ai': new Set(['@ai-scraper/redis']),
+  'packages/ai': new Set(['@ai-scraper/infrastructure-redis']),
 };
 
 function layerFromDir(relPath) {

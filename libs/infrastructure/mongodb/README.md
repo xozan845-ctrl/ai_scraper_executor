@@ -1,12 +1,12 @@
-# @ai-scraper/mongodb
+# @ai-scraper/infrastructure-mongodb
 
 La **memoria** del sistema: lo que el scraper aprende de cada sitio para no empezar de
-cero. No es la verdad de negocio —esa es Postgres (ver [`@ai-scraper/storage`](../storage/README.md))—;
+cero. No es la verdad de negocio —esa es Postgres (ver [`@ai-scraper/infrastructure-storage`](../storage/README.md))—;
 si se borra, el sistema vuelve a radiografiar (`R-MO-1`, `R-SC-14`).
 
 - **Capa**: datos.
 - **Dependencias exclusivas**: `mongoose` y, del monorepo, `@ai-scraper/shared-core`,
-  `@ai-scraper/crawler`, `@ai-scraper/execution-engine` y `@ai-scraper/shared-security`.
+  `@ai-scraper/infrastructure-crawler`, `@ai-scraper/infrastructure-execution` y `@ai-scraper/shared-security`.
 - **Superficie pública**:
   - `connectMongo` / `disconnectMongo` / `getConnection` / `isMongoMock` — conexión
     singleton que se cierra en el apagado (`R-MO-2`); con `MONGODB_MOCK=1` degrada al
@@ -21,7 +21,7 @@ si se borra, el sistema vuelve a radiografiar (`R-MO-1`, `R-SC-14`).
 ## Comandos
 
 ```bash
-npm run build -w @ai-scraper/mongodb
+npm run build -w @ai-scraper/infrastructure-mongodb
 docker compose up -d mongodb
 node --test tests/persistence.test.mjs
 ```

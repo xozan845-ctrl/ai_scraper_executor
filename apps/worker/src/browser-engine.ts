@@ -5,9 +5,9 @@
  * réplicas `--scale worker=N`) con fallback a memoria; el engine ignora errores
  * de caché, así que un Redis caído no rompe el scraping.
  */
-import { CrawlerService } from '@ai-scraper/crawler';
-import { ExecutionEngine, type EnginePageCache } from '@ai-scraper/execution-engine';
-import { getPageCache } from '@ai-scraper/redis';
+import { CrawlerService } from '@ai-scraper/infrastructure-crawler';
+import { ExecutionEngine, type EnginePageCache } from '@ai-scraper/infrastructure-execution';
+import { getPageCache } from '@ai-scraper/infrastructure-redis';
 
 const crawler = new CrawlerService();
 

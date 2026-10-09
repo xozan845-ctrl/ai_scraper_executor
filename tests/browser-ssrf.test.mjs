@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
  * privados/metadata. Se prueba el handler con rutas simuladas (sin lanzar Chromium).
  */
 describe('Guard de navegación SSRF (browser)', async () => {
-  const { installNavigationGuard } = await import('../packages/crawler/dist/crawler.service.js');
+  const { installNavigationGuard } = await import('../libs/infrastructure/crawler/dist/crawler.service.js');
 
   function fakePage() {
     let handler;

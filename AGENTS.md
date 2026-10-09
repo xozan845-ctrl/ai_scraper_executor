@@ -92,14 +92,15 @@ libs/domain/execution             JobStatus/JobLimits/DEFAULT_LIMITS/normalizeJo
 libs/domain/scraper               TracedValue/StructuredItem (trazabilidad)
 libs/domain/ai                    DSL Zod (schemas.ts) + CommandValidator (validator.ts) + normalize.ts
 
-packages/crawler          CrawlerService (CheerioCrawler/PlaywrightCrawler hybrid, interact())
-packages/execution-engine ExecutionEngine (HTTP/Cheerio + browserInteract), PageCache
-packages/ai               AIOrchestrator, prompts, context-builder
-packages/ai-providers     OpenRouterProvider (fallback modelos), Custom, FallbackAIProvider
-packages/mongodb          SiteProfile/PageRadiography, MongoRepository, performRadiography/getLearnedProfile
-packages/redis            RedisPageCache/RedisRateLimiter/RedisMetricsAggregator (fallback memoria)
-packages/queue            JobQueue (BullMQ + InMemory)
-packages/storage          JobStore (Prisma + InMemory)
+libs/infrastructure/crawler          CrawlerService (CheerioCrawler/PlaywrightCrawler hybrid, interact())
+libs/infrastructure/execution        ExecutionEngine (HTTP/Cheerio + browserInteract), PageCache
+libs/infrastructure/ai-providers     OpenRouterProvider (fallback modelos), Custom, FallbackAIProvider
+libs/infrastructure/mongodb          SiteProfile/PageRadiography, MongoRepository, performRadiography/getLearnedProfile
+libs/infrastructure/redis            RedisPageCache/RedisRateLimiter/RedisMetricsAggregator (fallback memoria)
+libs/infrastructure/queue            JobQueue (BullMQ + InMemory)
+libs/infrastructure/storage          JobStore (Prisma + InMemory)
+
+packages/ai               AIOrchestrator, prompts, context-builder  # pendiente: -> libs/application/ai (F4)
 ```
 
 ## Reglas del proyecto (importantes)

@@ -23,7 +23,7 @@ describe(
     });
     after(async () => {
       api?.stop();
-      const { disconnectMongo } = await import('../packages/mongodb/dist/index.js');
+      const { disconnectMongo } = await import('../libs/infrastructure/mongodb/dist/index.js');
       await disconnectMongo().catch(() => undefined);
     });
 
@@ -71,8 +71,8 @@ describe(
     });
 
     it('R-I-9: MongoDB real persiste y lee una radiografía (y limpia su dato)', async () => {
-      const mongo = await import('../packages/mongodb/dist/index.js');
-      const models = await import('../packages/mongodb/dist/models.js');
+      const mongo = await import('../libs/infrastructure/mongodb/dist/index.js');
+      const models = await import('../libs/infrastructure/mongodb/dist/models.js');
       await mongo.connectMongo();
       const url = `https://itest-${Date.now()}.example/`;
       const doc = await models.PageRadiography.create({

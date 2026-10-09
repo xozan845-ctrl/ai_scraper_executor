@@ -1,5 +1,5 @@
-import { CrawlerService, CrawlMode } from '@ai-scraper/crawler';
-import { ExecutionEngine } from '@ai-scraper/execution-engine';
+import { CrawlerService, CrawlMode } from '@ai-scraper/infrastructure-crawler';
+import { ExecutionEngine } from '@ai-scraper/infrastructure-execution';
 import { mongoRepo, normalizeDomain } from './repository';
 import { ISiteProfile, DiscoveredSelector, PaginationPattern } from './models';
 

@@ -1,7 +1,7 @@
 # 02 — Reglas Doradas de Telemetría (métricas, health y dashboard)
 
 Aplica a: [`../../../libs/shared/observability/src/metrics.ts`](../../../libs/shared/observability/src/metrics.ts),
-[`../../../packages/redis/src/metrics.ts`](../../../packages/redis/src/metrics.ts) y a los
+[`../../../libs/infrastructure/redis/src/metrics.ts`](../../../libs/infrastructure/redis/src/metrics.ts) y a los
 endpoints `GET /api/v1/metrics`, `GET /api/v1/metrics/prometheus`, `GET /api/v1/health`,
 `GET /api/v1/health/ready` y `GET /api/v1/dashboard`.
 

@@ -502,7 +502,7 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
   rate limit + métricas) como deuda: un `FLUSHALL` de mantenimiento tumba los jobs en
   vuelo. La separación «definitiva» se anunciaba como cambio normativo con ADR.
 - **Decisión**: soportar una instancia propia para la cola sin romper el default:
-  - `queueRedisUrl()` (en `packages/queue`) usa `QUEUE_REDIS_URL` si está definida y no
+  - `queueRedisUrl()` (en `libs/infrastructure/queue`) usa `QUEUE_REDIS_URL` si está definida y no
     vacía; si no, `REDIS_URL`. La usan `createJobQueue` (API) y el consumidor BullMQ
     del worker.
   - `docker-compose.yml` trae un servicio `redis-queue` bajo el **perfil** `split-redis`

@@ -7,8 +7,8 @@ describe('API hardening ETAPA 4 (auth + allowlist + rate-limit + ai paging)', as
   const { JobsService } = await import('../apps/api/dist/jobs/jobs.service.js');
   const { ApiKeyGuard, isAuthEnforced } = await import('../apps/api/dist/jobs/api-key.guard.js');
   const { CreateRateLimitGuard } = await import('../apps/api/dist/jobs/rate-limit.guard.js');
-  const { InMemoryJobStore } = await import('../packages/storage/dist/memory-store.js');
-  const { InMemoryJobQueue } = await import('../packages/queue/dist/memory-queue.js');
+  const { InMemoryJobStore } = await import('../libs/infrastructure/storage/dist/memory-store.js');
+  const { InMemoryJobQueue } = await import('../libs/infrastructure/queue/dist/memory-queue.js');
 
   const OLD_ENV = { ...process.env };
   beforeEach(() => {
@@ -75,7 +75,7 @@ describe('API hardening ETAPA 4 (auth + allowlist + rate-limit + ai paging)', as
   });
 
   it('CreateRateLimitGuard: permite N y rechaza N+1 por IP (limiter inyectado)', async () => {
-    const { MemoryRateLimiter } = await import('../packages/redis/dist/ratelimit.js');
+    const { MemoryRateLimiter } = await import('../libs/infrastructure/redis/dist/ratelimit.js');
     const limiter = new MemoryRateLimiter({ max: 2, windowMs: 60_000 });
     const guard = new CreateRateLimitGuard({ max: 2, windowMs: 60_000, limiter });
     const ip = ctx({ ip: '1.2.3.4' });

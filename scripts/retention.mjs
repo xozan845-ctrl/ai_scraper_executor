@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { getPrismaClient } from '../packages/storage/dist/index.js';
+import { getPrismaClient } from '../libs/infrastructure/storage/dist/index.js';
 
 /**
  * Retención explícita de artefactos de job (R-DI-8). No es una cascada silenciosa:

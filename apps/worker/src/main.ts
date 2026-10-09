@@ -4,10 +4,10 @@ import { processJob } from './job-processor';
 import { incMetric } from './metrics-bridge';
 import { createProductionEngine, closeProductionBrowser } from './browser-engine';
 import { AIOrchestrator } from '@ai-scraper/ai';
-import { createFallbackProvider, withCircuitBreaker } from '@ai-scraper/ai-providers';
-import { createJobStore, closeJobStore, createSessionStore } from '@ai-scraper/storage';
-import { createJobQueue, createScrapingWorker, createRedisConnection, closeJobQueue, createDeadLetterQueue, queueRedisUrl } from '@ai-scraper/queue';
-import { disconnectMongo } from '@ai-scraper/mongodb';
+import { createFallbackProvider, withCircuitBreaker } from '@ai-scraper/infrastructure-ai-providers';
+import { createJobStore, closeJobStore, createSessionStore } from '@ai-scraper/infrastructure-storage';
+import { createJobQueue, createScrapingWorker, createRedisConnection, closeJobQueue, createDeadLetterQueue, queueRedisUrl } from '@ai-scraper/infrastructure-queue';
+import { disconnectMongo } from '@ai-scraper/infrastructure-mongodb';
 import { runWithContext } from '@ai-scraper/shared-observability';
 import { decryptJson } from '@ai-scraper/shared-security';
 

@@ -15,9 +15,9 @@
 import { AIOrchestrator, type AIProviderCallOpts } from '@ai-scraper/ai';
 import { CommandValidator, normalizeRawCommand, clampCommandLimits } from '@ai-scraper/domain-ai';
 import { normalizeJobLimits } from '@ai-scraper/domain-execution';
-import { ExecutionEngine } from '@ai-scraper/execution-engine';
+import { ExecutionEngine } from '@ai-scraper/infrastructure-execution';
 import { generatePlan, type PlanJobInput, type PlanAction } from './planner';
-import { getLearnedProfile, mongoRepo } from '@ai-scraper/mongodb';
+import { getLearnedProfile, mongoRepo } from '@ai-scraper/infrastructure-mongodb';
 
 // Debug flag - activar con DEBUG=1 o LOG_LEVEL=debug
 const DEBUG = process.env.DEBUG === '1' || process.env.LOG_LEVEL === 'debug';

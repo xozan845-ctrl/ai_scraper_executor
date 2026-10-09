@@ -11,7 +11,7 @@ const SHOP_HTML = `<!doctype html><html><head><title>Shop Persist</title></head>
 </body></html>`;
 
 describe('InMemoryJobStore (§40)', async () => {
-  const { InMemoryJobStore } = await import('../packages/storage/dist/memory-store.js');
+  const { InMemoryJobStore } = await import('../libs/infrastructure/storage/dist/memory-store.js');
 
   it('CRUD de job + artefactos + listado', async () => {
     const store = new InMemoryJobStore();
@@ -41,7 +41,7 @@ describe('InMemoryJobStore (§40)', async () => {
 });
 
 describe('Cola en memoria + factoría (§12)', async () => {
-  const { InMemoryJobQueue } = await import('../packages/queue/dist/memory-queue.js');
+  const { InMemoryJobQueue } = await import('../libs/infrastructure/queue/dist/memory-queue.js');
 
   it('enqueue/remove/pending/drain', async () => {
     const q = new InMemoryJobQueue();
@@ -60,7 +60,7 @@ describe('Cola en memoria + factoría (§12)', async () => {
   it('factoría sin REDIS_URL devuelve memoria', async () => {
     const prev = process.env.REDIS_URL;
     delete process.env.REDIS_URL;
-    const { createJobQueue, __resetJobQueueSingleton } = await import('../packages/queue/dist/factory.js');
+    const { createJobQueue, __resetJobQueueSingleton } = await import('../libs/infrastructure/queue/dist/factory.js');
     __resetJobQueueSingleton();
     const q = await createJobQueue();
     assert.equal(q.kind, 'memory');
@@ -72,7 +72,7 @@ describe('Cola en memoria + factoría (§12)', async () => {
   it('factoría con REDIS_URL caído hace fallback a memoria', async () => {
     const prev = process.env.REDIS_URL;
     process.env.REDIS_URL = 'redis://127.0.0.1:6399';
-    const { createJobQueue, __resetJobQueueSingleton } = await import('../packages/queue/dist/factory.js');
+    const { createJobQueue, __resetJobQueueSingleton } = await import('../libs/infrastructure/queue/dist/factory.js');
     __resetJobQueueSingleton();
     const q = await createJobQueue();
     assert.equal(q.kind, 'memory');
@@ -91,8 +91,8 @@ describe('Fail-closed de dependencias en producción', async () => {
     delete process.env.DATABASE_URL;
     delete process.env.REDIS_URL;
     delete process.env.QUEUE_REDIS_URL;
-    const storage = await import('../packages/storage/dist/factory.js');
-    const queue = await import('../packages/queue/dist/factory.js');
+    const storage = await import('../libs/infrastructure/storage/dist/factory.js');
+    const queue = await import('../libs/infrastructure/queue/dist/factory.js');
     storage.__resetJobStoreSingleton();
     queue.__resetJobQueueSingleton();
     await assert.rejects(() => storage.createJobStore(), /memoria deshabilitado/);
@@ -106,8 +106,8 @@ describe('Fail-closed de dependencias en producción', async () => {
     const previous = process.env.NODE_ENV;
     process.env.NODE_ENV = 'production';
     const { HealthController } = await import('../apps/api/dist/health/health.controller.js');
-    const { InMemoryJobStore } = await import('../packages/storage/dist/memory-store.js');
-    const { InMemoryJobQueue } = await import('../packages/queue/dist/memory-queue.js');
+    const { InMemoryJobStore } = await import('../libs/infrastructure/storage/dist/memory-store.js');
+    const { InMemoryJobQueue } = await import('../libs/infrastructure/queue/dist/memory-queue.js');
     const health = new HealthController(new InMemoryJobStore(), new InMemoryJobQueue());
     await assert.rejects(() => health.ready(), (error) => error.getStatus() === 503);
     if (previous === undefined) delete process.env.NODE_ENV;
@@ -117,8 +117,8 @@ describe('Fail-closed de dependencias en producción', async () => {
 
 describe('JobsService FASE 8 (API real)', async () => {
   const { JobsService } = await import('../apps/api/dist/jobs/jobs.service.js');
-  const { InMemoryJobStore } = await import('../packages/storage/dist/memory-store.js');
-  const { InMemoryJobQueue } = await import('../packages/queue/dist/memory-queue.js');
+  const { InMemoryJobStore } = await import('../libs/infrastructure/storage/dist/memory-store.js');
+  const { InMemoryJobQueue } = await import('../libs/infrastructure/queue/dist/memory-queue.js');
 
   const dto = (over = {}) => ({ url: 'https://shop.com/', instruction: 'Obtén productos', ...over });
 
@@ -148,7 +148,7 @@ describe('JobsService FASE 8 (API real)', async () => {
   });
 
   it('cancel encolado lo saca de la cola; enqueue fallido deja FAILED y lanza', async () => {
-    const { InMemoryJobStore: S } = await import('../packages/storage/dist/memory-store.js');
+    const { InMemoryJobStore: S } = await import('../libs/infrastructure/storage/dist/memory-store.js');
     const store = new S();
     const queue = new InMemoryJobQueue();
     const service = new JobsService(store, queue);
@@ -236,8 +236,8 @@ describe('JobsService FASE 8 (API real)', async () => {
 describe('processJob del worker (FASE 7)', async () => {
   const { processJob } = await import('../apps/worker/dist/job-processor.js');
   const { AIOrchestrator } = await import('../packages/ai/dist/orchestrator/ai-orchestrator.js');
-  const { ExecutionEngine } = await import('../packages/execution-engine/dist/execution-engine.js');
-  const { InMemoryJobStore } = await import('../packages/storage/dist/memory-store.js');
+  const { ExecutionEngine } = await import('../libs/infrastructure/execution/dist/execution-engine.js');
+  const { InMemoryJobStore } = await import('../libs/infrastructure/storage/dist/memory-store.js');
 
   const plan = {
     version: '1.0',
@@ -274,7 +274,7 @@ describe('processJob del worker (FASE 7)', async () => {
     assert.match(results[0].data._source.scrapedAt, /^\d{4}-\d{2}-\d{2}T/);
 
     const { JobsService } = await import('../apps/api/dist/jobs/jobs.service.js');
-    const { InMemoryJobQueue } = await import('../packages/queue/dist/memory-queue.js');
+    const { InMemoryJobQueue } = await import('../libs/infrastructure/queue/dist/memory-queue.js');
     const apiResults = await new JobsService(store, new InMemoryJobQueue()).results(job.id);
     assert.match(apiResults.items[0]._source.scrapedAt, /^\d{4}-\d{2}-\d{2}T/);
   });
@@ -347,7 +347,7 @@ describe('PrismaJobStore en PostgreSQL (solo con DATABASE_URL válido)', async (
       await client.$disconnect().catch(() => undefined);
       return;
     }
-    const { PrismaJobStore } = await import('../packages/storage/dist/prisma-store.js');
+    const { PrismaJobStore } = await import('../libs/infrastructure/storage/dist/prisma-store.js');
     const store = new PrismaJobStore(client);
     assert.equal(store.kind, 'prisma');
     const job = await store.createJob({ url: 'https://smoke.test/', instruction: 'smoke' });

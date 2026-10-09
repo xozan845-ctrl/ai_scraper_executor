@@ -54,8 +54,8 @@ describe('MetricsCollector + logger (§38, §56)', async () => {
 });
 
 describe('Stats con RECOVERED + endpoints de API (FASE 9)', async () => {
-  const { InMemoryJobStore } = await import('../packages/storage/dist/memory-store.js');
-  const { InMemoryJobQueue } = await import('../packages/queue/dist/memory-queue.js');
+  const { InMemoryJobStore } = await import('../libs/infrastructure/storage/dist/memory-store.js');
+  const { InMemoryJobQueue } = await import('../libs/infrastructure/queue/dist/memory-queue.js');
   const { JobsService } = await import('../apps/api/dist/jobs/jobs.service.js');
   const { MetricsController } = await import('../apps/api/dist/jobs/metrics.controller.js');
 
@@ -110,7 +110,7 @@ describe('Stats con RECOVERED + endpoints de API (FASE 9)', async () => {
 });
 
 describe('Rate-limit §36 aceptado por Crawlee + métricas del worker', async () => {
-  const { CrawlerService } = await import('../packages/crawler/dist/crawler.service.js');
+  const { CrawlerService } = await import('../libs/infrastructure/crawler/dist/crawler.service.js');
   let server;
   let base;
 
@@ -144,8 +144,8 @@ describe('Rate-limit §36 aceptado por Crawlee + métricas del worker', async ()
     __resetMetrics();
     const { processJob } = await import('../apps/worker/dist/job-processor.js');
     const { AIOrchestrator } = await import('../packages/ai/dist/orchestrator/ai-orchestrator.js');
-    const { ExecutionEngine } = await import('../packages/execution-engine/dist/execution-engine.js');
-    const { InMemoryJobStore } = await import('../packages/storage/dist/memory-store.js');
+    const { ExecutionEngine } = await import('../libs/infrastructure/execution/dist/execution-engine.js');
+    const { InMemoryJobStore } = await import('../libs/infrastructure/storage/dist/memory-store.js');
     const fake = {
       name: 'fake-llm',
       createPlan: async () => ({ version: '1.0', actions: [{ type: 'NAVIGATE', url: base + '/' }, { type: 'FINISH' }] }),

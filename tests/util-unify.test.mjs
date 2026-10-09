@@ -7,8 +7,8 @@ import assert from 'node:assert/strict';
  */
 describe('Utilidades unificadas (hashHtml / normalizeDomain)', async () => {
   const { hashHtml: coreHash } = await import('../libs/shared/core/dist/index.js');
-  const { hashHtml: crawlerHash } = await import('../packages/crawler/dist/crawler.service.js');
-  const { hashHtml: mongoHash, normalizeDomain: mongoNorm } = await import('../packages/mongodb/dist/repository.js');
+  const { hashHtml: crawlerHash } = await import('../libs/infrastructure/crawler/dist/crawler.service.js');
+  const { hashHtml: mongoHash, normalizeDomain: mongoNorm } = await import('../libs/infrastructure/mongodb/dist/repository.js');
   const { normalizeDomain: secNorm } = await import('../libs/shared/security/dist/allowlist.js');
 
   it('hashHtml es idéntico en core, crawler y mongodb', () => {

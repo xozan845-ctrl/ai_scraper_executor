@@ -1,5 +1,5 @@
-import { createJobStore, createSessionStore } from '@ai-scraper/storage';
-import { createJobQueue } from '@ai-scraper/queue';
+import { createJobStore, createSessionStore } from '@ai-scraper/infrastructure-storage';
+import { createJobQueue } from '@ai-scraper/infrastructure-queue';
 
 export const JOB_STORE = 'JOB_STORE';
 export const JOB_QUEUE = 'JOB_QUEUE';
@@ -28,7 +28,7 @@ export const sessionStoreProvider = {
 export const radiographerProvider = {
   provide: RADIOGRAPHER,
   useFactory: (): Radiographer => async (url: string, headers?: Record<string, string>) => {
-    const { performRadiography } = await import('@ai-scraper/mongodb');
+    const { performRadiography } = await import('@ai-scraper/infrastructure-mongodb');
     await performRadiography(url, { maxDepth: 2, maxPages: 10, forceBrowser: true, ...(headers ? { headers } : {}) });
   },
 };

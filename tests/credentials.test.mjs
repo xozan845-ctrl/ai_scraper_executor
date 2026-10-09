@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 
 describe('Credenciales (headers) en el motor (Etapa B)', async () => {
-  const { ExecutionEngine } = await import('../packages/execution-engine/dist/execution-engine.js');
+  const { ExecutionEngine } = await import('../libs/infrastructure/execution/dist/execution-engine.js');
   let server;
   let redirectTarget;
   let base;

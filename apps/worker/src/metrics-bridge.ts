@@ -4,7 +4,7 @@
  * Las llamadas a Redis son fire-and-forget: nunca bloquean ni rompen el job.
  */
 import { metrics } from '@ai-scraper/shared-observability';
-import { getMetricsAggregator } from '@ai-scraper/redis';
+import { getMetricsAggregator } from '@ai-scraper/infrastructure-redis';
 
 export function incMetric(name: string, by = 1, labels?: Record<string, string>): void {
   metrics().inc(name, by, labels);

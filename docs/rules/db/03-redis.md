@@ -1,7 +1,7 @@
 # 03 — Reglas Doradas de Redis
 
-Aplica a: [`../../../packages/redis/`](../../../packages/redis) (`cache.ts`,
-`ratelimit.ts`, `metrics.ts`, `kv.ts`) y a [`../../../packages/queue/`](../../../packages/queue)
+Aplica a: [`../../../libs/infrastructure/redis/`](../../../libs/infrastructure/redis) (`cache.ts`,
+`ratelimit.ts`, `metrics.ts`, `kv.ts`) y a [`../../../libs/infrastructure/queue/`](../../../libs/infrastructure/queue)
 (`bullmq-queue.ts`, `memory-queue.ts`). Redis mueve el sistema: la cola de jobs, la
 caché de páginas y de respuestas del LLM, el rate limiting y las métricas agregadas
 entre réplicas.
@@ -26,14 +26,14 @@ entre réplicas.
 
 ```bash
 # Toda familia de claves con prefijo y TTL
-grep -rn "prefix\|expire\|setex" packages/redis/src/*.ts | head
+grep -rn "prefix\|expire\|setex" libs/infrastructure/redis/src/*.ts | head
 
 # El rate limit es compartido (Redis), no por proceso
-grep -n "redis\|MULTI\|expire" packages/redis/src/ratelimit.ts | head
+grep -n "redis\|MULTI\|expire" libs/infrastructure/redis/src/ratelimit.ts | head
 
 # El respaldo en memoria de la cola y del store avisa
-grep -rn "InMemory\|warn" packages/queue/src/factory.ts packages/queue/src/memory-queue.ts | head
+grep -rn "InMemory\|warn" libs/infrastructure/queue/src/factory.ts libs/infrastructure/queue/src/memory-queue.ts | head
 
 # Prefijos de métricas: local vs distribuida
-grep -rn "scraper_distributed\|instance" packages/redis/src/metrics.ts | head
+grep -rn "scraper_distributed\|instance" libs/infrastructure/redis/src/metrics.ts | head
 ```

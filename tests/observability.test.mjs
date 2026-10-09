@@ -38,8 +38,8 @@ describe('Observabilidad distribuida ETAPA 5 (instance + uptime + stats)', async
   });
 
   it('stats expone instance/uptime y process sigue numérico (global DB + local proceso)', async () => {
-    const { InMemoryJobStore } = await import('../packages/storage/dist/memory-store.js');
-    const { InMemoryJobQueue } = await import('../packages/queue/dist/memory-queue.js');
+    const { InMemoryJobStore } = await import('../libs/infrastructure/storage/dist/memory-store.js');
+    const { InMemoryJobQueue } = await import('../libs/infrastructure/queue/dist/memory-queue.js');
     const { JobsService } = await import('../apps/api/dist/jobs/jobs.service.js');
     const service = new JobsService(new InMemoryJobStore(), new InMemoryJobQueue());
     const overview = await service.stats();

@@ -13,7 +13,7 @@ const AFTER_CLICK_HTML = `<!doctype html><html><head><title>Checkout</title></he
 </body></html>`;
 
 describe('Escalado browser ETAPA 3 (CLICK/SCROLL via delegado)', async () => {
-  const { ExecutionEngine } = await import('../packages/execution-engine/dist/execution-engine.js');
+  const { ExecutionEngine } = await import('../libs/infrastructure/execution/dist/execution-engine.js');
 
   const fetcher = async () => SHOP_HTML;
   const calls = [];

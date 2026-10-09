@@ -43,7 +43,7 @@ function mockFetch(handler) {
 }
 
 describe('OpenRouterProvider (§15)', async () => {
-  const { OpenRouterProvider } = await import('../packages/ai-providers/dist/openrouter/openrouter.provider.js');
+  const { OpenRouterProvider } = await import('../libs/infrastructure/ai-providers/dist/openrouter/openrouter.provider.js');
 
   it('createPlan envía auth/model y parsea JSON + stats', async () => {
     mockFetch(() => chatResponse(PLAN_JSON, { total_tokens: 42 }));
@@ -102,7 +102,7 @@ describe('OpenRouterProvider (§15)', async () => {
   });
 
   it('fromEnv exige API key', async () => {
-    const { OpenRouterProvider: P } = await import('../packages/ai-providers/dist/openrouter/openrouter.provider.js');
+    const { OpenRouterProvider: P } = await import('../libs/infrastructure/ai-providers/dist/openrouter/openrouter.provider.js');
     const prev = process.env.OPENROUTER_API_KEY;
     delete process.env.OPENROUTER_API_KEY;
     assert.throws(() => P.fromEnv(), /OPENROUTER_API_KEY/);
@@ -111,7 +111,7 @@ describe('OpenRouterProvider (§15)', async () => {
 });
 
 describe('CustomEndpointProvider (§16)', async () => {
-  const { CustomEndpointProvider } = await import('../packages/ai-providers/dist/custom/custom.provider.js');
+  const { CustomEndpointProvider } = await import('../libs/infrastructure/ai-providers/dist/custom/custom.provider.js');
 
   it('usa el endpoint propio y omite Authorization sin apiKey', async () => {
     mockFetch(() => chatResponse(JSON.stringify({ type: 'FINISH' })));
@@ -126,15 +126,15 @@ describe('CustomEndpointProvider (§16)', async () => {
   it('fromEnv exige endpoint', async () => {
     const prev = process.env.AI_CUSTOM_ENDPOINT;
     delete process.env.AI_CUSTOM_ENDPOINT;
-    const { CustomEndpointProvider: P } = await import('../packages/ai-providers/dist/custom/custom.provider.js');
+    const { CustomEndpointProvider: P } = await import('../libs/infrastructure/ai-providers/dist/custom/custom.provider.js');
     assert.throws(() => P.fromEnv(), /AI_CUSTOM_ENDPOINT/);
     if (prev !== undefined) process.env.AI_CUSTOM_ENDPOINT = prev;
   });
 });
 
 describe('Factory + Fallback (§14, §18, §19)', async () => {
-  const factory = await import('../packages/ai-providers/dist/provider.factory.js');
-  const { FallbackAIProvider } = await import('../packages/ai-providers/dist/fallback.provider.js');
+  const factory = await import('../libs/infrastructure/ai-providers/dist/provider.factory.js');
+  const { FallbackAIProvider } = await import('../libs/infrastructure/ai-providers/dist/fallback.provider.js');
 
   it('por defecto resuelve openrouter; con AI_PROVIDER=custom resuelve custom', async () => {
     const prevProvider = process.env.AI_PROVIDER;

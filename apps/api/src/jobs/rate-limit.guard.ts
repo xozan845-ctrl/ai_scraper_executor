@@ -1,5 +1,5 @@
 import { Injectable, CanActivate, ExecutionContext, HttpException, HttpStatus, Optional } from '@nestjs/common';
-import { getRateLimiter } from '@ai-scraper/redis';
+import { getRateLimiter } from '@ai-scraper/infrastructure-redis';
 
 export interface RateLimitOpts {
   max?: number;
@@ -20,7 +20,7 @@ function envMax(fallback: number): number {
 
 /**
  * Rate-limit por IP para POST /jobs.
- * Usa `getRateLimiter()` de @ai-scraper/redis: RedisRateLimiter (ventana deslizante
+ * Usa `getRateLimiter()` de @ai-scraper/infrastructure-redis: RedisRateLimiter (ventana deslizante
  * distribuida, correcta con `--scale api>1`) con fallback automático a memoria si
  * Redis no responde. En tests se inyecta un limiter de memoria.
  */

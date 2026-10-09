@@ -10,7 +10,7 @@ const SHOP_HTML = `<!doctype html><html><head><title>Tienda Demo</title></head><
 </body></html>`;
 
 describe('ExecutionEngine FASE 2 (HTTP/Cheerio con fetcher mock)', async () => {
-  const { ExecutionEngine } = await import('../packages/execution-engine/dist/execution-engine.js');
+  const { ExecutionEngine } = await import('../libs/infrastructure/execution/dist/execution-engine.js');
 
   const fetcher = async (url) => {
     if (url.includes('page=2')) {

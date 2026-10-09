@@ -2,7 +2,7 @@
 
 El **orquestador de IA** del producto: compone el contexto que se envía al modelo y
 gobierna las fases (planificar, analizar, recuperar, interpretar). No habla con el
-proveedor: eso es `@ai-scraper/ai-providers` (`R-AR-7`).
+proveedor: eso es `@ai-scraper/infrastructure-ai-providers` (`R-AR-7`).
 
 - **Capa**: inteligencia.
 - **Dependencias exclusivas**: `zod` (valida la salida del modelo antes de darla por buena).

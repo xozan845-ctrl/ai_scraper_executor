@@ -8,7 +8,7 @@ import type {
   AIProviderStats,
 } from '../interfaces/ai-provider.interface';
 
-/** Caché mínima de respuestas IA (la implementa @ai-scraper/redis JsonCache). */
+/** Caché mínima de respuestas IA (la implementa @ai-scraper/infrastructure-redis JsonCache). */
 export interface AICache {
   get<T = unknown>(key: string): Promise<T | null>;
   set(key: string, value: unknown, ttlMs?: number): Promise<void>;

@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
  */
 
 const commands = await import('../libs/domain/ai/dist/index.js');
-const providers = await import('../packages/ai-providers/dist/index.js');
+const providers = await import('../libs/infrastructure/ai-providers/dist/index.js');
 
 const TYPES = Object.values(commands.CommandType);
 

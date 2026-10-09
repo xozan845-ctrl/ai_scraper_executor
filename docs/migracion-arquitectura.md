@@ -31,15 +31,15 @@ dependencia y las aristas prohibidas son `R-HX-2`; la verificación por lint es 
 | `commands` | `libs/domain/ai` | dominio | ✅ **migrado** (paquete `@ai-scraper/domain-ai`): DSL Zod, normalizador y `CommandValidator`; valida URLs con `@ai-scraper/shared-security` (shared kernel) |
 | `security` | `libs/shared/security` | shared | ✅ **migrado** (paquete `@ai-scraper/shared-security`): shared kernel (cero dependencias, lo usan todas las capas, incluido el dominio); `safeFetchText` (I/O) y `crypto` conviven aquí |
 | `observability` | `libs/shared/observability` | shared | ✅ **migrado** (paquete `@ai-scraper/shared-observability`); Logger + métricas, transversal pura |
-| `crawler` | `libs/infrastructure/crawler` | infraestructura | Cheerio/Playwright; implementa el puerto de navegación |
-| `execution-engine` | `libs/infrastructure/execution` | infraestructura | Implementa el puerto `IExecutionEngine` del dominio `scraper` |
-| `ai` | `libs/application/ai` + `libs/domain/ai` | aplicación + dominio | Casos de uso (planner, loop, recovery) en `application`; puertos (`IAIProvider`, orquestador) en `domain/ai/ports` |
-| `ai-providers` | `libs/infrastructure/ai-providers` | infraestructura | Adaptadores OpenRouter/Custom/Fallback |
-| `queue` | `libs/infrastructure/queue` | infraestructura | BullMQ + memoria; implementa el puerto `IQueue` |
-| `redis` | `libs/infrastructure/redis` | infraestructura | Caché, rate limit y métricas distribuidas |
-| `mongodb` | `libs/infrastructure/persistence/mongodb` | infraestructura | Perfiles/radiografía |
-| `storage` | `libs/infrastructure/persistence/prisma` + `.../memory` | infraestructura | `JobStore` Prisma + `InMemoryJobStore` |
-| `prisma/` (raíz) | `prisma/` (raíz, sin mover) | — | El adaptador que lo consume vive en `infrastructure/persistence/prisma` (`R-HX-7`) |
+| `crawler` | `libs/infrastructure/crawler` | infraestructura | ✅ **migrado** (`@ai-scraper/infrastructure-crawler`): Cheerio/Playwright |
+| `execution-engine` | `libs/infrastructure/execution` | infraestructura | ✅ **migrado** (`@ai-scraper/infrastructure-execution`): implementa el motor HTTP/Cheerio + browser |
+| `ai` | `libs/application/ai` + `libs/domain/ai` | aplicación + dominio | Casos de uso (planner, loop, recovery) en `application`; puertos (`IAIProvider`, orquestador) en `domain/ai/ports` (F4) |
+| `ai-providers` | `libs/infrastructure/ai-providers` | infraestructura | ✅ **migrado** (`@ai-scraper/infrastructure-ai-providers`): adaptadores OpenRouter/Custom/Fallback |
+| `queue` | `libs/infrastructure/queue` | infraestructura | ✅ **migrado** (`@ai-scraper/infrastructure-queue`): BullMQ + memoria |
+| `redis` | `libs/infrastructure/redis` | infraestructura | ✅ **migrado** (`@ai-scraper/infrastructure-redis`): caché, rate limit y métricas distribuidas |
+| `mongodb` | `libs/infrastructure/mongodb` | infraestructura | ✅ **migrado** (`@ai-scraper/infrastructure-mongodb`): perfiles/radiografía |
+| `storage` | `libs/infrastructure/storage` | infraestructura | ✅ **migrado** (`@ai-scraper/infrastructure-storage`): `JobStore` Prisma + `InMemoryJobStore` |
+| `prisma/` (raíz) | `prisma/` (raíz, sin mover) | — | El adaptador que lo consume vive en `libs/infrastructure/storage` (`R-HX-7`) |
 
 Los splits (`core`, `ai`) se hacen **dentro del PR de ese paquete**: primero se copia
 el código a su capa, se recablean imports y, si un fichero pertenece a dos capas, se
@@ -47,7 +47,8 @@ reparte en el mismo cambio con su test verde.
 
 ## 3. Fases (estrangular, ADR-30)
 
-Cada fase son **varios PRs pequeños**: un PR = un paquete/contexto migrado. El repo
+Cada fase son **varios PRs pequeños**: normalmente un PR = un paquete/contexto migrado
+(excepción aprobada: el movimiento homogéneo de una capa completa, `R-HX-9`). El repo
 permanece verde en todo momento (`R-HX-9`). Orden por dependencia (de hojas a raíz):
 
 | Fase | Alcance | Salida |
@@ -55,7 +56,7 @@ permanece verde en todo momento (`R-HX-9`). Orden por dependencia (de hojas a ra
 | **F0 — Andamiaje** ✅ | Verificador de fronteras sin dependencias (`scripts/check-boundaries.mjs`, integrado en `npm run lint`); crear `libs/` con README raíz. Sin mover código | `R-HX-4` **activo**; `libs/` existe |
 | **F1 — `shared/`** | `observability` → `libs/shared/observability` ✅; `core` se reparte en F2 (no se crea `shared/core` vacío) | `shared` sin dependencias de otras capas |
 | **F2 — `domain/`** | `core` repartido a `domain/execution` + `domain/scraper` + `shared/core` ✅; `commands` → `domain/ai` ✅ | Dominio testeable **sin infra** |
-| **F3 — infra + `shared/security`** | `security` → `libs/shared/security` ✅; `crawler`, `execution-engine`, `ai-providers`, `queue`, `redis`, `mongodb`, `storage` (infraestructura) pendientes | Adaptadores implementan los puertos de F2 |
+| **F3 — infra + `shared/security`** | ✅ `security` → `libs/shared/security`; ✅ `crawler`, `execution-engine`, `ai-providers`, `queue`, `redis`, `mongodb`, `storage` → `libs/infrastructure/*` | Adaptadores en infraestructura; shared consolidado |
 | **F4 — `application/`** | `ai` → `application/{ai,scraper,execution}` (casos de uso) | Lógica de orquestación fuera de infraestructura |
 | **F5 — Cierre** | `apps/*` como composition root puro; retirar `packages/` de `workspaces`/`tsconfig`/lint; migrar el runner a **Vitest** (ADR-29) | `packages/` desaparece; fronteras `R-HX` cerradas |
 

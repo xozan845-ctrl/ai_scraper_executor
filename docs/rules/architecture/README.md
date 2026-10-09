@@ -49,10 +49,10 @@ correspondencia con las capas hexagonales:
 
 ```
 INTERFACE   apps/api      NestJS REST /api/v1            → composition root (apps/)
-ORCHESTRATION packages/queue + storage   BullMQ + JobStore → infrastructure/
+ORCHESTRATION libs/infrastructure/queue + storage   BullMQ + JobStore → infrastructure/
 INTELLIGENCE packages/ai + ai-providers  plan y decisiones → application/ + infrastructure/
 EXECUTION   libs/domain/ai + execution-engine + crawler → domain/ (DSL) + infrastructure/
-DATA        packages/mongodb + redis + storage   Postgres · MongoDB · Redis → infrastructure/
+DATA        libs/infrastructure/mongodb + redis + storage   Postgres · MongoDB · Redis → infrastructure/
 ```
 
 Una capa solo depende de las que están **debajo**; un lib nunca importa de `apps/*`.

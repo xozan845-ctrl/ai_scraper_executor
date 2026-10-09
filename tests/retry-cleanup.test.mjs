@@ -6,9 +6,9 @@ import assert from 'node:assert/strict';
  * Idempotency-Key, cursor correcto y radiografía con timeout acotada.
  */
 describe('Persistencia / idempotencia (ETAPA 8)', async () => {
-  const { InMemoryJobStore } = await import('../packages/storage/dist/memory-store.js');
-  const { InMemorySessionStore } = await import('../packages/storage/dist/session-store.js');
-  const { InMemoryJobQueue } = await import('../packages/queue/dist/memory-queue.js');
+  const { InMemoryJobStore } = await import('../libs/infrastructure/storage/dist/memory-store.js');
+  const { InMemorySessionStore } = await import('../libs/infrastructure/storage/dist/session-store.js');
+  const { InMemoryJobQueue } = await import('../libs/infrastructure/queue/dist/memory-queue.js');
   const { JobsService } = await import('../apps/api/dist/jobs/jobs.service.js');
   const { SessionsService } = await import('../apps/api/dist/jobs/sessions.service.js');
 
