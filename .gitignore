@@ -9,3 +9,5 @@ crawlee-storage/
 /storage/
 test-results.xml
 *.tsbuildinfo
+reports/
+.stryker-tmp/

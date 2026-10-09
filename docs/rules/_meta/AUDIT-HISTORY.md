@@ -1725,3 +1725,26 @@ el stack es local, no de producción (allí el scrape debe llevar `x-api-key`, `
 - `packages/` no existe; `tsconfig.base.json` solo mapea `libs/*/*/dist`; `npm audit` **0**.
 - Gates `G-1..G-9` verdes (Vitest para `G-1`/`G-3`, contrato `G-5`, integración `G-4`).
 - Deuda viva: adoptar **Stryker** sobre `src`; sin protección de rama; promoción entre entornos.
+
+---
+
+# AUDIT — Mutation testing con Stryker (ADR-31)
+
+- **Fecha:** 2026-10-09
+- **Disparador:** con Vitest (ADR-29) el disparador de `R-MT-1` (ADR-20) se cumple; se
+  adopta Stryker.
+
+## Qué cambió
+
+- `@stryker-mutator/core` + `@stryker-mutator/vitest-runner` (devDependencies);
+  `stryker.config.mjs` (mutación sobre `libs/domain/*/dist`, `libs/shared/core` y
+  `libs/shared/security`; umbrales `R-MT-2`; `break: null` hasta baseline) y script
+  `npm run test:mutation`.
+- `override` de `qs ^6.16.0` para mantener `npm audit` en **0** (Stryker → `typed-rest-client` → `qs`).
+- `ADR-31`; revisión de `ADR-20`; `R-MT-1` actualizada; `.gitignore` con `.stryker-tmp/` y `reports/`.
+
+## Estado
+
+- Stryker ejecuta y **mata mutantes** (p. ej. `normalizeJobLimits` en `libs/domain/execution`);
+  el **baseline es bajo** → trabajo de mejora de tests (`R-MT-3`). No es gate de PR.
+- `npm audit` en **0**; gates `G-1..G-9` sin cambios.
