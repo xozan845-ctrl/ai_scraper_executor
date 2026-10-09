@@ -43,7 +43,7 @@
     "typescript-eslint": "^8.71.0"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "dependencies": {
     "@nestjs/mongoose": "^12.0.0",
