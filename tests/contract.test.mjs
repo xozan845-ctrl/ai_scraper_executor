@@ -1,4 +1,4 @@
-import { after, before, describe, it } from 'node:test';
+import { afterAll, beforeAll, describe, it } from 'vitest';
 import assert from 'node:assert/strict';
 import { startApi } from '../scripts/api-server.mjs';
 
@@ -14,10 +14,10 @@ const ISO_Z = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
 describe('Contrato de la API (R-C-*)', () => {
   let api;
 
-  before(async () => {
+  beforeAll(async () => {
     api = await startApi({ port: 3221, env: { API_KEYS: KEY } });
   });
-  after(() => api?.stop());
+  afterAll(() => api?.stop());
 
   const req = (path, opts = {}) => fetch(`${api.baseUrl}${path}`, opts);
   const authed = (path, opts = {}) =>

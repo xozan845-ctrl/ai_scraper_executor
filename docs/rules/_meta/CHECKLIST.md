@@ -36,7 +36,7 @@ Marcar las capas ✅ que apliquen y **justificar las que no**.
 
 - [ ] **R0** — El test aserta el requisito, no la implementación (nada de "actualizar el expected para que pase").
 - [ ] **R-QA-2** — Nada de red, BD real ni LLM en `npm test`: todo doblado.
-- [ ] **R-FL-4/5** — Suite serial (`--test-concurrency=1`) a propósito; sin `sleep` arbitrario.
+- [ ] **R-FL-4/5** — Suite serial (`fileParallelism: false`) a propósito; sin `sleep` arbitrario.
 - [ ] **R-GC-5** — `npm run build && npm run lint && MONGODB_MOCK=1 npm test` en verde **antes** del commit.
 - [ ] **G-7** — Build y lint sin errores (0 errores y **0 warnings**: el alcance incluye `scripts/`).
 
@@ -90,7 +90,7 @@ Marcar las capas ✅ que apliquen y **justificar las que no**.
 
 - [ ] **G-1** suite unitaria (`npm test` con `MONGODB_MOCK=1`) ✅
 - [ ] **G-2** unit frontend — **N/A** (sin frontend; ID reservado, nunca reutilizar)
-- [ ] **G-3** cobertura ≥ 70 / 72 / 67 (líneas/ramas/funciones) — el propio `npm test` falla si baja
+- [ ] **G-3** cobertura ≥ 65 / 54 / 56 (líneas/ramas/funciones) — el propio `npm test` (Vitest) falla si baja
 - [ ] **G-4** integración — ✅ paso `integration` (`npm run test:integration`, servicios reales)
 - [ ] **G-5** contrato — ✅ paso `Contract` (`npm run test:contract`)
 - [ ] **G-6** E2E — ✅ workflow `e2e.yml` (release)

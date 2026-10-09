@@ -11,8 +11,8 @@ tocar cada tipo de cambio** y **qué pasos bloquean el merge hoy**.
 > | Node | 22 en CI (el `engines` del repo pide `>=20`); trae cobertura nativa |
 > | Instalación | `npm ci --ignore-scripts` (sin `--legacy-peer-deps` desde Nest 12, ADR-18) |
 > | Pasos | `npm ci` → `Security audit` → `prisma:generate` → schema/deriva → `build` → OpenAPI → `lint` → `test` → contract → artifact |
-> | Suite | `npm test` = `node --test --test-concurrency=1 --experimental-test-coverage …` sobre 27 ficheros, con `MONGODB_MOCK: '1'` |
-> | Cobertura | **Nativa de Node** (`--experimental-test-coverage`): sin `c8` ni `nyc`. Umbrales en el propio script `test`: **70 % líneas / 72 % ramas / 67 % funciones** |
+> | Suite | `npm test` = `vitest run --coverage` sobre 28 ficheros, con `MONGODB_MOCK: '1'` |
+> | Cobertura | **v8 de Vitest** (`@vitest/coverage-v8`): sin `c8` ni `nyc`. Umbrales en `vitest.config.mjs`: **65 % líneas / 54 % ramas / 56 % funciones** (medidos sobre fuentes TS, ADR-29) |
 > | Jobs | `build-test-lint` (unit, cobertura, lint, build, contrato, OpenAPI) + `integration` (Postgres/Mongo/Redis) + [`e2e.yml`](../../../.github/workflows/e2e.yml) (release) |
 >
 > Las tablas siguientes **norman**; la columna de estado dice qué está realmente
@@ -27,7 +27,7 @@ Todo cambio debe cubrir las columnas marcadas con ✅. Donde no haya suite para 
 columna, la cobertura del requisito cae en la columna disponible y la capa ausente
 queda como deuda (no como permiso para no probar).
 
-| Tipo de cambio | Unit (`node --test`) | Integración (API + BD real) | Contrato (forma de `/api/v1`) | E2E real |
+| Tipo de cambio | Unit (`vitest`) | Integración (API + BD real) | Contrato (forma de `/api/v1`) | E2E real |
 |---|---|---|---|---|
 | Helper puro (`util/`, `normalize*`, `clampCommandLimits`) | ✅ | — | — | — |
 | Regla de negocio (`validator`, `limits`, `JobStatus`, radiografía) | ✅ | ✅ 1 flujo que la ejercite | — | — |
@@ -60,7 +60,7 @@ Dos filas que en este repo tienen recorrido peculiar:
 | R-COV-2 | **La lógica nueva entra con su test** en el mismo cambio (`R-U-17`). Los ficheros con lógica ejecutable sin pareja en `tests/` se listan en la auditoría; el bloqueo efectivo es `G-3`. |
 | R-COV-3 | **La auditoría se actualiza en cada release** con el estado real: cobertura medida, nº de tests por capa, deudas abiertas, estado de los gates. Un gate solo pasa a ✅ con la evidencia de un **run verde de CI**; tener el paso escrito en un YAML o pasarlo en local no basta. |
 | R-COV-4 | **Alcance del gate**: solo lógica ejecutable. En este repo los tests importan el **build** (`packages/*/dist`, `apps/*/dist`), así que la cobertura mide sobre `dist` — transpile 1:1 de `src` por `tsc` — mediante `--test-coverage-include="packages/*/dist/**/*.js"` y `--test-coverage-include="apps/*/dist/**/*.js"`. Se excluyen `**/*.module.js` (wiring de DI), `**/main.js` (bootstrap) y `**/dto/**` (formas sin comportamiento). Nota honesta: Node solo reporta los ficheros **cargados** por la suite; un fichero que nadie importa no cuenta (lo cubre `R-COV-2`, no este gate). |
-| R-COV-5 | **Umbral de partida y ratchet**: el umbral inicial es el baseline **medido** con el alcance de `R-COV-4`, redondeado a la baja con 1 punto de margen (nunca un 80 % inventado). Baseline de la 1ª medición: **71.59 % líneas / 73.69 % ramas / 68.90 % funciones** → umbral **70 / 72 / 67**, fijado en el script `test` de `package.json`. A partir de ahí el ratchet **solo sube**: +5 puntos por release, nunca por debajo del último valor registrado. Cada subida queda anotada en `AUDIT.md` (`R-COV-3`). |
+| R-COV-5 | **Umbral de partida y ratchet**: el umbral se fija con el baseline **medido** con el alcance de `R-COV-4`, redondeado a la baja con 1 punto de margen (nunca un 80 % inventado). Baseline original (cobertura nativa sobre `dist`, ADR-17): **71.59 / 73.69 / 68.90** → umbral **70 / 72 / 67**. **Re-baseline ADR-29 (2026-10-09):** Vitest mide sobre fuentes **TS** (base distinta) → medido **66.6 / 55.06 / 57.06** → umbral **65 / 54 / 56**, en `vitest.config.mjs`. A partir de ahí el ratchet **solo sube**: +5 puntos por release, nunca por debajo del último valor registrado. Cada subida queda anotada en `AUDIT.md` (`R-COV-3`). |
 | R-COV-6 | **Anti-inflado**: subir cobertura añadiendo asserts triviales está prohibido. El criterio de calidad de un test es que detecte un defecto real: mutación (`R-MT-*`) o, mientras no exista herramienta, asertar contra el requisito y no contra la implementación actual (`R0`). |
 
 > Los heredados `R-COV-1..5` conservan su número y su sentido (umbral, alcance,
@@ -79,7 +79,7 @@ no existe (deuda) · N/A = no aplica a este repo, **ID reservado, nunca se reuti
 |---|---|---|---|
 | **G-1** | Suite unitaria completa en verde (100 %) | paso `Test` del job `build-test-lint`: `npm test` con `MONGODB_MOCK=1` | ✅ |
 | **G-2** | Suite unitaria de frontend en verde | — | **N/A** — no hay frontend en el monorepo; ID reservado |
-| **G-3** | Cobertura ≥ umbral vigente (70 / 72 / 67) | el propio `npm test` (`--experimental-test-coverage` + `--test-coverage-lines/branches/functions`); Node falla el run si no se alcanza | ✅ |
+| **G-3** | Cobertura ≥ umbral vigente (65 / 54 / 56) | el propio `npm test` (`vitest run --coverage`); Vitest falla el run si no se alcanza | ✅ |
 | **G-4** | Suite de integración (API + Postgres/Mongo/Redis reales) en verde | job `integration` de `ci.yml` con servicios efímeros: `npm run test:integration` | ✅ |
 | **G-5** | Tests de contrato en verde | paso `Contract` de `ci.yml`: `npm run test:contract` (arranca la API y valida formas de `/api/v1/**`) | ✅ |
 | **G-6** | E2E de flujos críticos en verde **antes de release** (no en cada PR) | workflow [`e2e.yml`](../../../.github/workflows/e2e.yml) (`release`/`workflow_dispatch`): `npm run test:e2e` con servicios reales + Chromium + `OPENROUTER_API_KEY` | ✅ |
@@ -135,12 +135,10 @@ MONGODB_URI='mongodb://localhost:27017/scraper' REDIS_URL='redis://localhost:637
 npm run test:e2e
 
 # Cobertura sola, con el reporte por fichero
-MONGODB_MOCK=1 npm test 2>&1 | sed -n '/start of coverage report/,/end of coverage report/p'
+MONGODB_MOCK=1 npm test 2>&1 | sed -n '/Coverage summary/,/====/p'
 
-# Ejemplo mínimo (un fichero) para ver el mecanismo de umbral
-node --test --test-concurrency=1 --experimental-test-coverage \
-  --test-coverage-lines=99 --test-coverage-include='packages/*/dist/**/*.js' \
-  tests/dsl.test.mjs      # debe fallar: exit 1 + "does not meet threshold"
+# Ejemplo mínimo (un fichero) con cobertura
+npx vitest run --coverage tests/dsl.test.mjs
 
 # G-9: validez del schema y deriva
 npx prisma validate --schema=prisma/schema.prisma

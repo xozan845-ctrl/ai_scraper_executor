@@ -1,4 +1,4 @@
-import { describe, it } from 'node:test';
+import { describe, it } from 'vitest';
 import assert from 'node:assert/strict';
 
 describe('Observabilidad distribuida ETAPA 5 (instance + uptime + stats)', async () => {

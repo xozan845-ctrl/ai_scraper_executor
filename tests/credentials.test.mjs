@@ -1,4 +1,4 @@
-import { describe, it, before, after } from 'node:test';
+import { describe, it, beforeAll, afterAll } from 'vitest';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 
@@ -8,7 +8,7 @@ describe('Credenciales (headers) en el motor (Etapa B)', async () => {
   let redirectTarget;
   let base;
 
-  before(async () => {
+  beforeAll(async () => {
     process.env.ALLOW_PRIVATE_HOSTS = '1';
     await new Promise((resolve) => {
       redirectTarget = http
@@ -41,7 +41,7 @@ describe('Credenciales (headers) en el motor (Etapa B)', async () => {
     base = `http://127.0.0.1:${server.address().port}`;
   });
 
-  after(async () => {
+  afterAll(async () => {
     await new Promise((r) => server.close(r));
     await new Promise((r) => redirectTarget.close(r));
   });

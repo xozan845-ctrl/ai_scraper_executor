@@ -1,4 +1,4 @@
-import { describe, it } from 'node:test';
+import { describe, it } from 'vitest';
 import assert from 'node:assert/strict';
 
 const SHOP_HTML = `<!doctype html><html><head><title>Tienda Demo</title></head><body>

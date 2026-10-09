@@ -1,4 +1,4 @@
-import { after, before, describe, it } from 'node:test';
+import { afterAll, beforeAll, describe, it } from 'vitest';
 import assert from 'node:assert/strict';
 import { startApi } from '../scripts/api-server.mjs';
 
@@ -18,10 +18,10 @@ describe(
   () => {
     let api;
 
-    before(async () => {
+    beforeAll(async () => {
       api = await startApi({ port: 3222, env: { API_KEYS: KEY }, healthTimeoutMs: 90_000 });
     });
-    after(async () => {
+    afterAll(async () => {
       api?.stop();
       const { disconnectMongo } = await import('../libs/infrastructure/mongodb/dist/index.js');
       await disconnectMongo().catch(() => undefined);

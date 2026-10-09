@@ -55,8 +55,7 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
 ## ADR-03: `node --test` como runner, sin framework de test
 
 - **Fecha**: 2026-09-28
-- **Estado**: Sustituido por ADR-29 (objetivo: Vitest). **Vigente durante la migración**:
-  mientras ADR-30 no cierre, el runner activo sigue siendo `node --test`.
+- **Estado**: Sustituido por ADR-29 (Vitest).
 - **Contexto**: La suite prueba 12 paquetes y 2 apps en JavaScript plano
   (`node_modules` con la compilación ya resuelta). Un framework (Jest/Vitest)
   exigiría `ts-jest` o una capa de transformación, configuración de cobertura por
@@ -86,6 +85,11 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
 - **Consecuencias**: la suite tarda ~24 s. A cambio, es determinista. Paralelizar
   exige primero aislar el almacenamiento de Crawlee; está normado en `R-FL-5` como
   deuda, no como mejora pendiente.
+
+> **Revisión 2026-10-09 (ADR-29):** con Vitest el mecanismo cambia
+> (`--test-concurrency=1` → `fileParallelism: false` en `vitest.config.mjs`), pero la
+> **decisión es la misma**: la suite sigue siendo serial a propósito porque Crawlee usa
+> almacenamiento local en disco.
 
 ---
 
@@ -341,8 +345,7 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
 ## ADR-17: Cobertura con la herramienta nativa de Node, umbral del baseline
 
 - **Fecha**: 2026-10-05
-- **Estado**: Sustituido por ADR-29 (objetivo: cobertura de Vitest). **Vigente hasta
-  que ADR-30 migre el runner**; hoy el umbral sigue midiéndose con la herramienta nativa.
+- **Estado**: Sustituido por ADR-29 (cobertura de Vitest).
 - **Contexto**: `G-3` estaba `⏸` porque no había herramienta de cobertura y no se
   quería inventar un umbral. Las opciones eran añadir `c8`/`nyc` (dependencia nueva)
   o usar la cobertura nativa de Node ≥22 (`--experimental-test-coverage` +
@@ -666,7 +669,7 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
 ## ADR-29: Vitest como runner de tests (sustituye ADR-03 y ADR-17)
 
 - **Fecha**: 2026-10-09
-- **Estado**: Aceptado (objetivo; la migración la ejecuta ADR-30)
+- **Estado**: Aceptado (implementado 2026-10-09, F5)
 - **Contexto**: la propuesta de arquitectura recomienda **Vitest** (o Jest). El runner
   actual, `node --test` (ADR-03), funciona y no tiene dependencias, pero: (a) obliga a
   mantener los tests en `.mjs` cargando el **build** (`dist`), lo que impide co-locarlos
@@ -688,6 +691,18 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
   cumple); (d) se añade Vitest a `devDependencies` y se reescriben los scripts `test*` y
   la matriz de cobertura; (e) ninguna regla `R-U`/`R-COV` se renombra: se ajusta su
   texto al nuevo runner.
+
+> **Implementado 2026-10-09 (F5).** `vitest@5` + `@vitest/coverage-v8` (0
+> vulnerabilidades, `R-QA-6`). `npm test` ejecuta las 28 suites con Vitest en serie
+> (`fileParallelism: false`, ADR-04) y cobertura v8 con umbrales en `vitest.config.mjs`.
+> Los 31 ficheros de test pasan de `node:test` a `vitest`; `before`/`after` →
+> `beforeAll`/`afterAll`. `test:contract`/`test:integration`/`test:e2e` y
+> `scripts/repeat-tests.mjs` usan Vitest. **Cambio de base en la cobertura**: Vitest/Vite
+> mapea a los fuentes **TS** (por los sourcemaps del `dist`), no al JS compilado; la
+> medición es 66.6 / 55.06 / 57.06 y los umbrales se **re-basan** a **65 / 54 / 56**
+> (no es una bajada de exigencia sobre la misma base, sino una base nueva: TS en lugar
+> de JS). A partir de aquí, R-COV-5 (subida de umbral por release) aplica sobre esta
+> base. Con Vitest ya soportado por Stryker, el disparador de `R-MT-1` (ADR-20) se cumple.
 
 ---
 
@@ -729,7 +744,7 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
 | Retención de `Page`/`Command`/`AIInteraction` sin declarar | — | `rules/data/01-integridad.md` (`R-DI-8`) |
 | Migración a hexagonal DDD **declarada pero no ejecutada** (conviven `packages/` y `libs/`) | ADR-27, ADR-30 | `migracion-arquitectura.md`; `rules/architecture/03-arquitectura-hexagonal.md` (`R-HX-9`) |
 | Fronteras activas (script `scripts/check-boundaries.mjs`) con **1 excepción legacy** (`ai→redis`) | ADR-28, ADR-30 | `rules/architecture/03-arquitectura-hexagonal.md` (`R-HX-4`) |
-| Runner **Vitest** decidido pero aún no migrado (`node --test` vigente) | ADR-29 | `rules/test/README.md` |
+| Runner **Vitest** implementado (F5) | ADR-29 | `rules/test/README.md` |
 | Sin cache/`affected` de tareas (Nx/Turborepo evaluables más adelante) | ADR-28 | `docs/decisiones.md` (ADR-28) |
 
 > El estado vigente de cada deuda, con el comando que la mide, está en

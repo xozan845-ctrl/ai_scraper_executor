@@ -80,12 +80,11 @@ Una capa solo depende de las que están **debajo**; un lib nunca importa de `app
 - **Migración a `libs/` (`R-HX-9`)**: **completada** — `packages/` retirado; shared,
   domain, application e infrastructure viven en `libs/`. Mapeo y fases en
   [`../../migracion-arquitectura.md`](../../migracion-arquitectura.md) (ADR-27, ADR-30).
-- **Runner Vitest (ADR-29)**: decidido, pendiente de migrar (F5); el área
-  [`../test/`](../test/README.md) sigue describiendo `node --test`, que es la realidad
-  vigente.
+- **Runner Vitest (ADR-29)**: **implementado** (F5); el área
+  [`../test/`](../test/README.md) describe Vitest y `vitest.config.mjs`.
 - La puerta de seguridad (`npm audit`) ya es un paso de CI y reporta **0
   vulnerabilidades** (high y moderate). Detalle en
   [`../_meta/AUDIT.md`](../_meta/AUDIT.md) y
   [`../test/07-qa-gates.md`](../test/07-qa-gates.md).
-- La suite corre con `--test-concurrency=1` porque Crawlee usa storage local; si
+- La suite corre en serie (`fileParallelism: false`) porque Crawlee usa storage local; si
   algún día se paraleliza hay que aislar ese storage (deuda de `R-FL-*`).

@@ -49,15 +49,15 @@ npm run dev:worker  # Worker consumiendo cola
 ## Tests
 
 ```bash
-# Tests unitarios/integración (mocks, sin BD reales)
-npm test                    # 153 tests (28 suites): dsl + dsl-completeness + normalize + engine + crawler + ai-providers + agent + persistence + dashboard + security + browser + api-hardening + observability + scale + llm-cache + interpret + resilience + sessions + credentials + cache-isolation + limits + first-user + logging + util-unify + metrics-labels + retry-cleanup + browser-ssrf + property
+# Tests unitarios/integración (mocks, sin BD reales) — runner Vitest
+npm test                    # 167 tests (28 suites): dsl + dsl-completeness + normalize + engine + crawler + ai-providers + agent + persistence + dashboard + security + browser + api-hardening + observability + scale + llm-cache + interpret + resilience + sessions + credentials + cache-isolation + limits + first-user + logging + util-unify + metrics-labels + retry-cleanup + browser-ssrf + property
 MONGODB_MOCK=1 npm test     # Forzar mock MongoDB
 
 # Test E2E real contra https://www.sevasaonline.com/
 # Requiere: Docker (postgres+mongodb+redis) + OPENROUTER_API_KEY en .env + Playwright Chromium en host
 # ⚠️ Para E2E local (fuera de Docker): `npx playwright install --with-deps chromium`
 npm run dev:e2e             # levanta BDs + migra + build + test
-npm run test:e2e            # solo el test (carga .env automáticamente vía node --env-file)
+npm run test:e2e            # solo el test (carga .env en vitest.config.mjs)
 
 # Cliente real de la API (Node, universal macOS/Windows/Linux). Requiere API + worker up.
 # Ver scripts/README.md para TEST_HEADERS_JSON y TEST_PROMPTS_JSON.
@@ -65,7 +65,7 @@ npm run test:api            # todos los flujos, incluido chat real y credenciale
 npm run test:api:fast       # solo los rápidos (sin radiografía/job/chat real)
 ```
 
-> `test:e2e` usa `node --env-file=.env` (Node ≥20.6), así que la `OPENROUTER_API_KEY` y los modelos
+> `test:e2e` carga `.env` desde `vitest.config.mjs`, así que la `OPENROUTER_API_KEY` y los modelos
 > se toman del `.env` sin exportarlos manualmente.
 > `test:api` (en `scripts/`) es un **cliente real**: recorre todos los endpoints y verifica que un
 > frontend tipo chat pueda funcionar. Configura `API_URL`, `API_KEY`, `TEST_URL`,
@@ -405,7 +405,7 @@ AI_CUSTOM_MODEL=llama3.1:8b
 | `ECONNREFUSED redis` | Levantar Redis: `docker compose up -d redis` |
 | Jobs se quedan QUEUED | Verificar worker corriendo + `REDIS_URL` correcto |
 | `playwright: executable doesn't exist` | `npx playwright install --with-deps chromium` (en worker Dockerfile ya está; para E2E local fuera de Docker, ejecutar en host) |
-| Tests fallan por flakiness | `npm test` usa `--test-concurrency=1` |
+| Tests fallan por flakiness | `npm test` corre en serie (`fileParallelism: false` en `vitest.config.mjs`) |
 | `npm test` falla solo el umbral de cobertura de funciones | La cobertura de funciones difiere por plataforma: en Windows puede salir por debajo del 67% aunque los tests pasen. El gate verde es CI (Linux, Node 22) |
 | `openapi:check` falla en Windows | El script compara el fichero byte a byte y el checkout local usa CRLF; el fichero versionado es LF y CI (Linux) pasa |
 | Radiografía lenta | Forzar `forceBrowser: true` si sitio es JS-heavy |

@@ -5,31 +5,28 @@ heredado y sigue siendo lo más importante de esta área: los tests validaban el
 comportamiento erróneo de la implementación en vez del requisito (el bug clásico: una
 fecha filtrada como UTC en vez del día configurado).
 
-> ## El runner es `node --test`, no Jest
->
-> Esto cambia la forma de varias reglas y es el cambio de fondo de esta área:
+> ## El runner es `Vitest` (ADR-29), no Jest
 >
 > | | Reality |
 > |---|---|
-> | Runner | `node --test --test-concurrency=1` (el nativo de Node ≥20, sin dependencias) |
+> | Runner | **`vitest`** (`npm test`); config en `vitest.config.mjs`. Ejecuta en serie |
 > | Ficheros | `tests/*.test.mjs` — **31 en disco, 28 en `npm test`** (contrato, integración y E2E van en otros comandos, `R-FL-4`), JavaScript, **no** `*.spec.ts` de Jest |
 > | Ejecución | `npm test` (unit + propiedades, con dobles) · `npm run test:contract` · `npm run test:integration` (Docker) · `npm run test:e2e` (release) · `npm run test:api` (cliente real) |
-> | Cobertura | **Nativa de Node** (`--experimental-test-coverage`), umbrales en el script `test`: **70 / 72 / 67** (líneas/ramas/funciones). Sin `c8`/`nyc` |
-> | Concurrencia | Fija a **1**: Crawlee usa almacenamiento local y en paralelo los tests se contaminan (`R-FL-5`) |
-> | Estado hoy | **153 tests / 38 suites** en `npm test` + **9 de contrato** + **7 de integración**, todos en verde |
+> | Cobertura | **v8 de Vitest**, umbrales en `vitest.config.mjs`: **65 / 54 / 56** (líneas/ramas/funciones), medidos sobre fuentes TS (ADR-29) |
+> | Concurrencia | Fija a **1** (`fileParallelism: false`): Crawlee usa almacenamiento local y en paralelo los tests se contaminan (`R-FL-5`) |
+> | Estado hoy | **167 tests / 28 suites** en `npm test` + **9 de contrato** + **7 de integración**, todos en verde |
 >
 > Los identificadores heredados que hablaban de Jest (`jest.coverageThreshold`,
 > `*.spec.ts`, `setup de Jest`) se conservan **sin renumerar** y su texto apunta al
 > runner real.
 
-> ## ⚠️ Objetivo declarado (ADR-29): el runner pasa a Vitest
+> ## ✅ Vitest implementado (ADR-29, 2026-10-09)
 >
-> Por decisión explícita (ADR-29, 2026-10-09) el runner **objetivo** es **Vitest**;
-> sustituye a ADR-03 (runner) y ADR-17 (cobertura). **La migración aún no se ha
-> ejecutado**: mientras ADR-30 no cierre, todo lo que dice esta área sobre
-> `node --test` sigue siendo la **realidad vigente** y sus reglas no se enmiendan
-> hasta que el runner cambie. La adopción de Vitest desbloquea el mutation testing
-> (`R-MT-1`, ADR-20), cuyo disparador era precisamente un runner soportado por Stryker.
+> `vitest@5` + `@vitest/coverage-v8` sustituyen a `vitest` (ADR-03) y a la cobertura
+> nativa (ADR-17). Los 31 ficheros usan `vitest` en lugar de `vitest`; `before`/`after`
+> pasan a `beforeAll`/`afterAll`. **La cobertura ahora se mide sobre los fuentes TS** (el
+> provider mapea por los sourcemaps), así que los umbrales se re-basaron a **65 / 54 / 56**
+> (base nueva, no bajada sobre `dist`). Vitest desbloquea el mutation testing (`R-MT-1`).
 
 ## Archivos
 
@@ -113,13 +110,13 @@ fecha filtrada como UTC en vez del día configurado).
 MONGODB_MOCK=1 npm test
 
 # Cobertura sola, con el reporte por fichero
-MONGODB_MOCK=1 npm test 2>&1 | sed -n '/start of coverage report/,/end of coverage report/p'
+MONGODB_MOCK=1 npm test 2>&1 | sed -n '/Coverage summary/,/====/p'
 
 # Sin Docker y sin Mongo: el propio fallback en memoria cubre el arranque
 npm test
 
 # Un solo fichero (sin cobertura)
-node --test tests/dsl.test.mjs
+npx vitest run tests/dsl.test.mjs
 
 # Contrato de la API (G-5): arranca la API y valida formas
 npm run test:contract
@@ -146,15 +143,12 @@ npm run test:api:fast
 
 ## Pendientes (deuda abierta)
 
-- **Runner Vitest (ADR-29)**: decidido pero **no migrado**; `node --test` sigue siendo
-  el runner vigente hasta cerrar ADR-30. Al migrar, se ajustan `R-U-1`, la matriz de
-  cobertura (`G-3`) y los scripts `test*` (ningún ID se renombra).
-- **Mutation testing diferido a propósito** (`R-MT-1`, ADR-20): Stryker 10 no tiene
-  runner para `node --test` y los tests cargan `dist`; se reevalúa cuando exista una
-  suite con runner soportado. Los property tests (`tests/property.test.mjs`,
-  `fast-check`) cubren el riesgo mientras tanto y ya encontraron tres defectos reales.
-  **Nota 2026-10-09:** con ADR-29 (Vitest) el disparador «runner soportado por Stryker»
-  pasa a cumplirse cuando la migración llegue; la deuda se cierra entonces.
+- **Mutation testing** (`R-MT-1`, ADR-20): su disparador —un runner soportado por Stryker—
+  **ya se cumple** con Vitest (ADR-29). Queda adoptar Stryker (p. ej. con mutación sobre
+  `src`); mientras tanto, los property tests (`tests/property.test.mjs`, `fast-check`)
+  siguen cubriendo el riesgo.
+- **Cobertura sobre fuentes TS** (`R-COV-4`, ADR-29): Vitest mide el TS (por sourcemaps),
+  no el `dist`; umbral vigente **65 / 54 / 56**.
 - **Cliente real de la API (`npm run test:api`) no es un gate**: es un smoke de flujos
   completos que se ejecuta a mano contra una API levantada.
 
@@ -173,9 +167,8 @@ moderate) y se retiró `--legacy-peer-deps`. Decisiones y consecuencias en
 [`../../decisiones.md`](../../decisiones.md) (ADR-16 y ADR-18). Estado y evidencia en
 [`../_meta/AUDIT.md`](../_meta/AUDIT.md).
 
-Y **`G-3` (cobertura) quedó activo** con la herramienta nativa de Node
-(`--experimental-test-coverage`) y umbrales del baseline medido (70 / 72 / 67),
-dentro del propio `npm test` (`R-COV-4/5`, ADR-17).
+Y **`G-3` (cobertura)**: tras adoptar Vitest (ADR-29) se mide sobre fuentes TS con v8 y
+umbrales **65 / 54 / 56**, dentro de `npm test` (`R-COV-4/5`).
 
 Y el **property-based testing (`R-PB`) es real**: `tests/property.test.mjs` con
 `fast-check` dentro de `npm test`, que ya encontró y dejó corregidos tres defectos

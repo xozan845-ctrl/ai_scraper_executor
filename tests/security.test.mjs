@@ -1,4 +1,4 @@
-import { describe, it } from 'node:test';
+import { describe, it } from 'vitest';
 import assert from 'node:assert/strict';
 
 describe('Seguridad centralizada ETAPA 2 (@ai-scraper/shared-security)', async () => {
