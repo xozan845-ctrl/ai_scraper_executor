@@ -32,7 +32,7 @@
 | Modelos Prisma | **10**; migraciones **3** (`0_init`, `sessions`, `add_composite_indexes`) | `prisma/schema.prisma`, `ls prisma/migrations` |
 | Comandos del DSL | **15** literales Zod | `libs/domain/ai/src/schemas.ts` |
 | Git | **1 rama** (`main`), **88 commits, 0 merge commits**; PR #1 fusionado por `--rebase` | `git branch -a`, `git rev-list` |
-| Workflows | **3** (`ci.yml` con 2 jobs, `e2e.yml`, `release.yml`) | `.github/workflows/` |
+| Workflows | **4** (`ci.yml` con 2 jobs, `e2e.yml`, `release.yml`, `promote.yml`) | `.github/workflows/` |
 
 ## Estado por capa
 
@@ -110,8 +110,9 @@ incumplían `R-CI-2`. Se añade el grupo por ref a `release.yml` y se unifica
 1. **Sin protección de rama en el remoto (bloqueada por el plan)**: `gh api` devuelve
    `403 Upgrade to GitHub Pro or make this repository public` — es un límite del plan
    en repos privados, no deuda del repo. `R-GE-4` se cumple por disciplina (rama + PR).
-2. **Promoción entre entornos sin implementar** (`R-GE-5`): una sola rama, un solo
-   juego de secretos. Deuda asumida, no norma.
+2. **Promoción entre entornos: mecanismo implementado; configuración del operador pendiente**
+   (`R-GE-5`, ADR-32): `promote.yml` + *environments* `staging`/`production`. Falta que el
+   operador cree los environments, sus aprobaciones/secretos y el deploy real de cada entorno.
 3. **Mutation testing: baseline bajo a mejorar** (`R-MT-1`/`R-MT-3`, ADR-31): **Stryker**
    adoptado (runner de Vitest, muta el `dist` crítico). Los mutantes supervivientes son el
    trabajo pendiente de endurecer los tests; el umbral de release (≥70 %) se evalúa a mano.

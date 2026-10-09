@@ -1748,3 +1748,25 @@ el stack es local, no de producción (allí el scrape debe llevar `x-api-key`, `
 - Stryker ejecuta y **mata mutantes** (p. ej. `normalizeJobLimits` en `libs/domain/execution`);
   el **baseline es bajo** → trabajo de mejora de tests (`R-MT-3`). No es gate de PR.
 - `npm audit` en **0**; gates `G-1..G-9` sin cambios.
+
+---
+
+# AUDIT — Promoción entre entornos (ADR-32)
+
+- **Fecha:** 2026-10-09
+- **Disparador:** cerrar `R-GE-5` (última deuda de entrega): promover entre entornos.
+
+## Qué cambió
+
+- Nuevo `.github/workflows/promote.yml` (`workflow_dispatch`, `dry_run`): valida tag +
+  procedencia en `main` + `ci` verde y **reetiqueta el mismo digest** de la release como
+  `:staging`/`:production` (`docker buildx imagetools create`), bajo `environment`.
+- `ADR-32`; `R-GE-5` pasa de deuda a implementada; `git/00-entornos.md` (tabla de
+  entornos); `ci/01-flujos.md` (`R-CI-4`, cuarto workflow) y `ci/README.md`; `cd/`.
+
+## Estado
+
+- Mecanismo **declarado y reproducible**; su run real depende de que el operador cree los
+  *environments* `staging`/`production` con aprobación y secretos.
+- Staging y producción consumen el **mismo digest** (inmutabilidad, `R-CD-3`).
+- `npm audit` en **0**; sin cambios en gates.

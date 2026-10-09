@@ -241,6 +241,14 @@ docker build -f apps/api/Dockerfile -t ai-scraper-api .
 docker build -f apps/worker/Dockerfile -t ai-scraper-worker .
 ```
 
+### Promoción entre entornos (staging → production)
+
+Las releases se publican como **imágenes inmutables** en GHCR por tag (`release.yml`) y se
+promueven a `staging`/`production` **sin reconstruir**, reetiquetando el mismo digest, con
+el workflow `promote.yml` (requiere crear los *GitHub Environments* `staging`/`production`
+con su aprobación y secretos). Detalle en [`docs/rules/git/00-entornos.md`](docs/rules/git/00-entornos.md)
+(`R-GE-5`, ADR-32).
+
 ### Variables obligatorias en prod
 
 ```bash

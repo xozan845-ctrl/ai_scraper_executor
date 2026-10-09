@@ -5,7 +5,7 @@ dependencias y con qué evidencia. **Los gates de calidad (`G-1`…`G-9`) no viv
 aquí**: son reglas de testing y siguen en
 [`../test/06-estandares-cobertura.md`](../test/06-estandares-cobertura.md).
 
-> ## La realidad: `ci.yml` (2 jobs) + `e2e.yml` + `release.yml`
+> ## La realidad: `ci.yml` (2 jobs) + `e2e.yml` + `release.yml` + `promote.yml`
 >
 > ```yaml
 > # ci.yml — push a main, pull_request y workflow_dispatch (forzar a mano)
@@ -27,6 +27,10 @@ aquí**: son reglas de testing y siguen en
 > # release.yml — push de tag v*.*.* / workflow_dispatch (dry_run por defecto)
 >   valida tag + procedencia (en main y con run de ci verde) → build de las 2 imágenes
 >   GHCR con etiquetas OCI; publica solo si no es dry_run (R-CD-1..8)
+>
+> # promote.yml — workflow_dispatch (dry_run por defecto)
+>   valida tag + procedencia → reetiqueta la MISMA imagen como :staging/:production
+>   (environment con aprobación; R-GE-5, ADR-32)
 > ```
 >
 > No hay `security-gate` como job separado (el audit es un paso del job), ni jobs de
