@@ -13,7 +13,7 @@
  *   registra resultado del job para mejorar perfiles futuros.
  */
 import { AIOrchestrator, type AIProviderCallOpts } from '@ai-scraper/ai';
-import { CommandValidator, normalizeRawCommand, clampCommandLimits } from '@ai-scraper/commands';
+import { CommandValidator, normalizeRawCommand, clampCommandLimits } from '@ai-scraper/domain-ai';
 import { normalizeJobLimits } from '@ai-scraper/domain-execution';
 import { ExecutionEngine } from '@ai-scraper/execution-engine';
 import { generatePlan, type PlanJobInput, type PlanAction } from './planner';

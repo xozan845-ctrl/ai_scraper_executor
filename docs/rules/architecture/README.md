@@ -51,7 +51,7 @@ correspondencia con las capas hexagonales:
 INTERFACE   apps/api      NestJS REST /api/v1            → composition root (apps/)
 ORCHESTRATION packages/queue + storage   BullMQ + JobStore → infrastructure/
 INTELLIGENCE packages/ai + ai-providers  plan y decisiones → application/ + infrastructure/
-EXECUTION   packages/commands + execution-engine + crawler → domain/ (DSL) + infrastructure/
+EXECUTION   libs/domain/ai + execution-engine + crawler → domain/ (DSL) + infrastructure/
 DATA        packages/mongodb + redis + storage   Postgres · MongoDB · Redis → infrastructure/
 ```
 
@@ -75,7 +75,7 @@ Una capa solo depende de las que están **debajo**; un lib nunca importa de `app
 
 - **Fronteras (`R-HX-4`)**: activas vía
   [`scripts/check-boundaries.mjs`](../../../scripts/check-boundaries.mjs) dentro de
-  `npm run lint`; quedan **2 excepciones legacy** (`ai→redis`, `commands→security`) que
+  `npm run lint`; queda **1 excepción legacy** (`ai→redis`) que
   se cierran al migrar esos paquetes (ADR-30). Se descartó `eslint-plugin-boundaries`
   por vulnerabilidades `high`/`critical` (ADR-28, revisión 2026-10-09).
 - **Migración a `libs/` (`R-HX-9`, R-AR-2 histórico)**: declarada pero no ejecutada.

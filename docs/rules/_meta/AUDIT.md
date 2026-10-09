@@ -30,7 +30,7 @@
 | OpenAPI | **`docs/openapi.json` versionada y verificada** en CI | `G-8` |
 | Paquetes | **12** en `packages/` + 2 apps | `ls packages` |
 | Modelos Prisma | **10**; migraciones **3** (`0_init`, `sessions`, `add_composite_indexes`) | `prisma/schema.prisma`, `ls prisma/migrations` |
-| Comandos del DSL | **15** literales Zod | `packages/commands/src/schemas.ts` |
+| Comandos del DSL | **15** literales Zod | `libs/domain/ai/src/schemas.ts` |
 | Git | **1 rama** (`main`), **88 commits, 0 merge commits**; PR #1 fusionado por `--rebase` | `git branch -a`, `git rev-list` |
 | Workflows | **3** (`ci.yml` con 2 jobs, `e2e.yml`, `release.yml`) | `.github/workflows/` |
 
@@ -52,7 +52,7 @@
 | Artifacts (`R-EN-3`) | 🟢 | `test-results.xml` (JUnit) subido en todos los runs |
 | Documentación (`R-DO`) | 🟢 | área al día; **14/14** `README.md` de paquete/app creados; `.env.production.example` versionada |
 | Contribución de IA (`R-AC`) | 🟢 | área creada y adaptada; se cumple por disciplina (PR #1) |
-| Arquitectura hexagonal (`R-HX`) | 🟡 **en migración** | **F0 (andamiaje) hecha**: `libs/` (vacío) + verificador `scripts/check-boundaries.mjs` activo dentro de `npm run lint` (`R-HX-4`, con 2 excepciones legacy); **código sin mover** (sigue en `packages/`) |
+| Arquitectura hexagonal (`R-HX`) | 🟡 **en migración** | Verificador de fronteras activo en `npm run lint` (`R-HX-4`; **1 excepción legacy** `ai→redis`). Migrados a `libs/`: `observability` → `shared/observability`, `core` → `domain/{execution,scraper}` + `shared/core`, `commands` → `domain/ai` (paquete `@ai-scraper/domain-ai`). El resto sigue en `packages/` (F3–F5) |
 
 ## Gates
 
@@ -104,12 +104,12 @@ incumplían `R-CI-2`. Se añade el grupo por ref a `release.yml` y se unifica
 
 ## Deudas abiertas (orden de ataque)
 
-0. **Migración a arquitectura hexagonal en curso** (ADR-27/ADR-30, `R-HX-9`): **F0
-   completada** — `libs/` existe (vacío) y el verificador `scripts/check-boundaries.mjs`
-   aplica `R-HX-2` dentro de `npm run lint` (`R-HX-4`) con **2 excepciones legacy**
-   (`ai→redis`, `commands→security`) que deben llegar a 0 al migrar esos paquetes. El
-   **código sigue en `packages/`** (fases F1–F5 pendientes) y el runner sigue siendo
-   `node --test` (ADR-29 pendiente de migrar).
+0. **Migración a arquitectura hexagonal en curso** (ADR-27/ADR-30, `R-HX-9`): verificador
+   `scripts/check-boundaries.mjs` activo en `npm run lint` (`R-HX-4`) con **1 excepción
+   legacy** (`ai→redis`) que debe llegar a 0 al migrar `packages/ai`. Migrados a `libs/`:
+   `observability`, `core` (repartido en `domain/execution`+`domain/scraper`+`shared/core`)
+   y `commands` (`domain/ai`). El resto sigue en `packages/` (F3–F5) y el runner sigue
+   siendo `node --test` (ADR-29 pendiente de migrar).
 1. **Sin protección de rama en el remoto (bloqueada por el plan)**: `gh api` devuelve
    `403 Upgrade to GitHub Pro or make this repository public` — es un límite del plan
    en repos privados, no deuda del repo. `R-GE-4` se cumple por disciplina (rama + PR).

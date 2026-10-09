@@ -51,7 +51,7 @@ stores en memoria.
 |---|---|
 | R-U-16 | **100 % de los ficheros de lógica pura del repo tienen test**: el normalizador, los límites y el recorte, la validación del DSL, el cálculo de límites del job, el SSRF y los rangos de IP, la allowlist, el cifrado, los nombres de métrica, las utilidades. Son funciones puras y deterministas: no hay excusa. Esto **sustituye** a la regla heredada que pedía specs para `packages/shared/src` (esa ruta no existe aquí). |
 | R-U-17 | **El bucle del agente y la planificación tienen test de sus decisiones, no de su prosa.** Un test que verifica que `planner` produce un plan válido es valioso; uno que verifica que el prompt tiene una frase concreta no lo es (ese texto cambia sin que cambie el comportamiento). |
-| R-U-18 | **Todo fichero nuevo de lógica llega con su test en el mismo cambio.** Un PR que añade `packages/commands/src/<nuevo>.ts` sin su test en `tests/` no está terminado, aunque `npm test` siga en verde: está verde porque no prueba lo nuevo. |
+| R-U-18 | **Todo fichero nuevo de lógica llega con su test en el mismo cambio.** Un PR que añade `libs/domain/ai/src/<nuevo>.ts` sin su test en `tests/` no está terminado, aunque `npm test` siga en verde: está verde porque no prueba lo nuevo. |
 
 ## Verificación
 

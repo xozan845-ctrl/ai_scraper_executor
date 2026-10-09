@@ -2,8 +2,8 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 describe('Normalizador DSL (robustez LLM)', async () => {
-  const { normalizeRawCommand, normalizeRawPlan } = await import('../packages/commands/dist/index.js');
-  const { CommandValidator } = await import('../packages/commands/dist/validator.js');
+  const { normalizeRawCommand, normalizeRawPlan } = await import('../libs/domain/ai/dist/index.js');
+  const { CommandValidator } = await import('../libs/domain/ai/dist/validator.js');
 
   const validator = new CommandValidator({ allowedDomain: 'tienda.com', maxDepth: 3, maxPages: 5 });
 
@@ -56,7 +56,7 @@ describe('Normalizador DSL (robustez LLM)', async () => {
   });
 
   it('clampCommandLimits recorta PAGINATE/FOLLOW_LINKS/EXTRACT_LIST a los topes', async () => {
-    const { clampCommandLimits } = await import('../packages/commands/dist/index.js');
+    const { clampCommandLimits } = await import('../libs/domain/ai/dist/index.js');
     const caps = { maxPages: 5, maxItems: 50 };
     assert.equal(clampCommandLimits({ type: 'PAGINATE', maxPages: 500 }, caps).maxPages, 5);
     assert.equal(clampCommandLimits({ type: 'FOLLOW_LINKS', maxLinks: 500 }, caps).maxLinks, 5);

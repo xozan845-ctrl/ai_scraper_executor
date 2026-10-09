@@ -25,7 +25,7 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
   ejecute acciones arbitrarias sobre la máquina, y que la lógica de crawling se
   disperse entre prompts.
 - **Decisión**: El LLM emite **exclusivamente** un plan en el DSL de 15 comandos
-  (`packages/commands/src/schemas.ts`), validado con Zod después de pasar por el
+  (`libs/domain/ai/src/schemas.ts`), validado con Zod después de pasar por el
   normalizador. El motor (`ExecutionEngine`) interpreta esos comandos. La IA nunca
   ejecuta código: no hay eval, ni shell, ni acceso a ficheros.
 - **Consecuencias**: (a) el prompt es pequeño y sus tokens son caros → presupuestados
@@ -657,7 +657,7 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
 > dependencias**, que resuelve las capas por ruta/paquete y aplica la matriz de `R-HX-2`.
 > Se ejecuta dentro de `npm run lint` (`npm run boundaries:check`), así que `R-HX-4`
 > sigue anclada al gate `G-7` y `npm audit` permanece en **0**. Las regiones legacy
-> (`ai→redis`, `commands→security`) se toleran como excepciones declaradas por ruta
+> (`ai→redis`) se tolera como excepción declarada por ruta
 > `packages/…`, de modo que desaparecen solas al migrar a `libs/` (ADR-30). El resto de
 > la decisión (npm workspaces, sin Nx/Turbo) no cambia.
 
@@ -728,7 +728,7 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
 | Separación caché/cola de Redis: soportada pero **opt-in** (default compartido) | ADR-23 | `rules/db/03-redis.md` (`R-RD-1`) |
 | Retención de `Page`/`Command`/`AIInteraction` sin declarar | — | `rules/data/01-integridad.md` (`R-DI-8`) |
 | Migración a hexagonal DDD **declarada pero no ejecutada** (conviven `packages/` y `libs/`) | ADR-27, ADR-30 | `migracion-arquitectura.md`; `rules/architecture/03-arquitectura-hexagonal.md` (`R-HX-9`) |
-| Fronteras activas (script `scripts/check-boundaries.mjs`) con **2 excepciones legacy** (`ai→redis`, `commands→security`) | ADR-28, ADR-30 | `rules/architecture/03-arquitectura-hexagonal.md` (`R-HX-4`) |
+| Fronteras activas (script `scripts/check-boundaries.mjs`) con **1 excepción legacy** (`ai→redis`) | ADR-28, ADR-30 | `rules/architecture/03-arquitectura-hexagonal.md` (`R-HX-4`) |
 | Runner **Vitest** decidido pero aún no migrado (`node --test` vigente) | ADR-29 | `rules/test/README.md` |
 | Sin cache/`affected` de tareas (Nx/Turborepo evaluables más adelante) | ADR-28 | `docs/decisiones.md` (ADR-28) |
 

@@ -10,13 +10,13 @@
  */
 import * as cheerio from 'cheerio';
 import { createHash } from 'node:crypto';
-import type { ScrapingCommand as StrictCommand } from '@ai-scraper/commands';
+import type { ScrapingCommand as StrictCommand } from '@ai-scraper/domain-ai';
 import { logger } from '@ai-scraper/shared-observability';
 import { assertPublicUrl, isAllowedHost, safeFetchText } from '@ai-scraper/security';
 import { PageCache, normalizeUrlForDedupe } from './page-cache';
 
 /**
- * Fuente única del DSL: @ai-scraper/commands (Zod).
+ * Fuente única del DSL: @ai-scraper/domain-ai (Zod).
  * El engine acepta el tipo estricto + comandos desconocidos en runtime
  * (la IA puede alucinar tipos) para devolver error recuperable, no crash.
  */

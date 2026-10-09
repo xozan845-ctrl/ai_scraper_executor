@@ -6,7 +6,7 @@
  * con CommandValidator (§26) y ExecutionEngine (§27) reales.
  */
 import { ExecutionEngine } from '@ai-scraper/execution-engine';
-import { CommandValidator } from '@ai-scraper/commands';
+import { CommandValidator } from '@ai-scraper/domain-ai';
 
 export interface AgentJob {
   id: string;

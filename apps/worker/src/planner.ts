@@ -9,7 +9,7 @@
  * - FASE 12: inyecta perfil aprendido (selectores, paginación, needsBrowser) al contexto de la IA.
  */
 import { AIOrchestrator } from '@ai-scraper/ai';
-import { CommandValidator, normalizeRawPlan, clampCommandLimits } from '@ai-scraper/commands';
+import { CommandValidator, normalizeRawPlan, clampCommandLimits } from '@ai-scraper/domain-ai';
 import { normalizeJobLimits, type JobLimits } from '@ai-scraper/domain-execution';
 import { createAIProviderForJob } from '@ai-scraper/ai-providers';
 import { getLearnedProfile } from '@ai-scraper/mongodb';
