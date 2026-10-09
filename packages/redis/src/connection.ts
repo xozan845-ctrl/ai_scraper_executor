@@ -3,6 +3,10 @@ import Redis from 'ioredis';
 let client: Redis | null = null;
 let subscriber: Redis | null = null;
 
+export function isMemoryFallbackAllowed(): boolean {
+  return process.env.NODE_ENV !== 'production' || process.env.ALLOW_IN_MEMORY_FALLBACK === '1';
+}
+
 /** Suelta el socket del event loop: las conexiones auxiliares (caché/métricas/rate-limit)
  * no deben impedir que el proceso termine. La API/worker siguen vivos por su servidor/cola. */
 function unref(redis: Redis): void {

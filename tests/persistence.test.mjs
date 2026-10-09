@@ -83,6 +83,38 @@ describe('Cola en memoria + factoría (§12)', async () => {
   });
 });
 
+describe('Fail-closed de dependencias en producción', async () => {
+  it('rechaza store y cola en memoria si no hay opt-in explícito', async () => {
+    const previous = { ...process.env };
+    process.env.NODE_ENV = 'production';
+    delete process.env.ALLOW_IN_MEMORY_FALLBACK;
+    delete process.env.DATABASE_URL;
+    delete process.env.REDIS_URL;
+    delete process.env.QUEUE_REDIS_URL;
+    const storage = await import('../packages/storage/dist/factory.js');
+    const queue = await import('../packages/queue/dist/factory.js');
+    storage.__resetJobStoreSingleton();
+    queue.__resetJobQueueSingleton();
+    await assert.rejects(() => storage.createJobStore(), /memoria deshabilitado/);
+    await assert.rejects(() => queue.createJobQueue(), /memoria deshabilitada/);
+    process.env = previous;
+    storage.__resetJobStoreSingleton();
+    queue.__resetJobQueueSingleton();
+  });
+
+  it('readiness devuelve 503 con dependencias en memoria en producción', async () => {
+    const previous = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    const { HealthController } = await import('../apps/api/dist/health/health.controller.js');
+    const { InMemoryJobStore } = await import('../packages/storage/dist/memory-store.js');
+    const { InMemoryJobQueue } = await import('../packages/queue/dist/memory-queue.js');
+    const health = new HealthController(new InMemoryJobStore(), new InMemoryJobQueue());
+    await assert.rejects(() => health.ready(), (error) => error.getStatus() === 503);
+    if (previous === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previous;
+  });
+});
+
 describe('JobsService FASE 8 (API real)', async () => {
   const { JobsService } = await import('../apps/api/dist/jobs/jobs.service.js');
   const { InMemoryJobStore } = await import('../packages/storage/dist/memory-store.js');

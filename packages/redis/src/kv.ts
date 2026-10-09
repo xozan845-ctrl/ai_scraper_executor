@@ -2,7 +2,7 @@
  * Caché JSON genérica (Redis con fallback a memoria) para respuestas LLM
  * y otros valores serializables. Clave → valor con TTL.
  */
-import { getRedisClient, probeRedis, ensureConnected, Redis } from './connection';
+import { getRedisClient, probeRedis, ensureConnected, isMemoryFallbackAllowed, Redis } from './connection';
 
 export interface JsonCache {
   get<T = unknown>(key: string): Promise<T | null>;
@@ -19,22 +19,14 @@ export class RedisJsonCache implements JsonCache {
     this.client = getRedisClient();
   }
   async get<T = unknown>(key: string): Promise<T | null> {
-    try {
-      const raw = await this.client.get(PREFIX + key);
-      return raw ? (JSON.parse(raw) as T) : null;
-    } catch {
-      return null; // Redis no disponible → miss
-    }
+    const raw = await this.client.get(PREFIX + key);
+    return raw ? (JSON.parse(raw) as T) : null;
   }
   async set(key: string, value: unknown, ttlMs?: number): Promise<void> {
-    try {
-      await this.client.setex(PREFIX + key, Math.ceil((ttlMs ?? this.ttlMs) / 1000), JSON.stringify(value));
-    } catch {
-      /* noop */
-    }
+    await this.client.setex(PREFIX + key, Math.ceil((ttlMs ?? this.ttlMs) / 1000), JSON.stringify(value));
   }
   async del(key: string): Promise<void> {
-    try { await this.client.del(PREFIX + key); } catch { /* noop */ }
+    await this.client.del(PREFIX + key);
   }
 }
 
@@ -54,24 +46,35 @@ export class MemoryJsonCache implements JsonCache {
 }
 
 let instance: JsonCache | null = null;
+let initializing: Promise<JsonCache> | null = null;
 
 /** Redis si disponible, si no memoria. Cachea el singleton. */
 export async function getJsonCache(ttlMs?: number): Promise<JsonCache> {
   if (instance) return instance;
-  try {
-    if ((await probeRedis()) && (await ensureConnected())) {
-      instance = new RedisJsonCache(ttlMs);
-      console.log('[JSONCACHE] RedisJsonCache activado');
-    } else {
-      throw new Error('Redis no healthy');
+  if (initializing) return initializing;
+  initializing = (async () => {
+    try {
+      if ((await probeRedis()) && (await ensureConnected())) {
+        instance = new RedisJsonCache(ttlMs);
+        console.log('[JSONCACHE] RedisJsonCache activado');
+      } else {
+        throw new Error('Redis no healthy');
+      }
+    } catch {
+      if (!isMemoryFallbackAllowed()) throw new Error('Redis no disponible en producción; MemoryJsonCache deshabilitada');
+      instance = new MemoryJsonCache(ttlMs);
+      console.warn('[JSONCACHE] Redis no disponible — usando MemoryJsonCache');
     }
-  } catch {
-    instance = new MemoryJsonCache(ttlMs);
-    console.warn('[JSONCACHE] Redis no disponible — usando MemoryJsonCache');
+    return instance;
+  })();
+  try {
+    return await initializing;
+  } finally {
+    initializing = null;
   }
-  return instance;
 }
 
 export function __resetJsonCache(): void {
   instance = null;
+  initializing = null;
 }

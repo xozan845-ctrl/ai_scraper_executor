@@ -6,6 +6,10 @@ import { PrismaJobStore } from './prisma-store';
 let singleton: JobStore | null = null;
 let prismaClient: PrismaClient | null = null;
 
+function allowMemoryFallback(): boolean {
+  return process.env.NODE_ENV !== 'production' || process.env.ALLOW_IN_MEMORY_FALLBACK === '1';
+}
+
 export function getPrismaClient(): PrismaClient {
   if (!prismaClient) prismaClient = new PrismaClient();
   return prismaClient;
@@ -40,6 +44,9 @@ export async function createJobStore(): Promise<JobStore> {
     await client.$disconnect().catch(() => undefined);
   } else {
     console.warn('[STORAGE] Sin DATABASE_URL — usando memoria (los datos no persistirán)');
+  }
+  if (!allowMemoryFallback()) {
+    throw new Error('PostgreSQL no disponible en producción; fallback en memoria deshabilitado');
   }
   singleton = new InMemoryJobStore();
   return singleton;
