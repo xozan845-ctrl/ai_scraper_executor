@@ -22,6 +22,15 @@ fecha filtrada como UTC en vez del día configurado).
 > `*.spec.ts`, `setup de Jest`) se conservan **sin renumerar** y su texto apunta al
 > runner real.
 
+> ## ⚠️ Objetivo declarado (ADR-29): el runner pasa a Vitest
+>
+> Por decisión explícita (ADR-29, 2026-10-09) el runner **objetivo** es **Vitest**;
+> sustituye a ADR-03 (runner) y ADR-17 (cobertura). **La migración aún no se ha
+> ejecutado**: mientras ADR-30 no cierre, todo lo que dice esta área sobre
+> `node --test` sigue siendo la **realidad vigente** y sus reglas no se enmiendan
+> hasta que el runner cambie. La adopción de Vitest desbloquea el mutation testing
+> (`R-MT-1`, ADR-20), cuyo disparador era precisamente un runner soportado por Stryker.
+
 ## Archivos
 
 | Archivo | Contenido |
@@ -137,10 +146,15 @@ npm run test:api:fast
 
 ## Pendientes (deuda abierta)
 
+- **Runner Vitest (ADR-29)**: decidido pero **no migrado**; `node --test` sigue siendo
+  el runner vigente hasta cerrar ADR-30. Al migrar, se ajustan `R-U-1`, la matriz de
+  cobertura (`G-3`) y los scripts `test*` (ningún ID se renombra).
 - **Mutation testing diferido a propósito** (`R-MT-1`, ADR-20): Stryker 10 no tiene
   runner para `node --test` y los tests cargan `dist`; se reevalúa cuando exista una
   suite con runner soportado. Los property tests (`tests/property.test.mjs`,
   `fast-check`) cubren el riesgo mientras tanto y ya encontraron tres defectos reales.
+  **Nota 2026-10-09:** con ADR-29 (Vitest) el disparador «runner soportado por Stryker»
+  pasa a cumplirse cuando la migración llegue; la deuda se cierra entonces.
 - **Cliente real de la API (`npm run test:api`) no es un gate**: es un smoke de flujos
   completos que se ejecuta a mano contra una API levantada.
 

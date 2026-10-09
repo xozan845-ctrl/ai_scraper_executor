@@ -55,7 +55,8 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
 ## ADR-03: `node --test` como runner, sin framework de test
 
 - **Fecha**: 2026-09-28
-- **Estado**: Aceptado
+- **Estado**: Sustituido por ADR-29 (objetivo: Vitest). **Vigente durante la migración**:
+  mientras ADR-30 no cierre, el runner activo sigue siendo `node --test`.
 - **Contexto**: La suite prueba 12 paquetes y 2 apps en JavaScript plano
   (`node_modules` con la compilación ya resuelta). Un framework (Jest/Vitest)
   exigiría `ts-jest` o una capa de transformación, configuración de cobertura por
@@ -340,7 +341,8 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
 ## ADR-17: Cobertura con la herramienta nativa de Node, umbral del baseline
 
 - **Fecha**: 2026-10-05
-- **Estado**: Aceptado
+- **Estado**: Sustituido por ADR-29 (objetivo: cobertura de Vitest). **Vigente hasta
+  que ADR-30 migre el runner**; hoy el umbral sigue midiéndose con la herramienta nativa.
 - **Contexto**: `G-3` estaba `⏸` porque no había herramienta de cobertura y no se
   quería inventar un umbral. Las opciones eran añadir `c8`/`nyc` (dependencia nueva)
   o usar la cobertura nativa de Node ≥22 (`--experimental-test-coverage` +
@@ -584,6 +586,136 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
 
 ---
 
+## ADR-27: Arquitectura hexagonal por dominios — `apps/` + `libs/{domain,application,infrastructure,shared}`
+
+- **Fecha**: 2026-10-09
+- **Estado**: Aceptado
+- **Contexto**: el modelo vigente de «5 capas» (`R-AR-2`) es una **vista de runtime**
+  (interface→orquestación→inteligencia→ejecución→datos) útil para explicar el flujo de
+  un job, pero **no** impone una dirección de dependencia verificable: nada impide que
+  `packages/ai` importe Prisma o que un adaptador se mezcle con la lógica de negocio. El
+  dominio (DSL, límites, máquina de estados, reglas de scraping) no puede probarse sin
+  infraestructura y cambiar un proveedor de LLM o de persistencia obliga a tocar código
+  de negocio. Con el producto creciendo, se necesita una separación explícita entre
+  **qué** sabe el negocio y **cómo** se ejecuta.
+- **Decisión**: el objetivo del monorepo es **arquitectura hexagonal (puertos y
+  adaptadores) organizada por bounded contexts**, con cuatro capas internas bajo `libs/`
+  y las apps como **composition root**:
+
+  | Capa | Ruta | Contiene | No puede importar |
+  |---|---|---|---|
+  | Dominio | `libs/domain/<contexto>` | entidades, value objects, servicios puros, **puertos** (interfaces) | nada de otras capas, ni frameworks/SDKs |
+  | Aplicación | `libs/application/<contexto>` | casos de uso, DTOs; coordina puertos | `infrastructure`, `apps` |
+  | Infraestructura | `libs/infrastructure/<adaptador>` | adaptadores concretos que implementan puertos | — (implementa) |
+  | Compartido | `libs/shared/<utilidad>` | utilidades puras transversales (core, observability, config, contracts) | domain/application/infrastructure |
+  | Apps | `apps/api`, `apps/worker` | entry points y **composition root** (inyecta adaptadores) | — |
+
+  Este modelo **sustituye** a las «5 capas» como modelo canónico: `R-AR-2` pasa a
+  describir el mapeo histórico y delega en `R-HX-1`
+  (`rules/architecture/03-arquitectura-hexagonal.md`). El mapeo paquete→lib vive en
+  [`migracion-arquitectura.md`](./migracion-arquitectura.md).
+- **Consecuencias**: (a) el dominio se prueba **sin base de datos, red ni LLM**
+  (`R-QA-2` sigue vigente y se refuerza); (b) cambiar de proveedor de LLM o de
+  persistencia es añadir un adaptador en `infrastructure/`, no tocar el negocio
+  (generaliza `R-AR-7`); (c) las fronteras se vuelven **verificables** por lint
+  (ADR-28); (d) hay un coste de migración real (mueve ficheros, cambia imports y
+  nombres de paquete) que se amortiza con ADR-30; (e) durante la migración conviven
+  `packages/` y `libs/` — un paquete no migrado conserva su ruta (`R-HX-9`); (f) las
+  reglas que citan rutas `packages/*` se actualizan **por paquete** cuando éste migra,
+  no en bloque.
+
+---
+
+## ADR-28: Gobernanza de fronteras con `eslint-plugin-boundaries` (sin Nx/Turborepo)
+
+- **Fecha**: 2026-10-09
+- **Estado**: Aceptado
+- **Contexto**: la propuesta de arquitectura sugería **Nx** o **Turborepo**. Ambos
+  aportan cache y `affected`, pero introducen un orquestador nuevo que reescribe el
+  orden de build (`R-AR-4`), los scripts de CI (`R-CI-5`) y la resolución de `paths` de
+  `tsconfig.base.json`. El problema real que hay que resolver **hoy** no es el tiempo de
+  build: es que las fronteras entre capas (ADR-27) se puedan **violar sin que nada
+  falle**.
+- **Decisión**: mantener **npm workspaces** como orquestador y hacer cumplir las
+  fronteras con **`eslint-plugin-boundaries`** (o equivalente): cada lib se etiqueta con
+  su capa (`domain`, `application`, `infrastructure`, `shared`) y las aristas prohibidas
+  de `R-HX-2` se declaran como reglas de import. Un import que cruce la frontera **falla
+  `npm run lint`** (`G-7`), igual que un error de tipos. **No** se adopta Nx ni
+  Turborepo en este paso.
+- **Consecuencias**: (a) no se reescribe build ni CI; el `G-7` que ya existe pasa a
+  cubrir también las fronteras; (b) se renuncia temporalmente a `affected`/cache de
+  tareas (deuda declarada, no bloqueante: el build tarda poco); (c) el día que el tiempo
+  de build lo justifique, se evalúa Nx/Turbo **con un ADR nuevo** que sustituya a éste;
+  (d) las etiquetas de capa viven en la config de eslint y son la fuente de verdad de
+  `R-HX-4`.
+
+> **Revisión 2026-10-09 (mismo día, al implementar F0):** `eslint-plugin-boundaries@7`
+> arrastra `handlebars` y `micromatch`/`braces` con **4 high + 1 critical**, lo que
+> **rompe `R-QA-6`** (0 vulnerabilidades) y el paso `Security audit` de CI. Se descarta
+> el plugin y se implementa el **equivalente** que el propio ADR admitía: un verificador
+> propio, [`scripts/check-boundaries.mjs`](../scripts/check-boundaries.mjs), **sin
+> dependencias**, que resuelve las capas por ruta/paquete y aplica la matriz de `R-HX-2`.
+> Se ejecuta dentro de `npm run lint` (`npm run boundaries:check`), así que `R-HX-4`
+> sigue anclada al gate `G-7` y `npm audit` permanece en **0**. Las regiones legacy
+> (`ai→redis`, `commands→security`) se toleran como excepciones declaradas por ruta
+> `packages/…`, de modo que desaparecen solas al migrar a `libs/` (ADR-30). El resto de
+> la decisión (npm workspaces, sin Nx/Turbo) no cambia.
+
+---
+
+## ADR-29: Vitest como runner de tests (sustituye ADR-03 y ADR-17)
+
+- **Fecha**: 2026-10-09
+- **Estado**: Aceptado (objetivo; la migración la ejecuta ADR-30)
+- **Contexto**: la propuesta de arquitectura recomienda **Vitest** (o Jest). El runner
+  actual, `node --test` (ADR-03), funciona y no tiene dependencias, pero: (a) obliga a
+  mantener los tests en `.mjs` cargando el **build** (`dist`), lo que impide co-locarlos
+  con el dominio y probar unidades de `src`; (b) su cobertura nativa (ADR-17) solo
+  cuenta ficheros cargados; (c) no tiene runner para Stryker, que es justo el disparador
+  que mantiene el mutation testing diferido (`R-MT-1`, ADR-20).
+- **Decisión**: adoptar **Vitest** como runner objetivo. Vitest transforma TypeScript
+  con esbuild, permite **co-locar** los tests (`libs/**/*.test.ts`) o mantenerlos en
+  `tests/`, y desbloquea el runner de Stryker. La cobertura pasa a Vitest con umbrales
+  re-medidos (`G-3`); los umbrales no bajan. **ADR-03 y ADR-17 quedan sustituidos** en
+  cuanto ADR-30 complete la migración; durante la transición el runner activo sigue
+  siendo `node --test` y los comandos `test:contract`/`test:integration`/`test:e2e`
+  pueden seguir en Node hasta migrar su capa.
+- **Consecuencias**: (a) los tests existentes (`.test.mjs`) pueden ejecutarse bajo
+  Vitest **sin reescribirlos a la vez**, lo que permite migrar por capas; (b) el área
+  [`rules/test/`](./rules/test/README.md) se enmienda **cuando** el runner cambie, no
+  antes (hoy sus reglas describen `node --test`, que es la realidad vigente); (c)
+  `R-MT-1` deja de estar bloqueado por el runner y se re-evalúa (su disparador se
+  cumple); (d) se añade Vitest a `devDependencies` y se reescriben los scripts `test*` y
+  la matriz de cobertura; (e) ninguna regla `R-U`/`R-COV` se renombra: se ajusta su
+  texto al nuevo runner.
+
+---
+
+## ADR-30: Migración incremental (strangler) hacia `libs/`
+
+- **Fecha**: 2026-10-09
+- **Estado**: Aceptado
+- **Contexto**: reestructurar 12 paquetes + 2 apps de una sola vez (big-bang) produce
+  un PR enorme, imposible de revisar y con riesgo alto de romper el build/CI, justo lo
+  que `R-PR-2` y `R-AC-3` prohíben.
+- **Decisión**: migrar con **estrangular incremental**: cada PR mueve **un** paquete (o
+  bounded context) a su ruta en `libs/`, recablea sus imports y sus `paths`, y deja
+  `npm run build && npm run lint && MONGODB_MOCK=1 npm test` en verde. Mientras un
+  paquete no haya migrado, **conserva su ruta `packages/<x>` y sus imports**
+  (`R-HX-9`): el repo permanece verde en todo momento. `packages/` desaparece cuando
+  migre el último; entonces se retira de `workspaces`, `tsconfig.base.json` y el lint.
+  Las fases y el orden viven en
+  [`migracion-arquitectura.md`](./migracion-arquitectura.md).
+- **Consecuencias**: (a) cada PR es revisable y reversible; (b) existe una ventana en la
+  que `tsconfig.base.json` mapea **ambas** rutas (`packages/*/dist` y `libs/*/dist`) —
+  deuda explícita y temporal, no permanente; (c) los READMEs de módulo (`R-DO-1`,
+  `R-DO-8`) viajan con cada movimiento; (d) el nombre del paquete puede cambiar
+  (`@ai-scraper/core` → `@ai-scraper/<capa>-<contexto>`, `R-HX-6`), lo que obliga a
+  actualizar imports de forma coordinada **en el mismo PR**; (e) ADR-29 (Vitest) y las
+  reglas `R-HX` se cierran a medida que avanza la migración, no antes.
+
+---
+
 ## Deudas que estos ADR dejan abiertas
 
 | Deuda | ADR relacionado | Dónde está registrada |
@@ -595,6 +727,10 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
 | Promoción entre entornos sin implementar | ADR-15 | `rules/git/00-entornos.md` (`R-GE-5`) |
 | Separación caché/cola de Redis: soportada pero **opt-in** (default compartido) | ADR-23 | `rules/db/03-redis.md` (`R-RD-1`) |
 | Retención de `Page`/`Command`/`AIInteraction` sin declarar | — | `rules/data/01-integridad.md` (`R-DI-8`) |
+| Migración a hexagonal DDD **declarada pero no ejecutada** (conviven `packages/` y `libs/`) | ADR-27, ADR-30 | `migracion-arquitectura.md`; `rules/architecture/03-arquitectura-hexagonal.md` (`R-HX-9`) |
+| Fronteras activas (script `scripts/check-boundaries.mjs`) con **2 excepciones legacy** (`ai→redis`, `commands→security`) | ADR-28, ADR-30 | `rules/architecture/03-arquitectura-hexagonal.md` (`R-HX-4`) |
+| Runner **Vitest** decidido pero aún no migrado (`node --test` vigente) | ADR-29 | `rules/test/README.md` |
+| Sin cache/`affected` de tareas (Nx/Turborepo evaluables más adelante) | ADR-28 | `docs/decisiones.md` (ADR-28) |
 
 > El estado vigente de cada deuda, con el comando que la mide, está en
 > [`rules/_meta/AUDIT.md`](./rules/_meta/AUDIT.md).

@@ -1,15 +1,16 @@
 # 01 — Reglas Doradas de Arquitectura
 
-Aplica a: el reparto entre las 5 capas, la comunicación entre `api` y `worker`, el
-orden de compilación del monorepo y el comportamiento cuando una dependencia no
-está disponible.
+Aplica a: el reparto entre capas (vista histórica de runtime; el modelo **canónico**
+es hexagonal y vive en [`03-arquitectura-hexagonal.md`](./03-arquitectura-hexagonal.md),
+`R-HX-1`), la comunicación entre `api` y `worker`, el orden de compilación del monorepo
+y el comportamiento cuando una dependencia no está disponible.
 
 ## Reglas
 
 | ID | Regla |
 |---|---|
 | R-AR-1 | **La IA es el cerebro, el motor es el motor**: ninguna función de este repo llama a un modelo de lenguaje para decidir *cómo* se ejecuta algo. El LLM decide **qué** se hace y lo expresa **exclusivamente** como comandos del DSL de [`../ai/01-dsl.md`](../ai/01-dsl.md) (`R-AI-1`). La ejecución, los reintentos, los presupuestos, el parseo y la persistencia los decide el código, nunca el modelo. Prohibido ejecutar `eval`, `Function`, un selector fuera del DSL o un comando inventado emitido por el modelo (`R-AI-4`). |
-| R-AR-2 | **Las 5 capas y su dirección de dependencia**: `INTERFACE` (`apps/api`) → `ORCHESTRATION` (`packages/queue`, `packages/storage`) → `INTELLIGENCE` (`packages/ai`, `packages/ai-providers`) → `EXECUTION` (`packages/commands`, `packages/execution-engine`, `packages/crawler`) → `DATA` (`packages/storage`, `packages/mongodb`, `packages/redis`). Un package solo importa de packages, nunca de `apps/*`; `apps/*` es quien compone. Prohibido que `packages/*` importe de `apps/*`: rompe `npm run build:core` y el orden de resolución de `tsconfig.base.json`. |
+| R-AR-2 | **Una sola dirección de dependencia entre capas, y `apps/*` es quien compone**: la vista histórica de runtime era `INTERFACE` (`apps/api`) → `ORCHESTRATION` (`packages/queue`, `packages/storage`) → `INTELLIGENCE` (`packages/ai`, `packages/ai-providers`) → `EXECUTION` (`packages/commands`, `packages/execution-engine`, `packages/crawler`) → `DATA` (`packages/storage`, `packages/mongodb`, `packages/redis`). **El modelo canónico de capas es el hexagonal** (`R-HX-1`): esta lista sobrevive solo como mapa de runtime. Invariante que no cambia: una lib solo importa de libs, nunca de `apps/*`; `apps/*` es quien compone. Prohibido que `packages/*` o `libs/*` importe de `apps/*`: rompe `npm run build:core` y el orden de resolución de `tsconfig.base.json`. |
 | R-AR-3 | **Un solo sentido entre API y worker, y con cola**: la API **nunca** ejecuta un job. `POST /api/v1/jobs` valida, persiste y encola; el consumo ocurre **solo** en `apps/worker` (BullMQ). El estado del job viaja por la cola y por la base de datos, nunca por una llamada HTTP interna ni por un fichero. El escalado horizontal (`docker compose up --scale worker=N`) debe funcionar sin tocar la API; por eso toda métrica lleva el label `instance` (`R-TM-3`). |
 | R-AR-4 | **Orden de build explícito y `paths` a `dist/`**: `npm run build:core` compila los packages en orden de dependencia (`core` y `security` primero), y `tsconfig.base.json` mapea `@ai-scraper/*` a `packages/*/dist`, **nunca a `src`**. Cada package tiene su `tsconfig.json` con `rootDir: src` y `outDir: dist`. No se añade un package a `build:core` sin añadirlo antes a esa cadena ni sin declarar su lugar en ella. |
 | R-AR-5 | **Nada de artefactos compilados dentro de `src/`**: ejecutar `tsc` sin `-p packages/<x>/tsconfig.json` emite `.js`, `.d.ts` y `.map` junto al `.ts` y rompe el lint, porque el lint ignora `**/dist/**` pero **no** `src/*.js`. Si aparecen, se borran y se reconstruye con `npm run build -w <package>`. Prohibido versionar cualquier `.js`, `.d.ts` o `.map` bajo `apps/*/src/` o `packages/*/src/`. |

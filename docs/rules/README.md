@@ -17,7 +17,7 @@ conveniencia de un PR; cambian por decisión explícita y quedan registradas aqu
 rules/
 ├── README.md           ← este índice: áreas, estado, convenciones globales
 │
-├── architecture/       5 capas, monorepo, orden de build, naming (R-AR/R-NC)
+├── architecture/       capas hexagonales, monorepo, orden de build, naming (R-HX/R-AR/R-NC)
 ├── ai/                 DSL cerrado, Zod, anti-alucinación, modelos y prompts (R-AI)
 ├── ai-contributions/   cómo colabora un agente de IA al tocar el repo (R-AC)
 ├── security/           SSRF, allowlist, autenticación y credenciales (R-SE)
@@ -49,7 +49,7 @@ rules/
 
 | Área | Estado | Índice | Contenido |
 |---|---|---|---|
-| `architecture/` | ✅ activa | [`README.md`](./architecture/README.md) | Las 5 capas (interface→orquestación→inteligencia→ejecución→datos), separación API/worker, orden de build del monorepo, `dist/` y no `src/`, fallbacks en memoria, naming de archivos/clases/tablas/commits (`R-AR`/`R-NC`) |
+| `architecture/` | ✅ activa | [`README.md`](./architecture/README.md) | Modelo canónico hexagonal (`domain`/`application`/`infrastructure`/`shared` + `apps/*` como composition root), dirección de dependencia y aristas prohibidas, puertos/adaptadores, enforcement por lint y migración strangler (`R-HX`); vista histórica de las 5 capas, separación API/worker, orden de build del monorepo, `dist/` y no `src/`, fallbacks en memoria (`R-AR`); naming de archivos/clases/tablas/commits (`R-NC`) |
 | `ai/` | ✅ activa | [`README.md`](./ai/README.md) | El DSL de 15 comandos: Zod estricto, normalizador anti-alucinación, límites anti-escalada, presupuesto de tokens, allowlist no escalable, prompts, fallback de modelos OpenRouter, caché LLM, circuit breaker (`R-AI`) |
 | `ai-contributions/` | ✅ activa | [`README.md`](./ai-contributions/README.md) | Cómo colabora un agente de IA en el repo: lectura de contexto, tooling, commits atómicos, gates sin pases libres, PR como entregable, no refactors oportunistas (`R-AC`) |
 | `security/` | ✅ activa | [`README.md`](./security/README.md) | SSRF centralizado (`assertPublicUrl`/`assertSafeUrl`/`safeFetchText`), allowlist de dominios, `x-api-key` fail-closed, credenciales de sesión cifradas AES-256-GCM, CORS y cabeceras, rate limiting, `npm audit` (`R-SE`) |

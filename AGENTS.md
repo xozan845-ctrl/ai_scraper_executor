@@ -74,6 +74,13 @@ No commitear ni hacer push salvo que el usuario lo pida explícitamente.
 
 ## Arquitectura (dónde vive cada cosa)
 
+> **Objetivo (ADR-27/ADR-30): migración a arquitectura hexagonal** —
+> `apps/*` como composition root sobre `libs/{domain,application,infrastructure,shared}`.
+> Plan y mapeo: [`docs/migracion-arquitectura.md`](docs/migracion-arquitectura.md).
+> Reglas canónicas: [`docs/rules/architecture/03-arquitectura-hexagonal.md`](docs/rules/architecture/03-arquitectura-hexagonal.md)
+> (`R-HX-*`). **La migración aún no se ha ejecutado**: el código sigue en `packages/`.
+> En este paso, la entrega es **documentación y reglas**, no mover código.
+
 ```
 apps/api        NestJS: /jobs /radiography /sessions /metrics /dashboard /health (prefijo /api/v1)
 apps/worker     AgentRunner (planner + loop Observe→Think→Act + recovery), browser-engine, job-processor
@@ -112,6 +119,11 @@ packages/storage          JobStore (Prisma + InMemory)
    `docs/openapi.json`; el gate `G-8` (`openapi:check`) falla si no está en sync.
 10. **Migraciones**: si tocas `prisma/schema.prisma`, añade la migración en `prisma/migrations/`;
     `G-9` corre `prisma validate` + `migrate deploy` + `migrate diff --exit-code`.
+11. **Arquitectura hexagonal (R-HX)**: el destino es `libs/{domain,application,infrastructure,shared}`
+    (objetivo) con `apps/*` como composition root; hoy el código sigue en `packages/` (migración
+    strangler, ADR-30). `npm run lint` incluye `npm run boundaries:check`
+    (`scripts/check-boundaries.mjs`), que **falla** ante una arista prohibida de `R-HX-2`. No añadas
+    dependencias sin comprobar `npm audit` (0 vulnerabilidades, `R-QA-6`).
 
 ## Testing
 
