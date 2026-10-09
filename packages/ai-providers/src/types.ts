@@ -2,6 +2,9 @@
 export interface ProviderCallOpts {
   /** Precedencia: opts.model > context.model > modelo por defecto del proveedor. */
   model?: string;
+  signal?: AbortSignal;
+  maxTokens?: number;
+  timeoutMs?: number;
 }
 
 export interface ProviderStats {

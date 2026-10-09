@@ -56,6 +56,12 @@ describe('Seguridad centralizada ETAPA 2 (@ai-scraper/security)', async () => {
       'http://[fe80::1]/',
       'http://100.64.0.1/',
       'http://169.254.10.10/',
+      'http://192.0.2.1/',
+      'http://198.18.0.1/',
+      'http://203.0.113.1/',
+      'http://224.0.0.1/',
+      'http://[ff02::1]/',
+      'http://[2001:db8::1]/',
     ]) {
       assert.throws(() => sec.assertPublicUrl(u), /SSRF/, `debe bloquear ${u}`);
     }

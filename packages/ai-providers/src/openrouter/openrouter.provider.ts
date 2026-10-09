@@ -49,13 +49,13 @@ export class OpenRouterProvider {
     return [model, ...(this.config.fallbackModels ?? [])];
   }
 
-  private async chatWithFallback(system: string, userPayload: unknown, primaryModel: string): Promise<string> {
+  private async chatWithFallback(system: string, userPayload: unknown, primaryModel: string, opts?: ProviderCallOpts): Promise<string> {
     const models = this.getModelChain(primaryModel);
     let lastError: Error | null = null;
 
     for (const model of models) {
       try {
-        return await this.chat(system, userPayload, model);
+        return await this.chat(system, userPayload, model, opts);
       } catch (e) {
         lastError = e as Error;
         const msg = (e as Error).message;
@@ -71,7 +71,7 @@ export class OpenRouterProvider {
     throw lastError ?? new Error('Todos los modelos fallaron');
   }
 
-  private async chat(system: string, userPayload: unknown, model: string): Promise<string> {
+  private async chat(system: string, userPayload: unknown, model: string, opts?: ProviderCallOpts): Promise<string> {
     const baseUrl = this.config.baseUrl ?? 'https://openrouter.ai/api/v1';
     const result = await postChatCompletions({
       url: `${baseUrl.replace(/\/$/, '')}/chat/completions`,
@@ -79,11 +79,12 @@ export class OpenRouterProvider {
       apiKey: this.config.apiKey,
       model,
       temperature: this.config.temperature ?? 0.1,
-      maxTokens: this.config.maxTokens ?? 4000,
+      maxTokens: Math.max(1, Math.min(this.config.maxTokens ?? 4000, opts?.maxTokens ?? Infinity)),
       system,
       userPayload,
-      timeoutMs: this.config.timeoutMs ?? 60000,
+      timeoutMs: Math.max(1, Math.min(this.config.timeoutMs ?? 60000, opts?.timeoutMs ?? Infinity)),
       maxRetries: this.config.maxRetries ?? 2,
+      signal: opts?.signal,
     });
     this.lastStats = { latencyMs: result.latencyMs, tokens: result.tokens, model, provider: this.name };
     return result.content;
@@ -94,6 +95,7 @@ export class OpenRouterProvider {
       PLAN_SYSTEM_PROMPT,
       context,
       this.resolveModel(context as { model?: string }, opts),
+      opts,
     );
     return parseJsonResponse('OpenRouter', raw);
   }
@@ -103,6 +105,7 @@ export class OpenRouterProvider {
       ANALYZE_SYSTEM_PROMPT,
       context,
       this.resolveModel(context as { model?: string }, opts),
+      opts,
     );
     return [parseJsonResponse('OpenRouter', raw)];
   }
@@ -112,6 +115,7 @@ export class OpenRouterProvider {
       RECOVER_SYSTEM_PROMPT,
       context,
       this.resolveModel(context as { model?: string }, opts),
+      opts,
     );
     return [parseJsonResponse('OpenRouter', raw)];
   }
@@ -121,6 +125,7 @@ export class OpenRouterProvider {
       INTERPRET_SYSTEM_PROMPT,
       context,
       this.resolveModel(context as { model?: string }, opts),
+      opts,
     );
     return parseJsonResponse('OpenRouter', raw);
   }

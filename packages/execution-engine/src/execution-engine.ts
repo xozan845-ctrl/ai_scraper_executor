@@ -12,7 +12,7 @@ import * as cheerio from 'cheerio';
 import { createHash } from 'node:crypto';
 import type { ScrapingCommand as StrictCommand } from '@ai-scraper/commands';
 import { logger } from '@ai-scraper/observability';
-import { assertPublicUrl, safeFetchText } from '@ai-scraper/security';
+import { assertPublicUrl, isAllowedHost, safeFetchText } from '@ai-scraper/security';
 import { PageCache, normalizeUrlForDedupe } from './page-cache';
 
 /**
@@ -63,7 +63,7 @@ export interface BrowserResult {
   title?: string;
 }
 
-export type BrowserInteract = (url: string, action: BrowserAction) => Promise<BrowserResult>;
+export type BrowserInteract = (url: string, action: BrowserAction, signal?: AbortSignal) => Promise<BrowserResult>;
 
 export interface EngineMemory {
   visited: string[];
@@ -72,17 +72,43 @@ export interface EngineMemory {
   discoveredSelectors: string[];
 }
 
-type Fetcher = (url: string) => Promise<string>;
+type Fetcher = (url: string, signal?: AbortSignal) => Promise<string>;
+
+function abortable<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return promise;
+  if (signal.aborted) return Promise.reject(signal.reason);
+  return new Promise((resolve, reject) => {
+    const onAbort = () => reject(signal.reason);
+    signal.addEventListener('abort', onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener('abort', onAbort);
+        resolve(value);
+      },
+      (error) => {
+        signal.removeEventListener('abort', onAbort);
+        reject(error);
+      },
+    );
+  });
+}
 
 /** Seguridad §37 centralizada en @ai-scraper/security (ETAPA 2). */
 
-async function defaultFetchHtml(url: string, headers?: Record<string, string>): Promise<string> {
+async function defaultFetchHtml(
+  url: string,
+  opts?: { headers?: Record<string, string>; credentialOrigin?: string; allowedDomain?: string; signal?: AbortSignal },
+): Promise<string> {
   // SSRF: valida host + DNS en cada hop y sigo redirects a mano (sin auto-follow).
   const { html } = await safeFetchText(url, {
-    headers: { 'User-Agent': 'AI-Scraping-Executor/0.2 (+agnostic crawler)', ...(headers ?? {}) },
+    headers: opts?.headers,
+    publicHeaders: { 'User-Agent': 'AI-Scraping-Executor/0.2 (+agnostic crawler)' },
+    credentialOrigin: opts?.credentialOrigin,
+    allowedDomain: opts?.allowedDomain,
     timeoutMs: 20000,
     maxBytes: 2_000_000,
     maxRedirects: 5,
+    signal: opts?.signal,
   });
   return html;
 }
@@ -156,16 +182,36 @@ export class ExecutionEngine {
       pageCache?: EnginePageCache;
       /** Headers extra (credenciales de sesión: Authorization/Cookie). */
       headers?: Record<string, string>;
+      /** Dominio inmutable del job. Si se omite, se fija con el primer NAVIGATE. */
+      allowedDomain?: string;
+      /** Origin exacto autorizado para las cabeceras de sesión. */
+      credentialOrigin?: string;
+      /** Deadline/cancelación del job, propagado a HTTP, browser y fetchers. */
+      signal?: AbortSignal;
     },
   ) {
     this.pageCache = deps?.pageCache ?? new PageCache();
     const headers = deps?.headers;
     this.cacheScope = headers && Object.keys(headers).length > 0 ? credentialScope(headers) : undefined;
+    this.allowedDomain = deps?.allowedDomain?.toLowerCase();
+    this.credentialOrigin = deps?.credentialOrigin ? assertPublicUrl(deps.credentialOrigin).origin : undefined;
   }
 
   private readonly pageCache: EnginePageCache;
   /** Scope de credenciales para aislar la caché compartida (undefined = anónimo). */
   private readonly cacheScope: string | undefined;
+  private allowedDomain: string | undefined;
+  private credentialOrigin: string | undefined;
+
+  private assertUrlAllowed(url: string): URL {
+    const parsed = assertPublicUrl(url);
+    if (!this.allowedDomain) this.allowedDomain = parsed.hostname.toLowerCase();
+    if (!isAllowedHost(parsed.hostname, this.allowedDomain)) {
+      throw new Error(`URL fuera del dominio permitido (${this.allowedDomain}): ${url}`);
+    }
+    if (!this.credentialOrigin) this.credentialOrigin = parsed.origin;
+    return parsed;
+  }
 
   /** Clave de caché aislada por credenciales: el HTML autenticado no se filtra entre contextos. */
   private cacheKey(url: string): string {
@@ -187,6 +233,8 @@ export class ExecutionEngine {
   }
 
   private async fetchHtml(url: string): Promise<string> {
+    if (this.deps?.signal?.aborted) throw this.deps.signal.reason;
+    this.assertUrlAllowed(url);
     // Caché (memoria o Redis) aislada por scope de credenciales. Si falla
     // (Redis caído), se ignora sin romper el scraping.
     const key = this.cacheKey(url);
@@ -196,13 +244,23 @@ export class ExecutionEngine {
     } catch { /* cache miss/error → fetch */ }
     let html: string;
     if (this.deps?.fetcher) {
-      html = await this.deps.fetcher(url);
+      html = await abortable(this.deps.fetcher(url, this.deps.signal), this.deps.signal);
     } else if (this.deps?.crawlPage) {
       // Compat FASE 0: solo metadata, sin DOM → marcar y seguir con fetch real.
-      await this.deps.crawlPage(url);
-      html = await defaultFetchHtml(url, this.deps?.headers);
+      await abortable(this.deps.crawlPage(url), this.deps.signal);
+      html = await defaultFetchHtml(url, {
+        headers: this.deps?.headers,
+        credentialOrigin: this.credentialOrigin,
+        allowedDomain: this.allowedDomain,
+        signal: this.deps?.signal,
+      });
     } else {
-      html = await defaultFetchHtml(url, this.deps?.headers);
+      html = await defaultFetchHtml(url, {
+        headers: this.deps?.headers,
+        credentialOrigin: this.credentialOrigin,
+        allowedDomain: this.allowedDomain,
+        signal: this.deps?.signal,
+      });
     }
     try {
       await this.pageCache.set(key, html);
@@ -211,7 +269,7 @@ export class ExecutionEngine {
   }
 
   private async loadUrl(url: string): Promise<void> {
-    assertPublicUrl(url);
+    this.assertUrlAllowed(url);
     const html = await this.fetchHtml(url);
     this.$ = cheerio.load(html);
     this.currentUrl = url;
@@ -222,7 +280,7 @@ export class ExecutionEngine {
 
   /** Carga HTML ya obtenido (p.ej. tras interacción browser) sin refetch. */
   private loadHtml(url: string, html: string): void {
-    assertPublicUrl(url);
+    this.assertUrlAllowed(url);
     this.$ = cheerio.load(html);
     this.currentUrl = url;
     this.currentHtmlLength = html.length;
@@ -320,6 +378,11 @@ export class ExecutionEngine {
               },
             };
           }
+          obj._source = {
+            url: this.currentUrl,
+            selector: [...new Set(Object.values(cmd.fields).map((spec) => typeof spec === 'string' ? spec : spec.selector))].join(', ').slice(0, 500),
+            scrapedAt: new Date().toISOString(),
+          };
           this.memory.lastItems = 1;
           logger.debug('extract', { fields: Object.keys(cmd.fields), url: this.currentUrl });
           return { ok: true, commandType: 'EXTRACT', items: [obj], count: 1 };
@@ -371,10 +434,14 @@ export class ExecutionEngine {
           if (!cmd.selector || !cmd.attribute) {
             return { ok: false, commandType: 'GET_ATTRIBUTE', error: 'selector y attribute requeridos' };
           }
-          const vals: Array<string | null> = [];
+          const vals: Array<{ value: string | null; attribute: string; _source: { url: string | null; selector: string; scrapedAt: string } }> = [];
           $(cmd.selector).each((_, el) => {
             if (vals.length >= 100) return false;
-            vals.push($(el).attr(cmd.attribute!) ?? null);
+            vals.push({
+              value: $(el).attr(cmd.attribute!) ?? null,
+              attribute: cmd.attribute!,
+              _source: { url: this.currentUrl, selector: cmd.selector!, scrapedAt: new Date().toISOString() },
+            });
           });
           return { ok: true, commandType: 'GET_ATTRIBUTE', items: vals, count: vals.length };
         }
@@ -397,10 +464,11 @@ export class ExecutionEngine {
           // ETAPA 3: escalar a Chromium real cuando hay delegado.
           if (this.deps?.browserInteract && cmd.selector) {
             try {
-              const out = await this.deps.browserInteract(this.currentUrl!, { kind: 'click', selector: cmd.selector });
+              const out = await this.deps.browserInteract(this.currentUrl!, { kind: 'click', selector: cmd.selector }, this.deps.signal);
               this.loadHtml(out.url, out.html);
               return { ok: true, commandType: 'CLICK', usedBrowser: true, nextHint: out.title || out.url };
             } catch (e) {
+              if (this.deps?.signal?.aborted) throw this.deps.signal.reason;
               return { ok: false, commandType: 'CLICK', needsBrowser: true, error: `browser CLICK falló: ${(e as Error).message}` };
             }
           }
@@ -414,7 +482,18 @@ export class ExecutionEngine {
 
         case 'WAIT': {
           const ms = Math.min(Number(cmd.ms ?? 1000), 5000);
-          await new Promise((r) => setTimeout(r, ms));
+          await new Promise<void>((resolve, reject) => {
+            const onAbort = () => {
+              clearTimeout(timer);
+              reject(this.deps?.signal?.reason);
+            };
+            const timer = setTimeout(() => {
+              this.deps?.signal?.removeEventListener('abort', onAbort);
+              resolve();
+            }, ms);
+            if (this.deps?.signal?.aborted) onAbort();
+            else this.deps?.signal?.addEventListener('abort', onAbort, { once: true });
+          });
           logger.debug('wait', { ms });
           return { ok: true, commandType: 'WAIT', nextHint: `esperados ${ms}ms` };
         }
@@ -424,10 +503,11 @@ export class ExecutionEngine {
           // ETAPA 3: scroll real en Chromium (lazy-load / infinite-scroll).
           if (this.deps?.browserInteract && this.currentUrl) {
             try {
-              const out = await this.deps.browserInteract(this.currentUrl, { kind: 'scroll', selector: cmd.selector });
+              const out = await this.deps.browserInteract(this.currentUrl, { kind: 'scroll', selector: cmd.selector }, this.deps.signal);
               this.loadHtml(out.url, out.html);
               return { ok: true, commandType: 'SCROLL', usedBrowser: true, nextHint: `scroll browser (${out.html.length}b)` };
             } catch (e) {
+              if (this.deps?.signal?.aborted) throw this.deps.signal.reason;
               return { ok: false, commandType: 'SCROLL', needsBrowser: true, error: `browser SCROLL falló: ${(e as Error).message}` };
             }
           }
@@ -458,7 +538,12 @@ export class ExecutionEngine {
             seen.add(key);
             hrefs.push(abs);
           });
-          const visited: Array<{ url: string; title: string; htmlLength: number }> = [];
+          const visited: Array<{
+            url: string;
+            title: string;
+            htmlLength: number;
+            _source: { url: string; selector: string; scrapedAt: string };
+          }> = [];
           // ETAPA 3+6: no refetchear URLs ya visitadas; la caché evita refetch entre comandos.
           const seenVisited = new Set(this.memory.visited.map((v) => normalizeUrlForDedupe(v)));
           const pending = hrefs.filter((h) => !seenVisited.has(normalizeUrlForDedupe(h)));
@@ -470,10 +555,17 @@ export class ExecutionEngine {
                 url: href,
                 title: $$('title').first().text().trim().slice(0, 200),
                 htmlLength: html.length,
+                _source: { url: href, selector: cmd.selector, scrapedAt: new Date().toISOString() },
               });
               if (!this.memory.visited.includes(href)) this.memory.visited.push(href);
             } catch (e) {
-              visited.push({ url: href, title: `ERROR: ${(e as Error).message}`, htmlLength: 0 });
+              if (this.deps?.signal?.aborted) throw this.deps.signal.reason;
+              visited.push({
+                url: href,
+                title: `ERROR: ${(e as Error).message}`,
+                htmlLength: 0,
+                _source: { url: href, selector: cmd.selector, scrapedAt: new Date().toISOString() },
+              });
             }
           }
           return { ok: true, commandType: 'FOLLOW_LINKS', items: visited, count: visited.length };
@@ -542,6 +634,7 @@ export class ExecutionEngine {
           return { ok: false, commandType: cmd.type, error: `Comando no soportado: ${cmd.type}` };
       }
     } catch (e) {
+      if (this.deps?.signal?.aborted) throw this.deps.signal.reason;
       return { ok: false, commandType: cmd.type, error: (e as Error).message };
     }
   }

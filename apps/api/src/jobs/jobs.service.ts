@@ -116,7 +116,20 @@ export class JobsService {
       count: rows.length,
       items: rows.map((r) => {
         if (r.data && typeof r.data === 'object' && !Array.isArray(r.data)) {
-          return { ...(r.data as Record<string, unknown>), ...(r.sourceUrl ? { _source: { url: r.sourceUrl, selector: r.selector } } : {}) };
+          const data = r.data as Record<string, unknown>;
+          const existingSource = data._source && typeof data._source === 'object' && !Array.isArray(data._source)
+            ? data._source as Record<string, unknown>
+            : {};
+          return {
+            ...data,
+            ...(r.sourceUrl ? {
+              _source: {
+                ...existingSource,
+                url: r.sourceUrl,
+                selector: r.selector ?? existingSource.selector,
+              },
+            } : {}),
+          };
         }
         return r.data;
       }),

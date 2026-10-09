@@ -47,6 +47,22 @@ describe('ExecutionEngine FASE 2 (HTTP/Cheerio con fetcher mock)', async () => {
     assert.match(r.error, /Recovery/);
   });
 
+  it('todos los comandos que producen datos incluyen _source completo', async () => {
+    const engine = new ExecutionEngine({ fetcher });
+    await engine.execute({ type: 'NAVIGATE', url: 'https://tienda.com/productos' });
+    const single = await engine.execute({ type: 'EXTRACT', fields: { title: '.name' } });
+    const attrs = await engine.execute({ type: 'GET_ATTRIBUTE', selector: 'img', attribute: 'src' });
+    const followed = await engine.execute({ type: 'FOLLOW_LINKS', selector: 'a.next', maxLinks: 1 });
+    for (const result of [single, attrs, followed]) {
+      assert.equal(result.ok, true);
+      for (const item of result.items) {
+        assert.equal(typeof item._source.url, 'string');
+        assert.equal(typeof item._source.selector, 'string');
+        assert.match(item._source.scrapedAt, /^\d{4}-\d{2}-\d{2}T/);
+      }
+    }
+  });
+
   it('PAGINATE por pattern genera URLs y CLICK no-enlace pide browser', async () => {
     const engine = new ExecutionEngine({ fetcher });
     await engine.execute({ type: 'NAVIGATE', url: 'https://tienda.com/productos' });
@@ -66,5 +82,20 @@ describe('ExecutionEngine FASE 2 (HTTP/Cheerio con fetcher mock)', async () => {
     const r = await engine.execute({ type: 'NAVIGATE', url: 'http://127.0.0.1/admin' });
     assert.equal(r.ok, false);
     assert.match(r.error, /SSRF/);
+  });
+
+  it('mantiene la allowlist al navegar mediante un CLICK derivado del DOM', async () => {
+    const fetched = [];
+    const engine = new ExecutionEngine({
+      fetcher: async (url) => {
+        fetched.push(url);
+        return '<a id="escape" href="https://evil.example/secret">salir</a>';
+      },
+    });
+    await engine.execute({ type: 'NAVIGATE', url: 'https://shop.example/' });
+    const result = await engine.execute({ type: 'CLICK', selector: '#escape' });
+    assert.equal(result.ok, false);
+    assert.match(result.error, /dominio permitido/);
+    assert.deepEqual(fetched, ['https://shop.example/']);
   });
 });
