@@ -79,7 +79,7 @@ async function main() {
           try {
             const result = await processJob(jobId, { store, getCredentials });
             console.log(`[WORKER] ${jobId} ${result.status} (${result.items.length} items)`);
-            if (result.status === 'FAILED') throw new Error(result.error ?? 'job fallido');
+            if (result.status !== 'COMPLETED') throw new Error(result.error ?? `job ${result.status.toLowerCase()}`);
           } catch (e) {
             console.error(`[WORKER] ${jobId} error: ${(e as Error).message}`);
             throw e;
@@ -135,7 +135,7 @@ async function main() {
       `[JOB] ${job.id} ${result.status} :: ${result.steps.length} pasos, ` +
         `${result.items.length} items, recovery=${result.recoveryCount}, provider=${result.providerName}`,
     );
-    if (result.status === 'FAILED') process.exitCode = 1;
+    if (result.status !== 'COMPLETED') process.exitCode = 1;
     await shutdown('demo-complete');
     return;
   }

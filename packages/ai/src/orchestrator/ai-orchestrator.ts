@@ -16,6 +16,25 @@ export interface AICache {
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
 
+function abortable<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return promise;
+  if (signal.aborted) return Promise.reject(signal.reason);
+  return new Promise((resolve, reject) => {
+    const onAbort = () => reject(signal.reason);
+    signal.addEventListener('abort', onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener('abort', onAbort);
+        resolve(value);
+      },
+      (error) => {
+        signal.removeEventListener('abort', onAbort);
+        reject(error);
+      },
+    );
+  });
+}
+
 function djb2(s: string): string {
   let h = 5381;
   for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
@@ -32,6 +51,7 @@ function djb2(s: string): string {
 export class AIOrchestrator {
   private calls = 0;
   private cacheHits = 0;
+  private lastTokens = 0;
 
   constructor(
     private readonly provider: AIProvider,
@@ -56,12 +76,24 @@ export class AIOrchestrator {
     return this.provider.getLastStats?.() ?? null;
   }
 
+  /** Tokens cobrados por la última llamada real; un hit de caché devuelve 0. */
+  lastCallTokens(): number {
+    return this.lastTokens;
+  }
+
   private key(kind: string, ctx: unknown, model?: string): string {
     return `llm:${kind}:${model ?? 'default'}:${djb2(JSON.stringify(ctx))}`;
   }
 
-  private async cached<T>(kind: string, ctx: unknown, model: string | undefined, produce: () => Promise<T>): Promise<T> {
-    if (!this.cache) return produce();
+  private async cached<T>(kind: string, ctx: unknown, model: string | undefined, opts: AIProviderCallOpts | undefined, produce: () => Promise<T>): Promise<T> {
+    const run = async () => {
+      if (opts?.signal?.aborted) throw opts.signal.reason;
+      const result = await abortable(produce(), opts?.signal);
+      this.lastTokens = this.provider.getLastStats?.()?.tokens ?? 0;
+      return result;
+    };
+    this.lastTokens = 0;
+    if (!this.cache) return run();
     const key = this.key(kind, ctx, model);
     try {
       const hit = await this.cache.get<T>(key);
@@ -72,7 +104,7 @@ export class AIOrchestrator {
     } catch {
       /* cache error → llamar al proveedor */
     }
-    const result = await produce();
+    const result = await run();
     try {
       await this.cache.set(key, result, CACHE_TTL_MS);
     } catch {
@@ -83,21 +115,21 @@ export class AIOrchestrator {
 
   async createPlan(ctx: PlanningContext, opts?: AIProviderCallOpts) {
     this.calls += 1;
-    return this.cached('plan', ctx, opts?.model ?? ctx.model, () => this.provider.createPlan(ctx, opts));
+    return this.cached('plan', ctx, opts?.model ?? ctx.model, opts, () => this.provider.createPlan(ctx, opts));
   }
 
   async analyzePage(ctx: PageContext, opts?: AIProviderCallOpts) {
     this.calls += 1;
-    return this.cached('analyze', ctx, opts?.model ?? ctx.model, () => this.provider.analyzePage(ctx, opts));
+    return this.cached('analyze', ctx, opts?.model ?? ctx.model, opts, () => this.provider.analyzePage(ctx, opts));
   }
 
   async recover(ctx: RecoveryContext, opts?: AIProviderCallOpts) {
     this.calls += 1;
-    return this.cached('recover', ctx, opts?.model ?? ctx.model, () => this.provider.recover(ctx, opts));
+    return this.cached('recover', ctx, opts?.model ?? ctx.model, opts, () => this.provider.recover(ctx, opts));
   }
 
   async interpret(ctx: ResultContext, opts?: AIProviderCallOpts) {
     this.calls += 1;
-    return this.cached('interpret', ctx, opts?.model ?? ctx.model, () => this.provider.interpret(ctx, opts));
+    return this.cached('interpret', ctx, opts?.model ?? ctx.model, opts, () => this.provider.interpret(ctx, opts));
   }
 }

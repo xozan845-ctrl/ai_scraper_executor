@@ -206,12 +206,29 @@ describe('AgentRunner FASE 5 + Recovery FASE 6 (§47, §28)', async () => {
     // Fetch más lento que el deadline para que el job lo supere (maxRuntimeSec: 0
     // ya no es válido: la normalización lo convierte en el default del servidor).
     const slowFetcher = async () => {
-      await new Promise((r) => setTimeout(r, 1100));
+      await new Promise((r) => setTimeout(r, 2000));
       return SHOP_HTML;
     };
-    const res = await runner(fake, slowFetcher).run({ ...baseJob, limits: { maxRuntimeSec: 1 } });
-    assert.equal(res.status, 'FAILED');
+    const started = Date.now();
+    const res = await runner(fake, slowFetcher).run({ ...baseJob, useMemory: false, limits: { maxRuntimeSec: 1 } });
+    assert.equal(res.status, 'TIMEOUT');
     assert.match(res.error, /maxRuntimeSec/);
+    assert.ok(Date.now() - started < 1300, 'el fetch se aborta al vencer el deadline');
+  });
+
+  it('maxRuntimeSec aborta una llamada LLM que no responde', async () => {
+    const hanging = {
+      name: 'fake-hanging',
+      createPlan: async () => new Promise(() => {}),
+      analyzePage: async () => [],
+      recover: async () => [],
+      interpret: async (c) => c.rawItems,
+    };
+    const { fetcher } = makeFetcher();
+    const started = Date.now();
+    const res = await runner(hanging, fetcher).run({ ...baseJob, useMemory: false, limits: { maxRuntimeSec: 1 } });
+    assert.equal(res.status, 'TIMEOUT');
+    assert.ok(Date.now() - started < 1300, 'la llamada LLM debe dejar de bloquear al vencer el deadline');
   });
 
   it('si ya hay items, un paso posterior que falla devuelve COMPLETED (parcial)', async () => {
@@ -235,11 +252,12 @@ describe('AgentRunner FASE 5 + Recovery FASE 6 (§47, §28)', async () => {
 
   it('maxAiTokens corta la ejecución al superar el presupuesto', async () => {
     // Fake que reporta tokens altos por llamada.
-    const calls = { createPlan: 0 };
+    const calls = { createPlan: 0, opts: null };
     const tokenFake = {
       name: 'fake-llm',
-      async createPlan() {
+      async createPlan(_context, opts) {
         calls.createPlan += 1;
+        calls.opts = opts;
         return { version: '1.0', actions: [{ type: 'NAVIGATE', url: baseJob.url }] };
       },
       async analyzePage() {
@@ -257,6 +275,7 @@ describe('AgentRunner FASE 5 + Recovery FASE 6 (§47, §28)', async () => {
     const res = await runner(tokenFake, fetcher).run({ ...baseJob, limits: { maxAiTokens: 50 } });
     assert.equal(res.status, 'FAILED');
     assert.match(res.error, /Presupuesto IA/);
+    assert.equal(calls.opts.maxTokens, 50, 'el proveedor recibe solo el presupuesto restante');
   });
 
   it('recovery: selector fallido → alternativa del LLM → éxito con recoveryCount=1', async () => {

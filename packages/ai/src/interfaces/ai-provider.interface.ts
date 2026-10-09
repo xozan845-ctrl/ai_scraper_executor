@@ -7,6 +7,12 @@
 export interface AIProviderCallOpts {
   /** Modelo a usar en esta llamada. Precedencia: opts.model > context.model > proveedor por defecto. */
   model?: string;
+  /** Cancela la llamada cuando vence el job o el cliente aborta. */
+  signal?: AbortSignal;
+  /** Tope de tokens de salida para esta llamada. */
+  maxTokens?: number;
+  /** Timeout de esta llamada, siempre acotado por el deadline global. */
+  timeoutMs?: number;
 }
 
 /** Stats por llamada para métricas §56 (ai_tokens, ai_latency). */

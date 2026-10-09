@@ -12,7 +12,7 @@
  * - FASE 12: consulta perfil aprendido (MongoDB) para selectores y needsBrowser;
  *   registra resultado del job para mejorar perfiles futuros.
  */
-import { AIOrchestrator } from '@ai-scraper/ai';
+import { AIOrchestrator, type AIProviderCallOpts } from '@ai-scraper/ai';
 import { CommandValidator, normalizeRawCommand, clampCommandLimits } from '@ai-scraper/commands';
 import { normalizeJobLimits } from '@ai-scraper/core';
 import { ExecutionEngine } from '@ai-scraper/execution-engine';
@@ -51,7 +51,7 @@ export interface AgentStep {
 }
 
 export interface AgentResult {
-  status: 'COMPLETED' | 'FAILED';
+  status: 'COMPLETED' | 'FAILED' | 'TIMEOUT' | 'CANCELLED';
   items: unknown[];
   steps: AgentStep[];
   recoveryCount: number;
@@ -73,16 +73,36 @@ export interface RunnerDeps {
    * aprendido (FASE 12) para que el llamador decida si arma browser; la decisión de
    * capacidades vive en la factory, no mutando instancias.
    */
-  createEngine?: (hint: { needsBrowser: boolean }) => ExecutionEngine;
+  createEngine?: (hint: { needsBrowser: boolean; allowedDomain: string; credentialOrigin: string; signal: AbortSignal }) => ExecutionEngine;
   maxSteps?: number;
   maxRecoveryAttempts?: number;
   /** Callback para abortar si el job fue cancelado (chequeo entre pasos). */
   isCancelled?: () => Promise<boolean>;
+  /** Señal externa que puede acortar todavía más el deadline del runner. */
+  signal?: AbortSignal;
 }
 
 const DATA_COMMANDS = new Set(['EXTRACT', 'EXTRACT_LIST', 'FOLLOW_LINKS', 'GET_ATTRIBUTE']);
 const MAX_CONTEXT_LINKS = 40;
 const MAX_CONTEXT_ELEMENTS = 40;
+
+function abortable<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) return Promise.reject(signal.reason);
+  return new Promise((resolve, reject) => {
+    const onAbort = () => reject(signal.reason);
+    signal.addEventListener('abort', onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener('abort', onAbort);
+        resolve(value);
+      },
+      (error) => {
+        signal.removeEventListener('abort', onAbort);
+        reject(error);
+      },
+    );
+  });
+}
 
 export class AgentRunner {
   private readonly maxSteps: number;
@@ -94,6 +114,30 @@ export class AgentRunner {
   }
 
   async run(job: AgentJob): Promise<AgentResult> {
+    const limits = normalizeJobLimits(job.limits);
+    const deadline = Date.now() + limits.maxRuntimeSec * 1000;
+    const controller = new AbortController();
+    const timer = setTimeout(
+      () => controller.abort(new DOMException(`maxRuntimeSec (${limits.maxRuntimeSec}s) alcanzado`, 'TimeoutError')),
+      limits.maxRuntimeSec * 1000,
+    );
+    const onExternalAbort = () => controller.abort(this.deps.signal?.reason);
+    if (this.deps.signal?.aborted) onExternalAbort();
+    else this.deps.signal?.addEventListener('abort', onExternalAbort, { once: true });
+    try {
+      return await this.runInternal(job, limits, deadline, controller.signal);
+    } finally {
+      clearTimeout(timer);
+      this.deps.signal?.removeEventListener('abort', onExternalAbort);
+    }
+  }
+
+  private async runInternal(
+    job: AgentJob,
+    limits: ReturnType<typeof normalizeJobLimits>,
+    deadline: number,
+    deadlineSignal: AbortSignal,
+  ): Promise<AgentResult> {
     debugLog('=== INICIO AGENT RUNNER ===', { jobId: job.id, url: job.url, instruction: job.instruction, useMemory: job.useMemory !== false });
     const base: Omit<AgentResult, 'status'> = {
       items: [],
@@ -112,27 +156,38 @@ export class AgentRunner {
       return { ...base, status: 'FAILED', error: `URL inicial inválida: ${job.url}` };
     }
 
-    const limits = normalizeJobLimits(job.limits);
     const validator = new CommandValidator({
       allowedDomain: domain,
       maxDepth: limits.maxDepth,
       maxPages: limits.maxPages,
     });
     // Deadline global del job (§35): acota el runtime total aunque maxSteps no se alcance.
-    const deadline = Date.now() + limits.maxRuntimeSec * 1000;
-    const pastDeadline = () => Date.now() > deadline;
+    const pastDeadline = () => deadlineSignal.aborted || Date.now() > deadline;
     const checkCancel = this.deps.isCancelled ?? (async () => false);
     // Presupuesto de tokens IA por job (0/undefined = sin límite).
-    const aiBudget = limits.maxAiTokens && limits.maxAiTokens > 0 ? limits.maxAiTokens : Infinity;
+    const aiBudget = limits.maxAiTokens;
     let aiTokens = 0;
-    const addTokens = () => { aiTokens += this.deps.orchestrator.lastStats()?.tokens ?? 0; };
+    const addTokens = () => { aiTokens += this.deps.orchestrator.lastCallTokens(); };
     const overBudget = () => aiTokens >= aiBudget;
+    const aiCallOpts = (): AIProviderCallOpts => ({
+      ...(job.ai?.model ? { model: job.ai.model } : {}),
+      signal: deadlineSignal,
+      maxTokens: Math.max(1, aiBudget - aiTokens),
+      timeoutMs: Math.max(1, deadline - Date.now()),
+    });
 
     // FASE 12: obtener perfil aprendido para decisiones inteligentes
     let learnedProfile = null;
     if (job.useMemory !== false) {
       debugLog('Obteniendo perfil aprendido...', { url: job.url });
-      learnedProfile = await getLearnedProfile(job.url);
+      try {
+        learnedProfile = await abortable(getLearnedProfile(job.url), deadlineSignal);
+      } catch (error) {
+        if (deadlineSignal.aborted) {
+          return { ...base, status: 'TIMEOUT', error: `maxRuntimeSec (${limits.maxRuntimeSec}s) alcanzado al consultar memoria` };
+        }
+        throw error;
+      }
       debugLog('Perfil aprendido', { 
         profile: learnedProfile?.profile ? { id: learnedProfile.profile.id, domain: learnedProfile.profile.domain } : null,
         shouldUseBrowser: learnedProfile?.shouldUseBrowser,
@@ -145,9 +200,13 @@ export class AgentRunner {
     // plano devuelve needsBrowser en CLICK/SCROLL (§34); antes se mutaba la instancia
     // con Object.assign, frágil e incorrecto (borraba estado/deps).
     const engine = this.deps.createEngine
-      ? this.deps.createEngine({ needsBrowser: learnedProfile?.shouldUseBrowser ?? false })
-      : new ExecutionEngine();
-    const modelOpts = job.ai?.model ? { model: job.ai.model } : undefined;
+      ? this.deps.createEngine({
+          needsBrowser: learnedProfile?.shouldUseBrowser ?? false,
+          allowedDomain: domain,
+          credentialOrigin: new URL(job.url).origin,
+          signal: deadlineSignal,
+        })
+      : new ExecutionEngine({ allowedDomain: domain, credentialOrigin: new URL(job.url).origin, signal: deadlineSignal });
     let planActions: PlanAction[];
     const visited = () => [...engine.getMemory().visited];
 
@@ -176,6 +235,7 @@ export class AgentRunner {
 
     /** Helper para registrar resultado en MongoDB (creando perfil si hace falta). */
     const recordResult = async (success: boolean, itemCount: number) => {
+      if (deadlineSignal.aborted) return;
       const profileId = await resolveProfileId();
       if (!profileId) return;
       debugLog('Registrando resultado en MongoDB', { success, itemCount, profileId });
@@ -193,9 +253,9 @@ export class AgentRunner {
       const depth = engine.getMemory().visited.length;
       debugLog('OBSERVE', { url, depth });
       try {
-        const page = await engine.execute({ type: 'INSPECT_PAGE' } as never);
-        const linksRes = await engine.execute({ type: 'INSPECT_LINKS' } as never);
-        const elsRes = await engine.execute({ type: 'INSPECT_ELEMENTS' } as never);
+        const page = await abortable(engine.execute({ type: 'INSPECT_PAGE' } as never), deadlineSignal);
+        const linksRes = await abortable(engine.execute({ type: 'INSPECT_LINKS' } as never), deadlineSignal);
+        const elsRes = await abortable(engine.execute({ type: 'INSPECT_ELEMENTS' } as never), deadlineSignal);
         const data = (page.data as { title?: string }) ?? {};
         const links = ((linksRes.items as Array<{ text: string; href: string }>) ?? []).slice(0, MAX_CONTEXT_LINKS);
         const elements = ((elsRes.items as Array<{ type: string; selector: string; text: string }>) ?? []).slice(
@@ -205,6 +265,7 @@ export class AgentRunner {
         debugLog('OBSERVE RESULT', { url, title: data.title, linksCount: links.length, elementsCount: elements.length, depth });
         return { url, title: data.title ?? '', links, elements, depth };
       } catch (e) {
+        if (deadlineSignal.aborted) throw e;
         debugError('OBSERVE ERROR', e);
         return { url, title: '', links: [], elements: [], depth };
       }
@@ -222,11 +283,12 @@ export class AgentRunner {
         try {
           alternatives = await this.deps.orchestrator.recover(
             { ...ctx, instruction: job.instruction, failedCommand, error, ...(job.ai?.model ? { model: job.ai.model } : {}) },
-            modelOpts,
+            aiCallOpts(),
           );
           addTokens();
           debugLog('RECOVERY LLM RESPONSE', { attempt, alternatives });
         } catch (e) {
+          if (deadlineSignal.aborted) return null;
           error = `recovery LLM falló (intento ${attempt}): ${(e as Error).message}`;
           debugError('RECOVERY LLM ERROR', { attempt, error });
           continue;
@@ -244,7 +306,7 @@ export class AgentRunner {
           clampCommandLimits(normalizedRec, { maxPages: limits.maxPages, maxItems: limits.maxItems });
           const valid = validator.validateCommand(normalizedRec) as unknown as PlanAction;
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const res = await engine.execute(valid as any);
+          const res = await abortable(engine.execute(valid as any), deadlineSignal);
           if (res.ok) {
             recoveryCount += 1;
             if (res.needsBrowser || res.usedBrowser) browserEscalationSuggested = true;
@@ -282,8 +344,16 @@ export class AgentRunner {
         }
         return { n, command: raw, ok: false, error: `${err} (recovery agotado)` };
       }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const res = await engine.execute(command as any);
+      let res;
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        res = await abortable(engine.execute(command as any), deadlineSignal);
+      } catch (error) {
+        if (deadlineSignal.aborted) {
+          return { n, command, ok: false, error: `maxRuntimeSec (${limits.maxRuntimeSec}s) alcanzado` };
+        }
+        throw error;
+      }
       debugLog('ENGINE EXEC RESULT', { step: n, command: command.type, ok: res.ok, count: res.count, error: res.error, needsBrowser: res.needsBrowser, usedBrowser: res.usedBrowser });
       if (res.needsBrowser || res.usedBrowser) browserEscalationSuggested = true;
       if (res.ok) {
@@ -311,7 +381,7 @@ export class AgentRunner {
     debugLog('=== FASE A: PLANIFICACIÓN ===');
     let plan: PlanAction[];
     try {
-      const generated = await generatePlan(job, { orchestrator: this.deps.orchestrator });
+      const generated = await generatePlan(job, { orchestrator: this.deps.orchestrator, callOpts: aiCallOpts() });
       plan = generated.actions;
       planActions = generated.actions;
       base.providerName = generated.providerName;
@@ -321,6 +391,9 @@ export class AgentRunner {
     } catch (e) {
       await recordResult(false, 0);
       debugError('PLAN GENERATION FAILED', e);
+      if (deadlineSignal.aborted) {
+        return { ...base, status: 'TIMEOUT', error: `maxRuntimeSec (${limits.maxRuntimeSec}s) alcanzado durante la planificación` };
+      }
       return { ...base, status: 'FAILED', error: `No se pudo generar el plan: ${(e as Error).message}` };
     }
 
@@ -331,16 +404,14 @@ export class AgentRunner {
         debugWarn('MAX RUNTIME REACHED (Fase A)', { maxRuntimeSec: limits.maxRuntimeSec, items: items.length });
         return {
           ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(),
-          status: items.length > 0 ? 'COMPLETED' : 'FAILED',
-          ...(items.length > 0
-            ? { note: `maxRuntimeSec (${limits.maxRuntimeSec}s) alcanzado con ${items.length} items` }
-            : { error: `maxRuntimeSec (${limits.maxRuntimeSec}s) alcanzado sin items` }),
+          status: 'TIMEOUT',
+          error: `maxRuntimeSec (${limits.maxRuntimeSec}s) alcanzado con ${items.length} items`,
         };
       }
       if (await checkCancel()) {
         await recordResult(items.length > 0, items.length);
         debugWarn('JOB CANCELLED (Fase A)', { items: items.length });
-        return { ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(), status: 'FAILED', error: 'Job cancelado durante la ejecución' };
+        return { ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(), status: 'CANCELLED', error: 'Job cancelado durante la ejecución' };
       }
       if (overBudget()) {
         await recordResult(items.length > 0, items.length);
@@ -356,6 +427,13 @@ export class AgentRunner {
       debugLog('EXECUTING PLAN ACTION', { action: action.type, step: steps.length + 1 });
       const step = await attemptStep(action as Record<string, unknown>);
       steps.push(step);
+      if (deadlineSignal.aborted) {
+        await recordResult(items.length > 0, items.length);
+        return {
+          ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(),
+          status: 'TIMEOUT', error: `maxRuntimeSec (${limits.maxRuntimeSec}s) alcanzado durante ${String(action.type)}`,
+        };
+      }
       if (!step.ok) {
         // Si ya extrajimos items, un paso posterior que falla no debe tirar los resultados.
         const partial = items.length > 0;
@@ -397,16 +475,14 @@ export class AgentRunner {
         debugWarn('MAX RUNTIME REACHED (Fase B)', { maxRuntimeSec: limits.maxRuntimeSec, items: items.length });
         return {
           ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(),
-          status: items.length > 0 ? 'COMPLETED' : 'FAILED',
-          ...(items.length > 0
-            ? { note: `maxRuntimeSec (${limits.maxRuntimeSec}s) alcanzado con ${items.length} items` }
-            : { error: `maxRuntimeSec (${limits.maxRuntimeSec}s) alcanzado sin items` }),
+          status: 'TIMEOUT',
+          error: `maxRuntimeSec (${limits.maxRuntimeSec}s) alcanzado con ${items.length} items`,
         };
       }
       if (await checkCancel()) {
         await recordResult(items.length > 0, items.length);
         debugWarn('JOB CANCELLED (Fase B)', { items: items.length });
-        return { ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(), status: 'FAILED', error: 'Job cancelado durante la ejecución' };
+        return { ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(), status: 'CANCELLED', error: 'Job cancelado durante la ejecución' };
       }
       if (overBudget()) {
         await recordResult(items.length > 0, items.length);
@@ -425,13 +501,19 @@ export class AgentRunner {
       try {
         decisions = await this.deps.orchestrator.analyzePage(
           { ...ctx, instruction: job.instruction, ...(job.ai?.model ? { model: job.ai.model } : {}) },
-          modelOpts,
+          aiCallOpts(),
         );
         addTokens();
         debugLog('ANALYZE PAGE DECISIONS', { decisionsCount: Array.isArray(decisions) ? decisions.length : 1, decisions });
       } catch (e) {
         await recordResult(items.length > 0, items.length);
         debugError('ANALYZE PAGE FAILED', e);
+        if (deadlineSignal.aborted) {
+          return {
+            ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(),
+            status: 'TIMEOUT', error: `maxRuntimeSec (${limits.maxRuntimeSec}s) alcanzado durante analyzePage`,
+          };
+        }
         return {
           ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(),
           status: items.length > 0 ? 'COMPLETED' : 'FAILED',
@@ -455,6 +537,13 @@ export class AgentRunner {
       }
       const step = await attemptStep(decision);
       steps.push(step);
+      if (deadlineSignal.aborted) {
+        await recordResult(items.length > 0, items.length);
+        return {
+          ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(),
+          status: 'TIMEOUT', error: `maxRuntimeSec (${limits.maxRuntimeSec}s) alcanzado durante ${String(decision.type)}`,
+        };
+      }
       if (!step.ok) {
         const partial = items.length > 0;
         await recordResult(partial, items.length);

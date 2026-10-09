@@ -216,6 +216,12 @@ describe('processJob del worker (FASE 7)', async () => {
     const results = await store.getResults(job.id);
     assert.equal(results.length, 1);
     assert.equal(results[0].sourceUrl, 'https://tienda.com/p');
+    assert.match(results[0].data._source.scrapedAt, /^\d{4}-\d{2}-\d{2}T/);
+
+    const { JobsService } = await import('../apps/api/dist/jobs/jobs.service.js');
+    const { InMemoryJobQueue } = await import('../packages/queue/dist/memory-queue.js');
+    const apiResults = await new JobsService(store, new InMemoryJobQueue()).results(job.id);
+    assert.match(apiResults.items[0]._source.scrapedAt, /^\d{4}-\d{2}-\d{2}T/);
   });
 
   it('job inexistente lanza; CANCELLED no se procesa', async () => {
@@ -224,7 +230,7 @@ describe('processJob del worker (FASE 7)', async () => {
     const job = await store.createJob({ url: 'https://t.com', instruction: 'x' });
     await store.updateStatus(job.id, 'CANCELLED');
     const res = await processJob(job.id, { store });
-    assert.equal(res.status, 'FAILED');
+    assert.equal(res.status, 'CANCELLED');
     assert.match(res.error, /cancelado/);
   });
 

@@ -42,18 +42,19 @@ export class CustomEndpointProvider {
     return opts?.model ?? context.model ?? this.config.model;
   }
 
-  private async chat(system: string, userPayload: unknown, model: string): Promise<string> {
+  private async chat(system: string, userPayload: unknown, model: string, opts?: ProviderCallOpts): Promise<string> {
     const result = await postChatCompletions({
       url: this.config.endpoint,
       label: 'CustomEndpoint',
       apiKey: this.config.apiKey,
       model,
       temperature: this.config.temperature ?? 0.1,
-      maxTokens: this.config.maxTokens ?? 4000,
+      maxTokens: Math.max(1, Math.min(this.config.maxTokens ?? 4000, opts?.maxTokens ?? Infinity)),
       system,
       userPayload,
-      timeoutMs: this.config.timeoutMs ?? 60000,
+      timeoutMs: Math.max(1, Math.min(this.config.timeoutMs ?? 60000, opts?.timeoutMs ?? Infinity)),
       maxRetries: this.config.maxRetries ?? 2,
+      signal: opts?.signal,
     });
     this.lastStats = { latencyMs: result.latencyMs, tokens: result.tokens, model, provider: this.name };
     return result.content;
@@ -64,6 +65,7 @@ export class CustomEndpointProvider {
       PLAN_SYSTEM_PROMPT,
       context,
       this.resolveModel(context as { model?: string }, opts),
+      opts,
     );
     return parseJsonResponse('CustomEndpoint', raw);
   }
@@ -73,6 +75,7 @@ export class CustomEndpointProvider {
       ANALYZE_SYSTEM_PROMPT,
       context,
       this.resolveModel(context as { model?: string }, opts),
+      opts,
     );
     return [parseJsonResponse('CustomEndpoint', raw)];
   }
@@ -82,6 +85,7 @@ export class CustomEndpointProvider {
       RECOVER_SYSTEM_PROMPT,
       context,
       this.resolveModel(context as { model?: string }, opts),
+      opts,
     );
     return [parseJsonResponse('CustomEndpoint', raw)];
   }
@@ -91,6 +95,7 @@ export class CustomEndpointProvider {
       INTERPRET_SYSTEM_PROMPT,
       context,
       this.resolveModel(context as { model?: string }, opts),
+      opts,
     );
     return parseJsonResponse('CustomEndpoint', raw);
   }

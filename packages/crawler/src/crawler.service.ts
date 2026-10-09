@@ -9,7 +9,7 @@
  */
 import { CheerioCrawler, PlaywrightCrawler, RequestQueue } from 'crawlee';
 import { hashHtml } from '@ai-scraper/core';
-import { assertSafeUrl, isBlockedHost, isPrivateHostsAllowed } from '@ai-scraper/security';
+import { assertSafeUrl, createAllowlist, isAllowedHost, isBlockedHost, isPrivateHostsAllowed, safeDnsLookup } from '@ai-scraper/security';
 import { BrowserPool, Semaphore } from './pool';
 
 export { hashHtml };
@@ -133,17 +133,33 @@ async function isBlockedTarget(rawUrl: string, cache: Map<string, boolean>): Pro
  * privados/metadata, incluidos redirects y subrecursos (§37).
  */
 interface NavigationRoute {
-  request(): { url(): string };
+  request(): {
+    url(): string;
+    headers?(): Record<string, string>;
+    isNavigationRequest?(): boolean;
+  };
   abort(reason: string): unknown;
-  continue(): unknown;
+  continue(options?: { headers?: Record<string, string> }): unknown;
 }
 interface NavigationPage {
   route(pattern: string, handler: (route: NavigationRoute) => Promise<unknown>): Promise<unknown>;
 }
-export async function installNavigationGuard(page: NavigationPage): Promise<void> {
+export async function installNavigationGuard(
+  page: NavigationPage,
+  opts?: { allowedDomain?: string; credentialOrigin?: string; headers?: Record<string, string> },
+): Promise<void> {
   const cache = new Map<string, boolean>();
   await page.route('**/*', async (route: NavigationRoute) => {
-    if (await isBlockedTarget(route.request().url(), cache)) return route.abort('blockedbyclient');
+    const request = route.request();
+    const rawUrl = request.url();
+    if (await isBlockedTarget(rawUrl, cache)) return route.abort('blockedbyclient');
+    const parsed = new URL(rawUrl);
+    if (opts?.allowedDomain && request.isNavigationRequest?.() !== false && !isAllowedHost(parsed.hostname, opts.allowedDomain)) {
+      return route.abort('blockedbyclient');
+    }
+    if (opts?.headers && opts.credentialOrigin && parsed.origin === opts.credentialOrigin) {
+      return route.continue({ headers: { ...(request.headers?.() ?? {}), ...opts.headers } });
+    }
     return route.continue();
   });
 }
@@ -293,15 +309,22 @@ export class CrawlerService {
    * El ExecutionEngine delega aquí CLICK no-enlace y SCROLL. Reutiliza el
    * navegador del pool (no lanza uno por acción) y acota la concurrencia.
    */
-  async interact(url: string, action: BrowserAction, headers?: Record<string, string>): Promise<BrowserResult> {
+  async interact(
+    url: string,
+    action: BrowserAction,
+    opts?: { headers?: Record<string, string>; allowedDomain?: string; credentialOrigin?: string; signal?: AbortSignal },
+  ): Promise<BrowserResult> {
+    if (opts?.signal?.aborted) throw opts.signal.reason;
     await assertSafeUrl(url);
     const release = await this.browserSemaphore.acquire();
     let context: Awaited<ReturnType<Awaited<ReturnType<BrowserPool['acquire']>>['newContext']>> | null = null;
     try {
       const browser = await this.pool.acquire();
-      context = await browser.newContext(headers ? { extraHTTPHeaders: headers } : {});
+      context = await browser.newContext();
+      const onAbort = () => void context?.close().catch(() => undefined);
+      opts?.signal?.addEventListener('abort', onAbort, { once: true });
       const page = await context.newPage();
-      await installNavigationGuard(page);
+      await installNavigationGuard(page, opts);
       await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
       if (action.kind === 'click' && action.selector) {
         await page.click(action.selector, { timeout: 10000 });
@@ -314,6 +337,7 @@ export class CrawlerService {
       }
       const html = await page.content().catch(() => '');
       const title = (await page.title().catch(() => ''))?.slice(0, 200) ?? '';
+      opts?.signal?.removeEventListener('abort', onAbort);
       return { html, url: page.url(), title };
     } finally {
       if (context) await context.close().catch(() => undefined);
@@ -342,17 +366,53 @@ export class CrawlerService {
     const pages: CrawledPage[] = [];
     let failed = 0;
     const maxDepth = input.maxDepth ?? 1;
+    const allowlist = createAllowlist(input.url);
+    const credentialOrigin = new URL(input.url).origin;
+    const credentialKeys = new Set(Object.keys(input.headers ?? {}).map((key) => key.toLowerCase()));
     const requestQueue = await freshQueue();
     const crawler = new CheerioCrawler({
       requestQueue,
       maxRequestsPerCrawl: input.maxRequests ?? 20,
+      maxCrawlDepth: maxDepth,
       maxConcurrency: input.maxConcurrency ?? Number(process.env.CRAWLEE_MAX_CONCURRENCY ?? 5),
       maxRequestsPerMinute: input.maxRequestsPerMinute ?? envRequestsPerMinute(),
       maxRequestRetries: input.maxRetries ?? 3,
       requestHandlerTimeoutSecs: input.requestTimeoutSecs ?? 30,
-      ...(input.headers ? { additionalHttpHeaders: input.headers } : {}),
       useSessionPool: true,
       sessionPoolOptions: { maxPoolSize: 20 },
+      preNavigationHooks: [
+        async ({ request }, gotOptions) => {
+          await assertSafeUrl(request.url);
+          allowlist.assert(request.url);
+          gotOptions.dnsLookup = safeDnsLookup;
+          const requestOrigin = new URL(request.url).origin;
+          if (input.headers && requestOrigin === credentialOrigin) {
+            gotOptions.headers = { ...(gotOptions.headers ?? {}), ...input.headers };
+          }
+          const beforeRedirect = gotOptions.hooks?.beforeRedirect ?? [];
+          gotOptions.hooks = {
+            ...(gotOptions.hooks ?? {}),
+            beforeRedirect: [
+              ...beforeRedirect,
+              async (updatedOptions: {
+                url: URL;
+                dnsLookup?: typeof safeDnsLookup;
+                headers: Record<string, string | string[] | undefined>;
+              }) => {
+                const redirectUrl = updatedOptions.url.toString();
+                await assertSafeUrl(redirectUrl);
+                allowlist.assert(redirectUrl);
+                updatedOptions.dnsLookup = safeDnsLookup;
+                if (updatedOptions.url.origin !== credentialOrigin) {
+                  for (const key of Object.keys(updatedOptions.headers)) {
+                    if (credentialKeys.has(key.toLowerCase())) delete updatedOptions.headers[key];
+                  }
+                }
+              },
+            ],
+          };
+        },
+      ],
       async requestHandler({ request, $, enqueueLinks, log }) {
         const title = $('title').first().text().trim().slice(0, 200);
         const html = $.html() ?? '';
@@ -373,7 +433,7 @@ export class CrawlerService {
         log.info(`[HTTP] ${request.url} (${html.length}b, ${links.length} links, ${elements.length} els)`);
         if (maxDepth > 0) {
           await enqueueLinks({
-            strategy: input.sameDomainOnly === false ? 'all' : 'same-domain',
+            strategy: 'same-domain',
           });
         }
       },
@@ -389,11 +449,14 @@ export class CrawlerService {
   private async crawlWithBrowser(input: CrawlInput): Promise<CrawledPage[]> {
     const pages: CrawledPage[] = [];
     const maxDepth = input.maxDepth ?? 1;
+    const allowedDomain = new URL(input.url).hostname;
+    const credentialOrigin = new URL(input.url).origin;
     const requestQueue = await freshQueue();
     const crawler = new PlaywrightCrawler({
       requestQueue,
       headless: process.env.CRAWLEE_HEADLESS !== 'false',
       maxRequestsPerCrawl: input.maxRequests ?? 20,
+      maxCrawlDepth: maxDepth,
       maxConcurrency: Math.min(input.maxConcurrency ?? 3, 5),
       maxRequestsPerMinute: input.maxRequestsPerMinute ?? envRequestsPerMinute(),
       maxRequestRetries: input.maxRetries ?? 2,
@@ -402,10 +465,7 @@ export class CrawlerService {
       preNavigationHooks: [
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         async ({ page }: any) => {
-          if (input.headers) {
-            await page.setExtraHTTPHeaders(input.headers as Record<string, string>).catch(() => undefined);
-          }
-          await installNavigationGuard(page);
+          await installNavigationGuard(page, { allowedDomain, credentialOrigin, headers: input.headers });
         },
       ],
       useSessionPool: true,
@@ -474,7 +534,7 @@ export class CrawlerService {
         log.info(`[BROWSER] ${request.url} (${html.length}b)`);
         if (maxDepth > 0) {
           await enqueueLinks({
-            strategy: input.sameDomainOnly === false ? 'all' : 'same-domain',
+            strategy: 'same-domain',
           });
         }
       },

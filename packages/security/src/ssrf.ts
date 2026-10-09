@@ -4,6 +4,8 @@
  * Bypass local solo con ALLOW_PRIVATE_HOSTS=1 y NUNCA en producción.
  */
 import { promises as dns } from 'node:dns';
+import * as http from 'node:http';
+import * as https from 'node:https';
 import { isIP } from 'node:net';
 
 const BLOCKED_HOSTS = new Set([
@@ -30,7 +32,14 @@ function isBlockedIpv4(h: string): boolean {
     /^172\.(1[6-9]|2\d|3[01])\./.test(h) || // privada
     /^169\.254\./.test(h) || // link-local / metadata
     /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(h) || // CGNAT
-    /^0\./.test(h) // esto/red
+    /^192\.0\.0\./.test(h) || // IETF protocol assignments
+    /^192\.0\.2\./.test(h) || // documentación
+    /^192\.88\.99\./.test(h) || // relay reservado
+    /^198\.(1[89])\./.test(h) || // benchmark 198.18.0.0/15
+    /^198\.51\.100\./.test(h) || // documentación
+    /^203\.0\.113\./.test(h) || // documentación
+    /^(22[4-9]|2[3-5]\d)\./.test(h) || // multicast y reservado
+    /^0\./.test(h) // esta red
   );
 }
 
@@ -50,6 +59,8 @@ export function isBlockedIp(ip: string): boolean {
   }
   if (/^f[cd][0-9a-f]{2}:/.test(h)) return true; // fc00::/7 ULA
   if (/^fe[89ab][0-9a-f]:/.test(h)) return true; // fe80::/10 link-local
+  if (/^ff/.test(h)) return true; // multicast
+  if (/^2001:db8:/.test(h)) return true; // documentación
   if (isIP(h) === 4) return isBlockedIpv4(h);
   return false;
 }
@@ -59,6 +70,25 @@ export function isBlockedHost(hostname: string): boolean {
   if (BLOCKED_HOSTS.has(h)) return true;
   return isBlockedIp(h);
 }
+
+/** Lookup para clientes HTTP: valida la misma IP que se entrega al socket. */
+export const safeDnsLookup: NonNullable<http.RequestOptions['lookup']> = (hostname, options, callback) => {
+  void dns.lookup(hostname, { ...options, all: true }).then((addresses) => {
+    if (!addresses.length) {
+      callback(new Error(`DNS sin registros: ${hostname}`), '', 0);
+      return;
+    }
+    if (!isPrivateHostsAllowed()) {
+      const blocked = addresses.find((entry) => isBlockedIp(entry.address));
+      if (blocked) {
+        callback(new Error(`SSRF bloqueado (§37): ${hostname} resuelve a ${blocked.address}`), '', 0);
+        return;
+      }
+    }
+    if (options.all) callback(null, addresses);
+    else callback(null, addresses[0]!.address, addresses[0]!.family);
+  }).catch((error: NodeJS.ErrnoException) => callback(error, '', 0));
+};
 
 /** Valida protocolo + SSRF por string (síncrono). Devuelve URL parseada o lanza. */
 export function assertPublicUrl(raw: string): URL {
@@ -109,41 +139,145 @@ export interface SafeFetchResult {
   html: string;
 }
 
+export interface SafeFetchOptions {
+  /** Cabeceras sensibles: solo se envían al origin de la URL inicial. */
+  headers?: Record<string, string>;
+  /** Cabeceras no sensibles que pueden acompañar redirects entre origins. */
+  publicHeaders?: Record<string, string>;
+  credentialOrigin?: string;
+  allowedDomain?: string;
+  timeoutMs?: number;
+  maxBytes?: number;
+  maxRedirects?: number;
+  signal?: AbortSignal;
+}
+
+async function resolvePinnedAddress(u: URL): Promise<{ address: string; family: 4 | 6 }> {
+  const host = normalizeHost(u.hostname);
+  const literal = isIP(host);
+  if (literal === 4 || literal === 6) return { address: host, family: literal };
+  let addrs: Array<{ address: string; family: number }>;
+  try {
+    addrs = await dns.lookup(host, { all: true });
+  } catch {
+    throw new Error(`DNS no resoluble: ${host}`);
+  }
+  if (!addrs.length) throw new Error(`DNS sin registros: ${host}`);
+  if (!isPrivateHostsAllowed()) {
+    for (const addr of addrs) {
+      if (isBlockedIp(addr.address)) {
+        throw new Error(`SSRF bloqueado (§37): ${host} resuelve a ${addr.address}`);
+      }
+    }
+  }
+  const chosen = addrs.find((addr) => addr.family === 4 || addr.family === 6);
+  if (!chosen || (chosen.family !== 4 && chosen.family !== 6)) throw new Error(`DNS sin dirección utilizable: ${host}`);
+  return { address: chosen.address, family: chosen.family };
+}
+
+function requestPinned(
+  u: URL,
+  target: { address: string; family: 4 | 6 },
+  headers: Record<string, string>,
+  timeoutMs: number,
+  maxBytes: number,
+  signal?: AbortSignal,
+): Promise<{ status: number; location?: string; body: string }> {
+  return new Promise((resolve, reject) => {
+    const transport = u.protocol === 'https:' ? https : http;
+    const req = transport.request({
+      protocol: u.protocol,
+      hostname: target.address,
+      family: target.family,
+      port: u.port || undefined,
+      path: `${u.pathname}${u.search}`,
+      method: 'GET',
+      headers: { Accept: 'text/html,application/xhtml+xml', 'Accept-Encoding': 'identity', ...headers, Host: u.host },
+      ...(u.protocol === 'https:' ? { servername: u.hostname } : {}),
+    }, (res) => {
+      const status = res.statusCode ?? 0;
+      const location = res.headers.location;
+      if (status >= 300 && status < 400) {
+        res.resume();
+        resolve({ status, ...(location ? { location } : {}), body: '' });
+        return;
+      }
+      if (status < 200 || status >= 300) {
+        res.resume();
+        reject(new Error(`HTTP ${status} en ${u.toString()}`));
+        return;
+      }
+      const declared = Number(res.headers['content-length'] ?? '0');
+      if (declared > maxBytes) {
+        res.destroy();
+        reject(new Error(`HTML demasiado grande (>${maxBytes} bytes)`));
+        return;
+      }
+      const encoding = String(res.headers['content-encoding'] ?? 'identity').toLowerCase();
+      if (encoding !== 'identity') {
+        res.destroy();
+        reject(new Error(`Content-Encoding no permitido: ${encoding}`));
+        return;
+      }
+      const chunks: Buffer[] = [];
+      let bytes = 0;
+      res.on('data', (chunk: Buffer | string) => {
+        const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+        bytes += buffer.length;
+        if (bytes > maxBytes) {
+          res.destroy(new Error(`HTML demasiado grande (>${maxBytes} bytes)`));
+          return;
+        }
+        chunks.push(buffer);
+      });
+      res.on('end', () => resolve({ status, body: Buffer.concat(chunks).toString('utf8') }));
+      res.on('error', reject);
+    });
+    req.setTimeout(timeoutMs, () => req.destroy(new Error(`Timeout HTTP (${timeoutMs}ms) en ${u.toString()}`)));
+    const onAbort = () => req.destroy(signal?.reason instanceof Error ? signal.reason : new Error('Petición abortada'));
+    if (signal?.aborted) onAbort();
+    else signal?.addEventListener('abort', onAbort, { once: true });
+    req.on('error', reject);
+    req.on('close', () => signal?.removeEventListener('abort', onAbort));
+    req.end();
+  });
+}
+
 /**
  * fetch con guardas SSRF: valida cada salto de redirect (manual) y el tamaño del body.
  * Revalida DNS + host en cada hop. Lanza ante IP privada, demasiados redirects o >maxBytes.
  */
 export async function safeFetchText(
   rawUrl: string,
-  opts?: { headers?: Record<string, string>; timeoutMs?: number; maxBytes?: number; maxRedirects?: number },
+  opts?: SafeFetchOptions,
 ): Promise<SafeFetchResult> {
-  const headers = opts?.headers ?? {};
+  const credentialHeaders = opts?.headers ?? {};
+  const publicHeaders = opts?.publicHeaders ?? {};
   const timeoutMs = opts?.timeoutMs ?? 20000;
   const maxBytes = opts?.maxBytes ?? 2_000_000;
   const maxRedirects = opts?.maxRedirects ?? 5;
+  const credentialOrigin = opts?.credentialOrigin ? assertPublicUrl(opts.credentialOrigin).origin : assertPublicUrl(rawUrl).origin;
+  const allowedDomain = opts?.allowedDomain?.trim().toLowerCase();
 
   let current = rawUrl;
   for (let hop = 0; hop <= maxRedirects; hop++) {
-    await assertSafeUrl(current);
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-    try {
-      const res = await fetch(current, { redirect: 'manual', signal: ctrl.signal, headers });
-      if (res.status >= 300 && res.status < 400) {
-        const loc = res.headers.get('location');
-        if (!loc) throw new Error(`Redirect sin Location en ${current}`);
-        current = new URL(loc, current).toString();
-        continue;
-      }
-      if (!res.ok) throw new Error(`HTTP ${res.status} en ${current}`);
-      const len = Number(res.headers.get('content-length') ?? '0');
-      if (len > maxBytes) throw new Error(`HTML demasiado grande (>${maxBytes} bytes)`);
-      const html = await res.text();
-      if (html.length > maxBytes) throw new Error(`HTML demasiado grande (>${maxBytes} bytes)`);
-      return { finalUrl: current, status: res.status, html };
-    } finally {
-      clearTimeout(timer);
+    if (opts?.signal?.aborted) throw opts.signal.reason;
+    const u = assertPublicUrl(current);
+    if (allowedDomain && u.hostname.toLowerCase() !== allowedDomain && !u.hostname.toLowerCase().endsWith(`.${allowedDomain}`)) {
+      throw new Error(`URL fuera del dominio permitido (${allowedDomain}): ${current}`);
     }
+    const target = await resolvePinnedAddress(u);
+    const headers = {
+      ...publicHeaders,
+      ...(u.origin === credentialOrigin ? credentialHeaders : {}),
+    };
+    const res = await requestPinned(u, target, headers, timeoutMs, maxBytes, opts?.signal);
+    if (res.status >= 300 && res.status < 400) {
+      if (!res.location) throw new Error(`Redirect sin Location en ${current}`);
+      current = new URL(res.location, current).toString();
+      continue;
+    }
+    return { finalUrl: current, status: res.status, html: res.body };
   }
   throw new Error(`Demasiados redirects (>${maxRedirects})`);
 }

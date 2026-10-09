@@ -17,6 +17,7 @@ export interface ChatRequest {
   userPayload: unknown;
   timeoutMs: number;
   maxRetries: number;
+  signal?: AbortSignal;
 }
 
 export interface ChatResult {
@@ -27,8 +28,20 @@ export interface ChatResult {
 
 const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  if (!signal) return new Promise((resolve) => setTimeout(resolve, ms));
+  if (signal.aborted) return Promise.reject(signal.reason);
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(signal.reason);
+    };
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
 }
 
 export async function postChatCompletions(req: ChatRequest): Promise<ChatResult> {
@@ -37,8 +50,11 @@ export async function postChatCompletions(req: ChatRequest): Promise<ChatResult>
   let lastError: Error | null = null;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    if (req.signal?.aborted) throw req.signal.reason;
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), req.timeoutMs);
+    const onAbort = () => ctrl.abort(req.signal?.reason);
+    req.signal?.addEventListener('abort', onAbort, { once: true });
     try {
       const res = await fetch(req.url, {
         method: 'POST',
@@ -79,16 +95,18 @@ export async function postChatCompletions(req: ChatRequest): Promise<ChatResult>
       const err = e as Error;
       // Abort (timeout) y errores de cliente: no reintentar.
       if (err.name === 'AbortError') {
+        if (req.signal?.aborted) throw req.signal.reason;
         throw new Error(`${req.label}: timeout tras ${req.timeoutMs}ms`, { cause: e });
       }
       if (/ (400|401|403|404|422):/.test(err.message)) throw err;
       lastError = err;
     } finally {
       clearTimeout(timer);
+      req.signal?.removeEventListener('abort', onAbort);
     }
 
     if (attempt < maxAttempts) {
-      await sleep(250 * 2 ** (attempt - 1));
+      await sleep(250 * 2 ** (attempt - 1), req.signal);
     }
   }
 

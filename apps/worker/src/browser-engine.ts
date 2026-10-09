@@ -34,13 +34,19 @@ const sharedCache = new LazyPageCache();
 export interface EngineOptions {
   /** Headers de sesión (Authorization/Cookie) aplicados a HTTP y browser. */
   headers?: Record<string, string>;
+  allowedDomain?: string;
+  credentialOrigin?: string;
+  signal?: AbortSignal;
 }
 
 export function createProductionEngine(opts?: EngineOptions): ExecutionEngine {
   return new ExecutionEngine({
-    browserInteract: (url, action) => crawler.interact(url, action, opts?.headers),
+    browserInteract: (url, action, signal) => crawler.interact(url, action, { ...opts, signal }),
     pageCache: sharedCache,
     ...(opts?.headers ? { headers: opts.headers } : {}),
+    ...(opts?.allowedDomain ? { allowedDomain: opts.allowedDomain } : {}),
+    ...(opts?.credentialOrigin ? { credentialOrigin: opts.credentialOrigin } : {}),
+    ...(opts?.signal ? { signal: opts.signal } : {}),
   });
 }
 

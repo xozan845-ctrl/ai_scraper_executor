@@ -14,12 +14,13 @@ import type { ScrapingJobPayload } from '@ai-scraper/queue';
 import { AgentRunner, type AgentResult } from './agent-runner';
 import { enrichItems } from './interpret';
 import { createProductionEngine } from './browser-engine';
+import { normalizeJobLimits } from '@ai-scraper/core';
 
 export interface ProcessJobDeps {
   store: JobStore;
   /** Orquestador real por defecto; fake en tests. */
   createOrchestrator?: (payload: ScrapingJobPayload) => AIOrchestrator;
-  createEngine?: () => ExecutionEngine;
+  createEngine?: (hint?: { signal: AbortSignal }) => ExecutionEngine;
   /** Credenciales de sesión (headers) por sessionId. */
   getCredentials?: (sessionId: string) => Promise<{ headers?: Record<string, string> } | null>;
   maxSteps?: number;
@@ -31,15 +32,31 @@ function toSaveResult(item: unknown): { data: unknown; sourceUrl?: string; selec
     const src = (item as Record<string, unknown>)._source as
       | { url?: string; selector?: string; confidence?: number }
       | undefined;
-    const { _source: _dropped, ...data } = item as Record<string, unknown>;
+    if (typeof src?.url !== 'string' || !src.url || typeof src.selector !== 'string' || !src.selector) {
+      throw new Error('Resultado sin _source completo: se rechaza para preservar trazabilidad');
+    }
+    const scrapedAt = (src as { scrapedAt?: unknown }).scrapedAt;
+    if (typeof scrapedAt !== 'string' || !scrapedAt) {
+      throw new Error('Resultado sin _source.scrapedAt: se rechaza para preservar trazabilidad');
+    }
     return {
-      data,
-      sourceUrl: typeof src?.url === 'string' ? src.url : undefined,
-      selector: typeof src?.selector === 'string' ? src.selector : undefined,
+      data: item,
+      sourceUrl: src.url,
+      selector: src.selector,
       confidence: typeof src?.confidence === 'number' ? src.confidence : undefined,
     };
   }
-  return { data: item };
+  throw new Error('Resultado no estructurado: se rechaza para preservar trazabilidad');
+}
+
+function hasCompleteSource(item: unknown): boolean {
+  if (!item || typeof item !== 'object' || Array.isArray(item)) return false;
+  const source = (item as Record<string, unknown>)._source;
+  if (!source || typeof source !== 'object' || Array.isArray(source)) return false;
+  const record = source as Record<string, unknown>;
+  return typeof record.url === 'string' && Boolean(record.url)
+    && typeof record.selector === 'string' && Boolean(record.selector)
+    && typeof record.scrapedAt === 'string' && Boolean(record.scrapedAt);
 }
 
 export async function processJob(jobId: string, deps: ProcessJobDeps): Promise<AgentResult> {
@@ -49,7 +66,7 @@ export async function processJob(jobId: string, deps: ProcessJobDeps): Promise<A
 
   if (record.status === 'CANCELLED') {
     return {
-      status: 'FAILED', items: [], steps: [], recoveryCount: 0,
+      status: 'CANCELLED', items: [], steps: [], recoveryCount: 0,
       providerName: record.aiProvider ?? 'unknown', model: record.aiModel ?? 'default',
       browserEscalationSuggested: false, planActions: [], visitedUrls: [],
       error: 'Job cancelado antes de procesar',
@@ -66,6 +83,7 @@ export async function processJob(jobId: string, deps: ProcessJobDeps): Promise<A
     limits: (record.limits as Record<string, number>) ?? undefined,
     ai: { provider: record.aiProvider, model: record.aiModel },
   };
+  const jobSignal = AbortSignal.timeout(normalizeJobLimits(payload.limits).maxRuntimeSec * 1000);
 
   const useCache = process.env.AI_CACHE !== '0';
   const cache = useCache ? await getJsonCache() : null;
@@ -78,13 +96,21 @@ export async function processJob(jobId: string, deps: ProcessJobDeps): Promise<A
   const credentials = record.sessionId && deps.getCredentials
     ? await deps.getCredentials(record.sessionId).catch(() => null)
     : null;
-  const createEngine = deps.createEngine ?? (() => createProductionEngine(credentials?.headers ? { headers: credentials.headers } : undefined));
+  const createEngine = deps.createEngine
+    ? (hint: { signal: AbortSignal }) => deps.createEngine!(hint)
+    : (hint: { allowedDomain: string; credentialOrigin: string; signal: AbortSignal }) => createProductionEngine({
+        ...(credentials?.headers ? { headers: credentials.headers } : {}),
+        allowedDomain: hint.allowedDomain,
+        credentialOrigin: hint.credentialOrigin,
+        signal: hint.signal,
+      });
   const runner = new AgentRunner({
     orchestrator,
     createEngine,
     maxSteps: deps.maxSteps,
     maxRecoveryAttempts: deps.maxRecoveryAttempts,
     isCancelled,
+    signal: jobSignal,
   });
 
   await store.updateStatus(jobId, 'PLANNING');
@@ -108,7 +134,7 @@ export async function processJob(jobId: string, deps: ProcessJobDeps): Promise<A
   // Si el job fue cancelado durante la ejecución, no sobrescribir el estado terminal.
   if (await isCancelled()) {
     await store.updateStatus(jobId, 'CANCELLED');
-    return { ...result, status: 'FAILED', error: 'Job cancelado durante la ejecución' };
+    return { ...result, status: 'CANCELLED', error: 'Job cancelado durante la ejecución' };
   }
 
   // Etapa 2: interpretar resultados (normalizar valores + confianza + dedup).
@@ -119,8 +145,11 @@ export async function processJob(jobId: string, deps: ProcessJobDeps): Promise<A
         instruction: record.instruction,
         rawItems: finalItems,
         ...(record.aiModel ? { model: record.aiModel } : {}),
-      });
-      if (Array.isArray(interpreted)) finalItems = enrichItems(interpreted);
+      }, { signal: jobSignal, timeoutMs: Math.max(1, normalizeJobLimits(payload.limits).maxRuntimeSec * 1000) });
+      if (Array.isArray(interpreted)) {
+        const candidates = enrichItems(interpreted);
+        if (candidates.every(hasCompleteSource)) finalItems = candidates;
+      }
     } catch (e) {
       console.warn(`[WORKER] interpret falló: ${(e as Error).message}`);
     }
@@ -141,7 +170,14 @@ export async function processJob(jobId: string, deps: ProcessJobDeps): Promise<A
     await store.savePage(jobId, url);
   }
   if (result.items.length > 0) {
-    await store.saveResults(jobId, result.items.map(toSaveResult));
+    try {
+      await store.saveResults(jobId, result.items.map(toSaveResult));
+    } catch (error) {
+      const message = (error as Error).message;
+      await store.saveError(jobId, message);
+      await store.updateStatus(jobId, 'FAILED');
+      return { ...result, status: 'FAILED', error: message };
+    }
   }
   const stats = orchestrator.lastStats();
   await store.saveAIInteraction(jobId, {
@@ -159,6 +195,13 @@ export async function processJob(jobId: string, deps: ProcessJobDeps): Promise<A
     incMetric('jobs_completed_total');
     incMetric('items_extracted_total', result.items.length);
     incMetric('recoveries_total', result.recoveryCount);
+  } else if (result.status === 'TIMEOUT') {
+    await store.saveError(jobId, result.error ?? 'Tiempo máximo agotado', { steps: result.steps.length });
+    await store.updateStatus(jobId, 'TIMEOUT');
+    incMetric('jobs_timeout_total');
+  } else if (result.status === 'CANCELLED') {
+    await store.updateStatus(jobId, 'CANCELLED');
+    incMetric('jobs_cancelled_total');
   } else {
     await store.saveError(jobId, result.error ?? 'Fallo desconocido', { steps: result.steps.length });
     await store.updateStatus(jobId, 'FAILED');

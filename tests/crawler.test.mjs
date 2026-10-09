@@ -11,6 +11,7 @@ const CAT = `<!doctype html><html><head><title>Cat</title></head><body>
 <h1>Cat</h1><a href="/">Home</a>
 <div class="product-card"><span class="name">Prod Cat</span><span class="price">$20</span></div>
 </body></html>`;
+const depthPage = (n) => `<!doctype html><html><head><title>D${n}</title></head><body>${n < 3 ? `<a href="/d${n + 1}">next</a>` : ''}</body></html>`;
 
 describe('CrawlerService FASE 1 (HTTP contra servidor local)', async () => {
   const { CrawlerService } = await import('../packages/crawler/dist/crawler.service.js');
@@ -23,7 +24,8 @@ describe('CrawlerService FASE 1 (HTTP contra servidor local)', async () => {
       server = http
         .createServer((req, res) => {
           res.setHeader('content-type', 'text/html');
-          res.end(req.url?.startsWith('/cat') ? CAT : HOME);
+          const depth = req.url?.match(/^\/d(\d+)/)?.[1];
+          res.end(depth !== undefined ? depthPage(Number(depth)) : req.url?.startsWith('/cat') ? CAT : HOME);
         })
         .listen(0, '127.0.0.1', resolve);
     });
@@ -54,6 +56,12 @@ describe('CrawlerService FASE 1 (HTTP contra servidor local)', async () => {
     const page = await svc.inspectSinglePage(base + '/', 'http');
     assert.equal(page.title, 'Home Shop');
     assert.ok(page.textSnippet.length > 0);
+  });
+
+  it('maxDepth limita la profundidad real del grafo', async () => {
+    const svc = new CrawlerService();
+    const { pages } = await svc.crawlDetailed({ url: base + '/d0', mode: 'http', maxRequests: 10, maxDepth: 1 });
+    assert.deepEqual(pages.map((page) => new URL(page.url).pathname).sort(), ['/d0', '/d1']);
   });
 
   it('bloquea metadata endpoint aunque ALLOW_PRIVATE esté activo en otro test', async () => {

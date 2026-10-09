@@ -13,7 +13,7 @@ import { CommandValidator, normalizeRawPlan, clampCommandLimits } from '@ai-scra
 import { normalizeJobLimits, type JobLimits } from '@ai-scraper/core';
 import { createAIProviderForJob } from '@ai-scraper/ai-providers';
 import { getLearnedProfile } from '@ai-scraper/mongodb';
-import type { PlanningContext } from '@ai-scraper/ai';
+import type { AIProviderCallOpts, PlanningContext } from '@ai-scraper/ai';
 
 const DEBUG = process.env.DEBUG === '1' || process.env.LOG_LEVEL === 'debug';
 
@@ -46,6 +46,7 @@ export interface GeneratedPlan {
 export interface PlannerDeps {
   orchestrator?: AIOrchestrator;
   defaultModel?: string;
+  callOpts?: AIProviderCallOpts;
 }
 
 
@@ -108,7 +109,10 @@ export async function generatePlan(input: PlanJobInput, deps?: PlannerDeps): Pro
   let raw: unknown;
   try {
     debugLog('LLAMANDO A ORCHESTRATOR.CREATEPLAN', { model, contextKeys: Object.keys(context) });
-    raw = await orchestrator.createPlan(context, model ? { model } : undefined);
+    raw = await orchestrator.createPlan(context, {
+      ...deps?.callOpts,
+      ...(model ? { model } : {}),
+    });
     debugLog('ORCHESTRATOR RAW RESPONSE', raw);
   } catch (e) {
     debugError('CREATEPLAN ERROR', e);
