@@ -5,12 +5,12 @@
  * trazabilidad, errores e interacciones IA (stats para §56).
  */
 import { AIOrchestrator } from '@ai-scraper/ai';
-import { createAIProviderForJob, withCircuitBreaker } from '@ai-scraper/ai-providers';
-import { ExecutionEngine } from '@ai-scraper/execution-engine';
+import { createAIProviderForJob, withCircuitBreaker } from '@ai-scraper/infrastructure-ai-providers';
+import { ExecutionEngine } from '@ai-scraper/infrastructure-execution';
 import { incMetric } from './metrics-bridge';
-import { getJsonCache } from '@ai-scraper/redis';
-import type { JobStore } from '@ai-scraper/storage';
-import type { ScrapingJobPayload } from '@ai-scraper/queue';
+import { getJsonCache } from '@ai-scraper/infrastructure-redis';
+import type { JobStore } from '@ai-scraper/infrastructure-storage';
+import type { ScrapingJobPayload } from '@ai-scraper/infrastructure-queue';
 import { AgentRunner, type AgentResult } from './agent-runner';
 import { enrichItems } from './interpret';
 import { createProductionEngine } from './browser-engine';

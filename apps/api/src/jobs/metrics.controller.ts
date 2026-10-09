@@ -1,6 +1,6 @@
 import { Controller, Get, Header, UseGuards } from '@nestjs/common';
 import { metrics } from '@ai-scraper/shared-observability';
-import { getMetricsAggregator } from '@ai-scraper/redis';
+import { getMetricsAggregator } from '@ai-scraper/infrastructure-redis';
 import { JobsService } from './jobs.service';
 import { ApiKeyGuard } from './api-key.guard';
 

@@ -11,9 +11,9 @@ async function waitFor(fn, timeoutMs = 2000) {
 }
 
 describe('Sesiones tipo chat (Etapa A)', async () => {
-  const { InMemorySessionStore } = await import('../packages/storage/dist/session-store.js');
-  const { InMemoryJobStore } = await import('../packages/storage/dist/memory-store.js');
-  const { InMemoryJobQueue } = await import('../packages/queue/dist/memory-queue.js');
+  const { InMemorySessionStore } = await import('../libs/infrastructure/storage/dist/session-store.js');
+  const { InMemoryJobStore } = await import('../libs/infrastructure/storage/dist/memory-store.js');
+  const { InMemoryJobQueue } = await import('../libs/infrastructure/queue/dist/memory-queue.js');
   const { JobsService } = await import('../apps/api/dist/jobs/jobs.service.js');
   const { SessionsService } = await import('../apps/api/dist/jobs/sessions.service.js');
   const { encryptJson, decryptJson } = await import('../libs/shared/security/dist/crypto.js');

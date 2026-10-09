@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 describe('AIOrchestrator caché de respuestas (Etapa 1)', async () => {
   const { AIOrchestrator } = await import('../packages/ai/dist/orchestrator/ai-orchestrator.js');
-  const { MemoryJsonCache } = await import('../packages/redis/dist/kv.js');
+  const { MemoryJsonCache } = await import('../libs/infrastructure/redis/dist/kv.js');
 
   function fakeProvider() {
     let planCalls = 0;

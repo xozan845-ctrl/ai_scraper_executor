@@ -130,7 +130,7 @@ describe('AI Planner FASE 4 (§21.1)', async () => {
 describe('AgentRunner FASE 5 + Recovery FASE 6 (§47, §28)', async () => {
   const { AgentRunner } = await import('../apps/worker/dist/agent-runner.js');
   const { AIOrchestrator } = await import('../packages/ai/dist/orchestrator/ai-orchestrator.js');
-  const { ExecutionEngine } = await import('../packages/execution-engine/dist/execution-engine.js');
+  const { ExecutionEngine } = await import('../libs/infrastructure/execution/dist/execution-engine.js');
 
   const baseJob = {
     id: 'job_test',

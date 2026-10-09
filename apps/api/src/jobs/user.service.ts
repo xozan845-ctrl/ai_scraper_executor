@@ -1,6 +1,6 @@
 import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
-import { getPrismaClient } from '@ai-scraper/storage';
+import { getPrismaClient } from '@ai-scraper/infrastructure-storage';
 import { generateApiKey } from './password.util';
 
 export type UserRole = 'superadmin' | 'user';

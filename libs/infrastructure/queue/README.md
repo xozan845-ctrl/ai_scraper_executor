@@ -1,4 +1,4 @@
-# @ai-scraper/queue
+# @ai-scraper/infrastructure-queue
 
 La **cola de trabajos**: BullMQ sobre Redis con respaldo en memoria, incluida la cola
 de muertos. Es lo que permite que la API solo encole y el worker consuma (`R-AR-3`).
@@ -21,7 +21,7 @@ de muertos. Es lo que permite que la API solo encole y el worker consuma (`R-AR-
 ## Comandos
 
 ```bash
-npm run build -w @ai-scraper/queue
+npm run build -w @ai-scraper/infrastructure-queue
 docker compose up -d redis
 node --test tests/retry-cleanup.test.mjs
 ```

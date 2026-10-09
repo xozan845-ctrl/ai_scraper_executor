@@ -1,4 +1,4 @@
-# @ai-scraper/execution-engine
+# @ai-scraper/infrastructure-execution
 
 El **intérprete del DSL**: ejecuta, comando a comando, lo que la IA planificó. Es
 donde vive la trazabilidad de cada item extraído.
@@ -20,6 +20,6 @@ El motor vuelve a recortar los límites (`clampCommandLimits`) aunque el DTO se 
 ## Comandos
 
 ```bash
-npm run build -w @ai-scraper/execution-engine
+npm run build -w @ai-scraper/infrastructure-execution
 node --test tests/engine.test.mjs
 ```

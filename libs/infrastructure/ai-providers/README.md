@@ -1,4 +1,4 @@
-# @ai-scraper/ai-providers
+# @ai-scraper/infrastructure-ai-providers
 
 Los **adaptadores de LLM**: el único sitio donde se habla con el proveedor. El resto
 del sistema habla con la interfaz `AIProvider` (`R-AR-7`, `R-AI-9`).
@@ -24,6 +24,6 @@ del sistema habla con la interfaz `AIProvider` (`R-AR-7`, `R-AI-9`).
 ## Comandos
 
 ```bash
-npm run build -w @ai-scraper/ai-providers
+npm run build -w @ai-scraper/infrastructure-ai-providers
 node --test tests/ai-providers.test.mjs tests/resilience.test.mjs
 ```

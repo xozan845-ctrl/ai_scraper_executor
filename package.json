@@ -10,7 +10,7 @@
   ],
   "scripts": {
     "build": "npm run build:core && npm run build -w api && npm run build -w worker",
-    "build:core": "npm run build -w @ai-scraper/shared-core && npm run build -w @ai-scraper/domain-execution && npm run build -w @ai-scraper/domain-scraper && npm run build -w @ai-scraper/shared-security && npm run build -w @ai-scraper/shared-observability && npm run build -w @ai-scraper/domain-ai && npm run build -w @ai-scraper/crawler && npm run build -w @ai-scraper/execution-engine && npm run build -w @ai-scraper/ai && npm run build -w @ai-scraper/ai-providers && npm run build -w @ai-scraper/mongodb && npm run build -w @ai-scraper/redis && npm run build -w @ai-scraper/storage && npm run build -w @ai-scraper/queue",
+    "build:core": "npm run build -w @ai-scraper/shared-core && npm run build -w @ai-scraper/domain-execution && npm run build -w @ai-scraper/domain-scraper && npm run build -w @ai-scraper/shared-security && npm run build -w @ai-scraper/shared-observability && npm run build -w @ai-scraper/domain-ai && npm run build -w @ai-scraper/infrastructure-crawler && npm run build -w @ai-scraper/infrastructure-execution && npm run build -w @ai-scraper/ai && npm run build -w @ai-scraper/infrastructure-ai-providers && npm run build -w @ai-scraper/infrastructure-mongodb && npm run build -w @ai-scraper/infrastructure-redis && npm run build -w @ai-scraper/infrastructure-storage && npm run build -w @ai-scraper/infrastructure-queue",
     "build:all": "npm run build:core && npm run build -w api && npm run build -w worker",
     "start:api": "npm run start -w api",
     "start:worker": "npm run start -w worker",

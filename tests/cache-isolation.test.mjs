@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
  * autenticado de un contexto NUNCA debe servirse a otro con credenciales distintas.
  */
 describe('Caché de páginas aislada por credenciales', async () => {
-  const { ExecutionEngine, PageCache } = await import('../packages/execution-engine/dist/index.js');
+  const { ExecutionEngine, PageCache } = await import('../libs/infrastructure/execution/dist/index.js');
 
   const URL_P = 'https://tienda.com/cuenta';
   const html = (marker) => `<!doctype html><html><head><title>${marker}</title></head><body><span id="v">${marker}</span></body></html>`;

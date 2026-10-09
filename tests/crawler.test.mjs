@@ -14,7 +14,7 @@ const CAT = `<!doctype html><html><head><title>Cat</title></head><body>
 const depthPage = (n) => `<!doctype html><html><head><title>D${n}</title></head><body>${n < 3 ? `<a href="/d${n + 1}">next</a>` : ''}</body></html>`;
 
 describe('CrawlerService FASE 1 (HTTP contra servidor local)', async () => {
-  const { CrawlerService } = await import('../packages/crawler/dist/crawler.service.js');
+  const { CrawlerService } = await import('../libs/infrastructure/crawler/dist/crawler.service.js');
   let server;
   let base;
 

@@ -1,0 +1,1 @@
+{"name":"@ai-scraper/infrastructure-execution","version":"0.1.0","main":"dist/index.js","types":"dist/index.d.ts","scripts":{"build":"tsc -p tsconfig.json"},"dependencies":{"@ai-scraper/domain-ai":"^0.1.0","@ai-scraper/shared-observability":"^0.1.0","@ai-scraper/shared-security":"^0.1.0","cheerio":"^1.0.0-rc.12"},"devDependencies":{"typescript":"^5.5.0"}}

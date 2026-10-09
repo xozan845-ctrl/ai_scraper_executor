@@ -1,9 +1,9 @@
 import { Injectable, Inject, InternalServerErrorException, BadRequestException } from '@nestjs/common';
 import { assertPublicUrl, isAllowedHost } from '@ai-scraper/shared-security';
-import type { JobStore } from '@ai-scraper/storage';
-import type { JobQueue } from '@ai-scraper/queue';
+import type { JobStore } from '@ai-scraper/infrastructure-storage';
+import type { JobQueue } from '@ai-scraper/infrastructure-queue';
 import { metrics, getContext } from '@ai-scraper/shared-observability';
-import { getMetricsAggregator } from '@ai-scraper/redis';
+import { getMetricsAggregator } from '@ai-scraper/infrastructure-redis';
 import { createHash } from 'node:crypto';
 import { JOB_STORE, JOB_QUEUE } from './providers';
 import { CreateJobDto } from './dto/create-job.dto';

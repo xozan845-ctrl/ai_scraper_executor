@@ -52,7 +52,7 @@
 | Artifacts (`R-EN-3`) | 🟢 | `test-results.xml` (JUnit) subido en todos los runs |
 | Documentación (`R-DO`) | 🟢 | área al día; **14/14** `README.md` de paquete/app creados; `.env.production.example` versionada |
 | Contribución de IA (`R-AC`) | 🟢 | área creada y adaptada; se cumple por disciplina (PR #1) |
-| Arquitectura hexagonal (`R-HX`) | 🟡 **en migración** | Verificador de fronteras activo en `npm run lint` (`R-HX-4`; **1 excepción legacy** `ai→redis`). Migrados a `libs/`: `observability` → `shared/observability`, `core` → `domain/{execution,scraper}` + `shared/core`, `commands` → `domain/ai` (paquete `@ai-scraper/domain-ai`). El resto sigue en `packages/` (F3–F5) |
+| Arquitectura hexagonal (`R-HX`) | 🟡 **en migración** | Verificador de fronteras activo en `npm run lint` (`R-HX-4`; **1 excepción legacy** `ai→redis`). Migrados a `libs/`: **shared** (`core`, `security`, `observability`), **domain** (`execution`, `scraper`, `ai`) e **infrastructure** (`crawler`, `execution`, `ai-providers`, `queue`, `redis`, `mongodb`, `storage`). Solo queda `packages/ai` → `libs/application/ai` (F4) |
 
 ## Gates
 
@@ -107,9 +107,10 @@ incumplían `R-CI-2`. Se añade el grupo por ref a `release.yml` y se unifica
 0. **Migración a arquitectura hexagonal en curso** (ADR-27/ADR-30, `R-HX-9`): verificador
    `scripts/check-boundaries.mjs` activo en `npm run lint` (`R-HX-4`) con **1 excepción
    legacy** (`ai→redis`) que debe llegar a 0 al migrar `packages/ai`. Migrados a `libs/`:
-   `observability`, `core` (repartido en `domain/execution`+`domain/scraper`+`shared/core`)
-   y `commands` (`domain/ai`). El resto sigue en `packages/` (F3–F5) y el runner sigue
-   siendo `node --test` (ADR-29 pendiente de migrar).
+   **shared** (`core`, `security`, `observability`), **domain** (`execution`, `scraper`,
+   `ai`) e **infrastructure** (`crawler`, `execution`, `ai-providers`, `queue`, `redis`,
+   `mongodb`, `storage`). Solo queda `packages/ai` → `libs/application/ai` (F4) y el
+   cierre F5; el runner sigue siendo `node --test` (ADR-29 pendiente de migrar).
 1. **Sin protección de rama en el remoto (bloqueada por el plan)**: `gh api` devuelve
    `403 Upgrade to GitHub Pro or make this repository public` — es un límite del plan
    en repos privados, no deuda del repo. `R-GE-4` se cumple por disciplina (rama + PR).

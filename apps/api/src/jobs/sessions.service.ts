@@ -1,5 +1,5 @@
 import { Injectable, Inject, BadRequestException, ConflictException, Optional } from '@nestjs/common';
-import type { SessionStore, SessionRecord } from '@ai-scraper/storage';
+import type { SessionStore, SessionRecord } from '@ai-scraper/infrastructure-storage';
 import { encryptJson, hasCredentialsKey, normalizeDomain } from '@ai-scraper/shared-security';
 import { SESSION_STORE, RADIOGRAPHER, type Radiographer } from './providers';
 import { JobsService, assertJobUrlAllowed } from './jobs.service';
@@ -87,7 +87,7 @@ export class SessionsService {
       await this.radiographer(url, headers);
       return;
     }
-    const { performRadiography } = await import('@ai-scraper/mongodb');
+    const { performRadiography } = await import('@ai-scraper/infrastructure-mongodb');
     await performRadiography(url, { maxDepth: 2, maxPages: 10, forceBrowser: true, ...(headers ? { headers } : {}) });
   }
 
@@ -132,7 +132,7 @@ export class SessionsService {
     );
     let profile: Record<string, unknown> | null;
     try {
-      const { getLearnedProfile } = await import('@ai-scraper/mongodb');
+      const { getLearnedProfile } = await import('@ai-scraper/infrastructure-mongodb');
       const learned = await getLearnedProfile(s.url);
       profile = learned.profile
         ? {

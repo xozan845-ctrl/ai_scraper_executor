@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
  * los valores extraídos (PII/credenciales) a los logs; solo conteos y metadatos.
  */
 describe('Logging del engine no filtra valores extraídos', async () => {
-  const { ExecutionEngine } = await import('../packages/execution-engine/dist/index.js');
+  const { ExecutionEngine } = await import('../libs/infrastructure/execution/dist/index.js');
   const SECRET = 'VALOR_SECRETO_12345';
   const html = `<!doctype html><html><head><title>t</title></head><body>
     <div class="card"><span class="name">${SECRET}</span><span class="price">$9.99</span></div>

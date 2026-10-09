@@ -1,6 +1,6 @@
 import { Controller, Get, Inject, ServiceUnavailableException } from '@nestjs/common';
-import type { JobStore } from '@ai-scraper/storage';
-import type { JobQueue } from '@ai-scraper/queue';
+import type { JobStore } from '@ai-scraper/infrastructure-storage';
+import type { JobQueue } from '@ai-scraper/infrastructure-queue';
 import { JOB_STORE, JOB_QUEUE } from '../jobs/providers';
 
 @Controller('health')

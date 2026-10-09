@@ -1,7 +1,7 @@
 import { Controller, Post, Get, Body, Param, Query, NotFoundException, UseGuards } from '@nestjs/common';
 import { ApiKeyGuard } from './api-key.guard';
 import { CreateRateLimitGuard } from './rate-limit.guard';
-import { mongoRepo, normalizeDomain, performRadiography, getLearnedProfile } from '@ai-scraper/mongodb';
+import { mongoRepo, normalizeDomain, performRadiography, getLearnedProfile } from '@ai-scraper/infrastructure-mongodb';
 
 /** Radiografía y memoria de sitios (FASE 12) */
 @UseGuards(ApiKeyGuard)

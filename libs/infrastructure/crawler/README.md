@@ -1,4 +1,4 @@
-# @ai-scraper/crawler
+# @ai-scraper/infrastructure-crawler
 
 El **transporte y el navegador**: peticiones HTTP y Playwright con el guard de
 navegación. Es la única pieza que habla con el sitio objetivo.
@@ -22,6 +22,6 @@ navegación. Es la única pieza que habla con el sitio objetivo.
 ## Comandos
 
 ```bash
-npm run build -w @ai-scraper/crawler
+npm run build -w @ai-scraper/infrastructure-crawler
 node --test tests/crawler.test.mjs tests/browser.test.mjs tests/browser-ssrf.test.mjs
 ```

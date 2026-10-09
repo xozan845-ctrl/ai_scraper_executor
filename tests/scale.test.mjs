@@ -2,9 +2,9 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 describe('Escala FASE 11 ETAPA 6 (prioridades + caché + dedupe)', async () => {
-  const { InMemoryJobQueue } = await import('../packages/queue/dist/memory-queue.js');
-  const { normalizePriority } = await import('../packages/queue/dist/types.js');
-  const { ExecutionEngine, PageCache, normalizeUrlForDedupe } = await import('../packages/execution-engine/dist/index.js');
+  const { InMemoryJobQueue } = await import('../libs/infrastructure/queue/dist/memory-queue.js');
+  const { normalizePriority } = await import('../libs/infrastructure/queue/dist/types.js');
+  const { ExecutionEngine, PageCache, normalizeUrlForDedupe } = await import('../libs/infrastructure/execution/dist/index.js');
 
   it('normalizePriority acota a 1..10 con defecto 5', () => {
     assert.equal(normalizePriority(undefined), 5);
@@ -30,7 +30,7 @@ describe('Escala FASE 11 ETAPA 6 (prioridades + caché + dedupe)', async () => {
 
   it('JobsService propaga priority al enqueue', async () => {
     const { JobsService } = await import('../apps/api/dist/jobs/jobs.service.js');
-    const { InMemoryJobStore } = await import('../packages/storage/dist/memory-store.js');
+    const { InMemoryJobStore } = await import('../libs/infrastructure/storage/dist/memory-store.js');
     const store = new InMemoryJobStore();
     let seen;
     const queue = new InMemoryJobQueue();

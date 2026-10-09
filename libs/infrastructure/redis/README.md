@@ -1,4 +1,4 @@
-# @ai-scraper/redis
+# @ai-scraper/infrastructure-redis
 
 El **estado volátil** del sistema: caché de páginas y de respuestas del LLM, rate
 limit y agregación de métricas. Todo lo que hay aquí puede desaparecer sin perder
@@ -24,7 +24,7 @@ datos de negocio (`R-RD-3`).
 ## Comandos
 
 ```bash
-npm run build -w @ai-scraper/redis
+npm run build -w @ai-scraper/infrastructure-redis
 docker compose up -d redis
 node --test tests/cache-isolation.test.mjs
 ```

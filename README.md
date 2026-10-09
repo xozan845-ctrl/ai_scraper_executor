@@ -122,14 +122,7 @@ apps/
   api/           # NestJS API REST (POST/GET /jobs, /radiography, /metrics, /dashboard)
   worker/        # Procesador de jobs (AgentRunner + browser-engine + planner)
 packages/
-  crawler/       # CrawlerService (CheerioCrawler + PlaywrightCrawler, hybrid, SessionPool)
-  execution-engine/  # ExecutionEngine (HTTP/Cheerio + delegado browser CLICK/SCROLL + PageCache)
   ai/            # AIOrchestrator + prompts + context-builder
-  ai-providers/  # OpenRouterProvider (fallback modelos), CustomEndpointProvider, FallbackAIProvider
-  mongodb/       # SiteProfile, PageRadiography, MongoRepository, performRadiography/getLearnedProfile
-  redis/         # RedisPageCache, RedisRateLimiter, RedisMetricsAggregator (fallback memoria)
-  queue/         # JobQueue (BullMQJobQueue + InMemoryJobQueue) + factory
-  storage/       # JobStore (Prisma + InMemory)
 libs/
   shared/core/           # Utilidades puras (hashHtml)
   shared/security/       # SSRF centralizado (assertPublicUrl, isBlockedHost, createAllowlist)
@@ -137,6 +130,13 @@ libs/
   domain/execution/      # JobStatus/JobLimits/DEFAULT_LIMITS/normalizeJobLimits
   domain/scraper/        # TracedValue/StructuredItem (trazabilidad)
   domain/ai/             # DSL Zod (15 comandos) + CommandValidator + normalize
+  infrastructure/crawler/       # CrawlerService (CheerioCrawler + PlaywrightCrawler, hybrid, SessionPool)
+  infrastructure/execution/     # ExecutionEngine (HTTP/Cheerio + browserInteract) + PageCache
+  infrastructure/ai-providers/  # OpenRouterProvider (fallback modelos), CustomEndpointProvider, FallbackAIProvider
+  infrastructure/mongodb/       # SiteProfile, PageRadiography, MongoRepository, performRadiography/getLearnedProfile
+  infrastructure/redis/         # RedisPageCache, RedisRateLimiter, RedisMetricsAggregator (fallback memoria)
+  infrastructure/queue/         # JobQueue (BullMQJobQueue + InMemoryJobQueue) + factory
+  infrastructure/storage/       # JobStore (Prisma + InMemory)
 prisma/
   schema.prisma  # 8 tablas: User, Job, ScrapingPlan, Command, Page, Result, JobError, AIInteraction
 docker-compose.yml # postgres + mongodb + redis + migrate + api + worker
@@ -332,7 +332,7 @@ hay tres capas de robustez:
 
 ### 1. Selección de modelo y fallback automático
 
-`packages/ai-providers/src/openrouter/openrouter.provider.ts` prueba en orden:
+`libs/infrastructure/ai-providers/src/openrouter/openrouter.provider.ts` prueba en orden:
 `OPENROUTER_MODEL` → cada uno de `OPENROUTER_FALLBACK_MODELS`. Salta al siguiente modelo **solo** en:
 - `404` — el modelo no existe / no disponible para tu cuenta
 - `429` — rate limit del proveedor
@@ -355,7 +355,7 @@ OPENROUTER_FALLBACK_MODELS=qwen/qwen3.8-27b:free,nvidia/nemotron-3-super-120b-a1
 
 Los prompts del planner/explorer/recovery incluyen el **esquema DSL completo** (15 comandos) y un
 ejemplo, exigiendo el campo `"type"` en MAYÚSCULAS y prohibiendo comandos inventados
-(`loop`, `waitForSelector`, etc.). Ver `packages/ai-providers/src/prompts.ts`.
+(`loop`, `waitForSelector`, etc.). Ver `libs/infrastructure/ai-providers/src/prompts.ts`.
 
 ### 3. Normalizador de comandos (anti-alucinación)
 

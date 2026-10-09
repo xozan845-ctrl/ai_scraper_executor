@@ -1396,7 +1396,7 @@ en el merge verificado a `main` (no hay entornos separados).
 
 ## Qué cambió
 
-- `queueRedisUrl()` en `packages/queue`: usa `QUEUE_REDIS_URL` si está definida y no
+- `queueRedisUrl()` en `libs/infrastructure/queue`: usa `QUEUE_REDIS_URL` si está definida y no
   vacía, si no `REDIS_URL`. La usan `createJobQueue` (API) y el consumidor BullMQ del
   worker.
 - `docker-compose.yml`: servicio `redis-queue` bajo el perfil `split-redis` (no arranca

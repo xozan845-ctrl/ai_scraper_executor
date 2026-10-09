@@ -1,7 +1,7 @@
 # 02 — Trazabilidad: qué se guarda con cada resultado y de dónde salió
 
-Aplica a: [`../../../packages/execution-engine/src/execution-engine.ts`](../../../packages/execution-engine/src/execution-engine.ts)
-(la inyección de `_source`), [`../../../packages/mongodb/src/radiography.ts`](../../../packages/mongodb/src/radiography.ts)
+Aplica a: [`../../../libs/infrastructure/execution/src/execution-engine.ts`](../../../libs/infrastructure/execution/src/execution-engine.ts)
+(la inyección de `_source`), [`../../../libs/infrastructure/mongodb/src/radiography.ts`](../../../libs/infrastructure/mongodb/src/radiography.ts)
 y al consumo del resultado en la API (`GET /api/v1/jobs/:id/results`).
 
 ## Principio
@@ -26,14 +26,14 @@ y al consumo del resultado en la API (`GET /api/v1/jobs/:id/results`).
 
 ```bash
 # La inyección de _source está en el motor (no en la capa HTTP)
-grep -n "_source" packages/execution-engine/src/execution-engine.ts
+grep -n "_source" libs/infrastructure/execution/src/execution-engine.ts
 
 # El sello es la hora de la extracción
-grep -n "scrapedAt" packages/execution-engine/src/execution-engine.ts
+grep -n "scrapedAt" libs/infrastructure/execution/src/execution-engine.ts
 
 # La limpieza de artefactos antes de reintentar
 grep -rn "clearJobArtifacts" apps packages --include=*.ts
 
 # La deriva del sitio se calcula y se expone
-grep -rn "htmlHash\|drift" packages/mongodb/src apps/api/src --include=*.ts | head
+grep -rn "htmlHash\|drift" libs/infrastructure/mongodb/src apps/api/src --include=*.ts | head
 ```

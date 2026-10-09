@@ -1,6 +1,6 @@
 # 02 — Proveedor, modelos, prompts y presupuesto
 
-Aplica a: [`../../../packages/ai-providers/`](../../../packages/ai-providers)
+Aplica a: [`../../../libs/infrastructure/ai-providers/`](../../../libs/infrastructure/ai-providers)
 (`openrouter.provider.ts`, `custom.provider.ts`, `fallback.provider.ts`,
 `circuit-breaker.ts`, `resilient.ts`, `provider.factory.ts`, `prompts.ts`) y a
 [`../../../packages/ai/`](../../../packages/ai) (`ai-orchestrator.ts`, `context-builder.ts`).
@@ -9,7 +9,7 @@ Aplica a: [`../../../packages/ai-providers/`](../../../packages/ai-providers)
 
 | ID | Regla |
 |---|---|
-| R-AI-9 | **Un proveedor por detrás de la interfaz, elegido por variable**: el sistema habla con el LLM a través de `AIProvider` y el proveedor concreto lo decide `provider.factory.ts` a partir de `AI_PROVIDER` (`openrouter` por defecto, `custom` para Ollama/vLLM). Ningún `import` del SDK de OpenRouter fuera de `packages/ai-providers` (→ `R-AR-7`). Añadir un proveedor es añadir un archivo `*.provider.ts` y una rama en la factory, no editar el orquestador. |
+| R-AI-9 | **Un proveedor por detrás de la interfaz, elegido por variable**: el sistema habla con el LLM a través de `AIProvider` y el proveedor concreto lo decide `provider.factory.ts` a partir de `AI_PROVIDER` (`openrouter` por defecto, `custom` para Ollama/vLLM). Ningún `import` del SDK de OpenRouter fuera de `libs/infrastructure/ai-providers` (→ `R-AR-7`). Añadir un proveedor es añadir un archivo `*.provider.ts` y una rama en la factory, no editar el orquestador. |
 | R-AI-10 | **El modelo principal y sus alternativas son configuración, no código**: `OPENROUTER_MODEL` es el principal y `OPENROUTER_FALLBACK_MODELS` la lista ordenada de alternativas. Prohibido hardcodear un ID de modelo en el código o en un test de producción. El valor por defecto debe ser `openrouter/free` (o el router que auto-elige) para que el proyecto arranque sin pagar; el camino de pago se activa por variable. |
 | R-AI-11 | **El fallback salta solo ante 404 y 429**: ante `404` (el modelo no existe / no está disponible para la cuenta) y ante `429` (rate limit del proveedor) se pasa al siguiente modelo de `OPENROUTER_FALLBACK_MODELS`. **Cualquier otro** error (401, 402, 403, 5xx) se propaga y **no** cambia de modelo. Regla derivada de los códigos reales de la API: saltar de modelo ante un `403` (sin créditos) esconde la causa real y gasta la lista de alternativas. |
 | R-AI-12 | **Un job tiene presupuesto de tokens y lo agota**: el límite `maxAiTokens` (por defecto en `DEFAULT_LIMITS`, con tope en `HARD_LIMITS`) se descuenta con el consumo real de cada llamada; al superarlo el job **se corta** con un estado terminal y un `JobError` explicativo, en lugar de seguir consumiendo coste. `0` o un valor no numérico **no** desactiva el presupuesto: normaliza al del servidor (`normalizeJobLimits`) → `R-DI-4`. |
@@ -22,11 +22,11 @@ Aplica a: [`../../../packages/ai-providers/`](../../../packages/ai-providers)
 
 ```bash
 # El proveedor se elige por variable y el fallback solo salta en 404/429
-grep -rn "OPENROUTER_FALLBACK_MODELS\|status === 404\|status === 429" packages/ai-providers/src
+grep -rn "OPENROUTER_FALLBACK_MODELS\|status === 404\|status === 429" libs/infrastructure/ai-providers/src
 
 # El presupuesto de tokens se aplica antes de la llamada
 grep -rn "maxAiTokens" packages apps --include=*.ts | head
 
-# Ningún SDK de OpenRouter fuera de packages/ai-providers
+# Ningún SDK de OpenRouter fuera de libs/infrastructure/ai-providers
 grep -rln "openrouter" packages/ai/src apps --include=*.ts
 ```

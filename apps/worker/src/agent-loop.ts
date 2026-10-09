@@ -5,7 +5,7 @@
  * Flujo actual: NAVIGATE -> INSPECT_LINKS -> INSPECT_ELEMENTS -> EXTRACT_LIST -> FINISH
  * con CommandValidator (§26) y ExecutionEngine (§27) reales.
  */
-import { ExecutionEngine } from '@ai-scraper/execution-engine';
+import { ExecutionEngine } from '@ai-scraper/infrastructure-execution';
 import { CommandValidator } from '@ai-scraper/domain-ai';
 
 export interface AgentJob {

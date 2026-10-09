@@ -1,4 +1,4 @@
-# @ai-scraper/storage
+# @ai-scraper/infrastructure-storage
 
 La **verdad transaccional** del sistema en código: el acceso a Postgres para jobs,
 sesiones y sus artefactos. Es la capa de orquestación de datos (`R-AR-2`).
@@ -19,7 +19,7 @@ sesiones y sus artefactos. Es la capa de orquestación de datos (`R-AR-2`).
 ## Comandos
 
 ```bash
-npm run build -w @ai-scraper/storage
+npm run build -w @ai-scraper/infrastructure-storage
 npm run prisma:migrate:deploy
 node --test tests/persistence.test.mjs
 ```

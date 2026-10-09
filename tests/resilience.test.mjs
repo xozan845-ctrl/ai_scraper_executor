@@ -2,9 +2,9 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 describe('Resiliencia (Etapa 5): circuit breaker + semáforo', async () => {
-  const { CircuitBreaker, __resetCircuitBreakers } = await import('../packages/ai-providers/dist/circuit-breaker.js');
-  const { withCircuitBreaker } = await import('../packages/ai-providers/dist/resilient.js');
-  const { Semaphore } = await import('../packages/crawler/dist/pool.js');
+  const { CircuitBreaker, __resetCircuitBreakers } = await import('../libs/infrastructure/ai-providers/dist/circuit-breaker.js');
+  const { withCircuitBreaker } = await import('../libs/infrastructure/ai-providers/dist/resilient.js');
+  const { Semaphore } = await import('../libs/infrastructure/crawler/dist/pool.js');
 
   it('CircuitBreaker: abre tras N fallos, half-open y cierra al recuperar', async () => {
     const b = new CircuitBreaker({ threshold: 2, cooldownMs: 40 });
@@ -56,7 +56,7 @@ describe('Resiliencia (Etapa 5): circuit breaker + semáforo', async () => {
   });
 
   it('nombre de la cola DLQ válido para BullMQ (sin ":")', async () => {
-    const { SCRAPING_DEAD_QUEUE } = await import('../packages/queue/dist/bullmq-queue.js');
+    const { SCRAPING_DEAD_QUEUE } = await import('../libs/infrastructure/queue/dist/bullmq-queue.js');
     assert.ok(!SCRAPING_DEAD_QUEUE.includes(':'), `BullMQ v6 no permite ":" en nombres de cola: ${SCRAPING_DEAD_QUEUE}`);
   });
 });

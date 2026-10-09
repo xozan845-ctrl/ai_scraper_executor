@@ -16,16 +16,16 @@
       "@ai-scraper/domain-execution": ["libs/domain/execution/dist"],
       "@ai-scraper/domain-scraper": ["libs/domain/scraper/dist"],
       "@ai-scraper/domain-ai": ["libs/domain/ai/dist"],
-      "@ai-scraper/crawler": ["packages/crawler/dist"],
-      "@ai-scraper/execution-engine": ["packages/execution-engine/dist"],
+      "@ai-scraper/infrastructure-crawler": ["libs/infrastructure/crawler/dist"],
+      "@ai-scraper/infrastructure-execution": ["libs/infrastructure/execution/dist"],
       "@ai-scraper/ai": ["packages/ai/dist"],
-      "@ai-scraper/ai-providers": ["packages/ai-providers/dist"],
-      "@ai-scraper/storage": ["packages/storage/dist"],
-      "@ai-scraper/queue": ["packages/queue/dist"],
+      "@ai-scraper/infrastructure-ai-providers": ["libs/infrastructure/ai-providers/dist"],
+      "@ai-scraper/infrastructure-storage": ["libs/infrastructure/storage/dist"],
+      "@ai-scraper/infrastructure-queue": ["libs/infrastructure/queue/dist"],
       "@ai-scraper/shared-security": ["libs/shared/security/dist"],
       "@ai-scraper/shared-observability": ["libs/shared/observability/dist"],
-      "@ai-scraper/mongodb": ["packages/mongodb/dist"],
-      "@ai-scraper/redis": ["packages/redis/dist"]
+      "@ai-scraper/infrastructure-mongodb": ["libs/infrastructure/mongodb/dist"],
+      "@ai-scraper/infrastructure-redis": ["libs/infrastructure/redis/dist"]
     }
   },
   "exclude": ["node_modules", "dist"]
