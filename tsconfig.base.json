@@ -19,6 +19,7 @@
       "@ai-scraper/infrastructure-crawler": ["libs/infrastructure/crawler/dist"],
       "@ai-scraper/infrastructure-execution": ["libs/infrastructure/execution/dist"],
       "@ai-scraper/application-ai": ["libs/application/ai/dist"],
+      "@ai-scraper/application-execution": ["libs/application/execution/dist"],
       "@ai-scraper/infrastructure-ai-providers": ["libs/infrastructure/ai-providers/dist"],
       "@ai-scraper/infrastructure-storage": ["libs/infrastructure/storage/dist"],
       "@ai-scraper/infrastructure-queue": ["libs/infrastructure/queue/dist"],

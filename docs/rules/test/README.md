@@ -10,11 +10,11 @@ fecha filtrada como UTC en vez del día configurado).
 > | | Reality |
 > |---|---|
 > | Runner | **`vitest`** (`npm test`); config en `vitest.config.mjs`. Ejecuta en serie |
-> | Ficheros | `tests/*.test.mjs` — **31 en disco, 28 en `npm test`** (contrato, integración y E2E van en otros comandos, `R-FL-4`), JavaScript, **no** `*.spec.ts` de Jest |
+> | Ficheros | `tests/*.test.mjs` — **32 en disco, 29 en `npm test`** (contrato, integración y E2E van en otros comandos, `R-FL-4`), JavaScript, **no** `*.spec.ts` de Jest |
 > | Ejecución | `npm test` (unit + propiedades, con dobles) · `npm run test:contract` · `npm run test:integration` (Docker) · `npm run test:e2e` (release) · `npm run test:api` (cliente real) |
 > | Cobertura | **v8 de Vitest**, umbrales en `vitest.config.mjs`: **65 / 54 / 56** (líneas/ramas/funciones), medidos sobre fuentes TS (ADR-29) |
 > | Concurrencia | Fija a **1** (`fileParallelism: false`): Crawlee usa almacenamiento local y en paralelo los tests se contaminan (`R-FL-5`) |
-> | Estado hoy | **167 tests / 28 suites** en `npm test` + **9 de contrato** + **7 de integración**, todos en verde |
+> | Estado hoy | **174 tests / 29 suites** en `npm test` + **9 de contrato** + **7 de integración**, todos en verde |
 >
 > Los identificadores heredados que hablaban de Jest (`jest.coverageThreshold`,
 > `*.spec.ts`, `setup de Jest`) se conservan **sin renumerar** y su texto apunta al

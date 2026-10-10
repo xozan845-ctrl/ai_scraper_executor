@@ -792,6 +792,40 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
 
 ---
 
+## ADR-33: Separar traslado físico de conformidad hexagonal
+
+- **Fecha**: 2026-10-10
+- **Estado**: Aceptado (F6 completada; F7 en curso, F8–F10 pendientes)
+- **Contexto**: F0–F5 movieron todos los paquetes a
+  `libs/{domain,application,infrastructure,shared}`, retiraron `packages/` y adoptaron
+  Vitest. La documentación llamó a ese hito «migración hexagonal completada». Una
+  auditoría posterior mostró que esa etiqueta medía solo topología: `apps/api` y
+  `apps/worker` todavía contienen casos de uso y workflows; `JobStore`, `SessionStore`,
+  `JobQueue` y otros puertos se declaran en infraestructura; MongoDB importa crawler y
+  execution; y `scripts/check-boundaries.mjs` solo comprueba imports
+  `@ai-scraper/*` por capa, no manifiestos, propiedad de puertos ni apps delgadas.
+- **Decisión**: distinguir dos hitos. **Traslado físico** (F0–F5) significa rutas,
+  nombres de paquete, retirada de `packages/` y runner. **Conformidad hexagonal**
+  (F6–F10) exige la definición de `R-HX-14`: puertos propiedad de domain/application,
+  casos de uso fuera de `apps/*`, adaptadores independientes, dominio sin I/O y
+  verificación ejecutable de imports y manifiestos. Se endurece `R-HX-2` para prohibir
+  imports entre adaptadores; su coordinación ocurre en application y el wiring en
+  apps. No se adopta Nx/Turborepo: npm workspaces sigue siendo suficiente.
+- **Consecuencias**: (a) el estado oficial pasa de verde a amarillo hasta cerrar F10;
+  (b) `boundaries:check` verde prueba solo el alcance que implementa y no equivale a
+  conformidad completa; (c) F7 extrae puertos y ordena dominio, F8 mueve casos de uso,
+  F9 adelgaza los entry points y desacopla adaptadores, y F10 activa enforcement sin
+  excepciones; (d) la migración sigue siendo strangler, con endpoints y gates verdes en
+  cada PR; (e) no se crean carpetas vacías para imitar un diagrama: cada módulo existe
+  por una responsabilidad y tiene pruebas.
+- **Avance F7 (2026-10-10)**: se crea `@ai-scraper/application-execution` como
+  propietario de `JobStore`, `SessionStore`, `JobQueue` y sus DTOs. Prisma, memoria y
+  BullMQ quedan como adaptadores; API/worker importan los contratos desde application.
+  El gate protege este avance sin declarar F7 completa: caché, motor y repositorios
+  restantes continúan inventariados como deuda.
+
+---
+
 ## Deudas que estos ADR dejan abiertas
 
 | Deuda | ADR relacionado | Dónde está registrada |
@@ -803,9 +837,7 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
 | Entornos `staging`/`production` declarados (ADR-32) pero su **protección/aprobación y el deploy real** los configura el operador | ADR-32 | `rules/git/00-entornos.md` (`R-GE-5`) |
 | Separación caché/cola de Redis: soportada pero **opt-in** (default compartido) | ADR-23 | `rules/db/03-redis.md` (`R-RD-1`) |
 | Retención de `Page`/`Command`/`AIInteraction` sin declarar | — | `rules/data/01-integridad.md` (`R-DI-8`) |
-| Migración a hexagonal DDD **declarada pero no ejecutada** (conviven `packages/` y `libs/`) | ADR-27, ADR-30 | `migracion-arquitectura.md`; `rules/architecture/03-arquitectura-hexagonal.md` (`R-HX-9`) |
-| Fronteras activas (script `scripts/check-boundaries.mjs`) con **1 excepción legacy** (`ai→redis`) | ADR-28, ADR-30 | `rules/architecture/03-arquitectura-hexagonal.md` (`R-HX-4`) |
-| Runner **Vitest** implementado (F5) | ADR-29 | `rules/test/README.md` |
+| Conformidad hexagonal F7–F10: puertos, casos de uso, apps delgadas, adaptadores independientes y enforcement completo | ADR-27, ADR-30, ADR-33 | `migracion-arquitectura.md`; `rules/architecture/03-arquitectura-hexagonal.md` (`R-HX-10..14`) |
 | Sin cache/`affected` de tareas (Nx/Turborepo evaluables más adelante) | ADR-28 | `docs/decisiones.md` (ADR-28) |
 
 > El estado vigente de cada deuda, con el comando que la mide, está en

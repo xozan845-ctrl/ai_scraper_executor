@@ -1,5 +1,5 @@
 import { Injectable, Inject, BadRequestException, ConflictException, Optional } from '@nestjs/common';
-import type { SessionStore, SessionRecord } from '@ai-scraper/infrastructure-storage';
+import type { SessionRecord, SessionStore } from '@ai-scraper/application-execution';
 import { encryptJson, hasCredentialsKey, normalizeDomain } from '@ai-scraper/shared-security';
 import { SESSION_STORE, RADIOGRAPHER, type Radiographer } from './providers';
 import { JobsService, assertJobUrlAllowed } from './jobs.service';

@@ -1,38 +1,21 @@
 import type {
-  JobStatus,
-  JobRecord,
-  CreateJobInput,
-  ResultRow,
-  CommandRow,
-  PageRow,
-  ErrorRow,
   AIInteractionInput,
   AIInteractionRow,
+  CommandRow,
+  CreateJobInput,
+  ErrorRow,
+  JobRecord,
+  JobStatus,
+  ListJobsOptions,
+  PageRow,
+  ResultRow,
+  SaveResultInput,
   StoreStats,
-} from './types';
+} from '../dtos/job';
 
-export interface SaveResultInput {
-  data: unknown;
-  sourceUrl?: string;
-  selector?: string;
-  confidence?: number;
-}
-
-/** Opciones de listado (paginación por cursor + filtro por estado). */
-export interface ListJobsOptions {
-  cursor?: string;
-  status?: string;
-  ownerScope?: string;
-}
-
-/**
- * JobStore — persistencia de jobs y artefactos (§11, §40).
- * Implementaciones: PrismaJobStore (PostgreSQL) e InMemoryJobStore (tests/dev sin DB).
- */
 export interface JobStore {
   readonly kind: 'prisma' | 'memory';
   createJob(input: CreateJobInput): Promise<JobRecord>;
-  /** Creación atómica para Idempotency-Key; `created=false` evita encolar dos veces. */
   getOrCreateJob(input: CreateJobInput, idempotencyKey: string): Promise<{ record: JobRecord; created: boolean }>;
   getJob(id: string): Promise<JobRecord | null>;
   listJobs(limit?: number, opts?: ListJobsOptions): Promise<JobRecord[]>;
@@ -48,8 +31,6 @@ export interface JobStore {
   getPages(jobId: string): Promise<PageRow[]>;
   getErrors(jobId: string): Promise<ErrorRow[]>;
   getAIInteractions(jobId: string): Promise<AIInteractionRow[]>;
-  /** Borra plan/comandos/páginas/resultados/errores del job (idempotencia ante reintentos). */
   clearJobArtifacts(jobId: string): Promise<void>;
-  /** Agregados globales para dashboard y /metrics. */
   getStats(): Promise<StoreStats>;
 }

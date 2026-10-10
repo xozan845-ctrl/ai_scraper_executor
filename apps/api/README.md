@@ -1,11 +1,13 @@
 # api
 
-La **interfaz** del sistema: una API NestJS que expone `/api/v1` y **solo encola**
-trabajo; nunca ejecuta un job (`R-AR-3`). Es la capa `INTERFACE` (`R-AR-2`).
+La **interfaz HTTP** del sistema: una API NestJS que expone `/api/v1` y **solo encola**
+trabajo; nunca ejecuta un job (`R-AR-3`). Su objetivo hexagonal es ser un adaptador de
+entrada delgado y composition root (`R-HX-10`).
 
 - **Dependencias exclusivas**: NestJS 12 (`@nestjs/common`, `core`, `platform-express`,
-  `swagger`), `class-validator`/`class-transformer` y los packages `core`, `storage`,
-  `queue`, `redis`, `mongodb`, `observability` y `security`.
+  `swagger`), `class-validator`/`class-transformer`, los puertos de
+  `application-execution` y las libs de dominio, shared e infraestructura declaradas
+  en `package.json`.
 - **Superficie (endpoints bajo `/api/v1`)** — `R-C-1`:
   - `POST /jobs`, `GET /jobs`, `GET /jobs/:id`, `/jobs/:id/results|execution|ai`,
     `POST /jobs/:id/cancel|retry` — ciclo de un job, con `Idempotency-Key` (`R-DI-2`) y
@@ -30,3 +32,8 @@ curl -fsS http://localhost:3000/api/v1/health
 
 > Requiere Postgres/Redis/Mongo (o sus fallbacks en memoria). Ver [`AGENTS.md`](../../AGENTS.md)
 > y [`docs/rules/architecture/`](../../docs/rules/architecture/README.md).
+
+> **Deuda F8–F9 (ADR-33):** `JobsService`, `SessionsService`, `UserService` y la
+> radiografía todavía coordinan reglas y adaptadores dentro de esta app. Sus
+> dependencias de storage/queue ya se tipan con puertos de `application-execution`;
+> falta mover la coordinación a casos de uso. Controllers/guards y wiring permanecen aquí.

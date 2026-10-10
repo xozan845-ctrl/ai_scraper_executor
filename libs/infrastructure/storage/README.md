@@ -1,17 +1,21 @@
 # @ai-scraper/infrastructure-storage
 
-La **verdad transaccional** del sistema en código: el acceso a Postgres para jobs,
-sesiones y sus artefactos. Es la capa de orquestación de datos (`R-AR-2`).
+Adaptadores de persistencia para jobs, sesiones y sus artefactos. La verdad
+transaccional usa Postgres; memoria permite tests y desarrollo sin base real.
 
-- **Capa**: orquestación/datos.
-- **Dependencias exclusivas**: `@prisma/client` y `@ai-scraper/domain-execution`.
+- **Capa**: infraestructura.
+- **Dependencias exclusivas**: `@prisma/client` y
+  `@ai-scraper/application-execution`, que es propietario de los puertos (`R-HX-11`).
 - **Superficie pública**:
-  - `createJobStore` / `PrismaJobStore` / `InMemoryJobStore` — el `JobStore` real
+  - `createJobStore` / `PrismaJobStore` / `InMemoryJobStore` — adaptadores de `JobStore`
     (Prisma) o el de memoria cuando no hay `DATABASE_URL`, que **avisa** al degradar
     (`R-AR-6`, `R-DI-6`).
   - `createSessionStore` / `PrismaSessionStore` / `InMemorySessionStore` — sesiones de
     chat y sus mensajes.
   - `getPrismaClient`, `closeJobStore`, `__reset*Singleton` — cliente y ciclo de vida.
+
+No reexporta `JobStore`, `SessionStore` ni sus DTOs; los consumidores los importan de
+`@ai-scraper/application-execution`.
 
 > El esquema y las migraciones viven en [`prisma/`](../../prisma) y se cambian solo con
 > una migración versionada (`R-DB-1`); el `JobStore` no muta el esquema.
@@ -21,5 +25,5 @@ sesiones y sus artefactos. Es la capa de orquestación de datos (`R-AR-2`).
 ```bash
 npm run build -w @ai-scraper/infrastructure-storage
 npm run prisma:migrate:deploy
-node --test tests/persistence.test.mjs
+MONGODB_MOCK=1 npm test
 ```

@@ -1,5 +1,5 @@
 import IORedis from 'ioredis';
-import type { JobQueue } from './job-queue';
+import type { JobQueue } from '@ai-scraper/application-execution';
 import { InMemoryJobQueue } from './memory-queue';
 import { BullMQJobQueue } from './bullmq-queue';
 

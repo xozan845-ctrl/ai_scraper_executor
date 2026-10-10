@@ -11,7 +11,7 @@ tocar cada tipo de cambio** y **qué pasos bloquean el merge hoy**.
 > | Node | 22 en CI (el `engines` del repo pide `>=20`); trae cobertura nativa |
 > | Instalación | `npm ci --ignore-scripts` (sin `--legacy-peer-deps` desde Nest 12, ADR-18) |
 > | Pasos | `npm ci` → `Security audit` → `prisma:generate` → schema/deriva → `build` → OpenAPI → `lint` → `test` → contract → artifact |
-> | Suite | `npm test` = `vitest run --coverage` sobre 28 ficheros, con `MONGODB_MOCK: '1'` |
+> | Suite | `npm test` = `vitest run --coverage` sobre 29 ficheros, con `MONGODB_MOCK: '1'` |
 > | Cobertura | **v8 de Vitest** (`@vitest/coverage-v8`): sin `c8` ni `nyc`. Umbrales en `vitest.config.mjs`: **65 % líneas / 54 % ramas / 56 % funciones** (medidos sobre fuentes TS, ADR-29) |
 > | Jobs | `build-test-lint` (unit, cobertura, lint, build, contrato, OpenAPI) + `integration` (Postgres/Mongo/Redis) + [`e2e.yml`](../../../.github/workflows/e2e.yml) (release) |
 >

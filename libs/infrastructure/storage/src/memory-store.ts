@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
-import type { JobStore, SaveResultInput } from './job-store';
 import type {
+  JobStore,
+  SaveResultInput,
   JobStatus,
   JobRecord,
   CreateJobInput,
@@ -11,7 +12,8 @@ import type {
   AIInteractionInput,
   AIInteractionRow,
   StoreStats,
-} from './types';
+  ListJobsOptions,
+} from '@ai-scraper/application-execution';
 
 const now = () => new Date().toISOString();
 const nid = (p: string) => `${p}_${randomUUID().slice(0, 8)}`;
@@ -67,7 +69,7 @@ export class InMemoryJobStore implements JobStore {
     return this.jobs.get(id) ?? null;
   }
 
-  async listJobs(limit = 20, opts?: import('./job-store').ListJobsOptions): Promise<JobRecord[]> {
+  async listJobs(limit = 20, opts?: ListJobsOptions): Promise<JobRecord[]> {
     let ids = [...this.order].reverse(); // más recientes primero
     if (opts?.status) ids = ids.filter((id) => this.jobs.get(id)?.status === opts.status);
     if (opts?.ownerScope) ids = ids.filter((id) => this.jobs.get(id)?.ownerScope === opts.ownerScope);

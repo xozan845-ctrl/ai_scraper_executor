@@ -13,9 +13,11 @@ root) sobre `libs/{domain,application,infrastructure,shared}`. El plan, el mapeo
 [`docs/migracion-arquitectura.md`](docs/migracion-arquitectura.md); las reglas
 canónicas en [`docs/rules/architecture/03-arquitectura-hexagonal.md`](docs/rules/architecture/03-arquitectura-hexagonal.md).
 
-**Estado actual:** la migración estructural a `libs/` está **completada** (`packages/`
-retirado); el runtime sigue describiéndose con la vista de 5 capas. Queda **F5**:
-adoptar Vitest como runner (ADR-29).
+**Estado actual:** el traslado físico F0–F5 está completado (`packages/` retirado y
+Vitest activo). La conformidad hexagonal sigue parcial: F7 ya movió los puertos de
+jobs, sesiones y cola a `application/execution`; faltan otros puertos, casos de uso,
+adelgazar `apps/*` y desacoplar adaptadores. El plan F6–F10 y la evidencia están en el
+documento de migración (ADR-33).
 
 ```
 INTERFACE (API NestJS) -> ORCHESTRATION (Jobs/Redis/BullMQ) -> INTELLIGENCE (AI Planner/OpenRouter|Custom|Ollama)
@@ -50,7 +52,7 @@ npm run dev:worker  # Worker consumiendo cola
 
 ```bash
 # Tests unitarios/integración (mocks, sin BD reales) — runner Vitest
-npm test                    # 167 tests (28 suites): dsl + dsl-completeness + normalize + engine + crawler + ai-providers + agent + persistence + dashboard + security + browser + api-hardening + observability + scale + llm-cache + interpret + resilience + sessions + credentials + cache-isolation + limits + first-user + logging + util-unify + metrics-labels + retry-cleanup + browser-ssrf + property
+npm test                    # 174 tests (29 suites): unitarios + propiedades, con dobles y sin infraestructura real
 MONGODB_MOCK=1 npm test     # Forzar mock MongoDB
 
 # Test E2E real contra https://www.sevasaonline.com/
@@ -130,13 +132,14 @@ libs/
   domain/scraper/        # TracedValue/StructuredItem (trazabilidad)
   domain/ai/             # DSL Zod (15 comandos) + CommandValidator + normalize
   application/ai/        # AIOrchestrator + prompts + context-builder
+  application/execution/ # Puertos/DTOs de jobs, sesiones y cola
   infrastructure/crawler/       # CrawlerService (CheerioCrawler + PlaywrightCrawler, hybrid, SessionPool)
   infrastructure/execution/     # ExecutionEngine (HTTP/Cheerio + browserInteract) + PageCache
   infrastructure/ai-providers/  # OpenRouterProvider (fallback modelos), CustomEndpointProvider, FallbackAIProvider
   infrastructure/mongodb/       # SiteProfile, PageRadiography, MongoRepository, performRadiography/getLearnedProfile
   infrastructure/redis/         # RedisPageCache, RedisRateLimiter, RedisMetricsAggregator (fallback memoria)
-  infrastructure/queue/         # JobQueue (BullMQJobQueue + InMemoryJobQueue) + factory
-  infrastructure/storage/       # JobStore (Prisma + InMemory)
+  infrastructure/queue/         # Adaptadores JobQueue (BullMQ + memoria) + factory
+  infrastructure/storage/       # Adaptadores JobStore/SessionStore (Prisma + memoria)
 prisma/
   schema.prisma  # 8 tablas: User, Job, ScrapingPlan, Command, Page, Result, JobError, AIInteraction
 docker-compose.yml # postgres + mongodb + redis + migrate + api + worker

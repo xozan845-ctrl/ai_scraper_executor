@@ -1,7 +1,6 @@
-import type { JobQueue } from './job-queue';
-import { SCRAPING_QUEUE } from './job-queue';
-import type { ScrapingJobPayload } from './types';
-import { normalizePriority } from './types';
+import type { JobQueue, ScrapingJobPayload } from '@ai-scraper/application-execution';
+import { normalizePriority } from '@ai-scraper/application-execution';
+import { SCRAPING_QUEUE } from './queue-names';
 
 /** Cola en memoria: tests y dev sin Redis. Misma interfaz que BullMQ. */
 export class InMemoryJobQueue implements JobQueue {

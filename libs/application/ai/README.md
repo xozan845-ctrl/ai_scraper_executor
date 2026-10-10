@@ -4,7 +4,7 @@ El **orquestador de IA** del producto: compone el contexto que se envía al mode
 gobierna las fases (planificar, analizar, recuperar, interpretar). No habla con el
 proveedor: eso es `@ai-scraper/infrastructure-ai-providers` (`R-AR-7`).
 
-- **Capa**: inteligencia.
+- **Capa**: aplicación (`libs/application/ai`).
 - **Dependencias exclusivas**: `zod` (valida la salida del modelo antes de darla por buena).
 - **Superficie pública**:
   - `AIOrchestrator` — ejecuta las fases con el `AIProvider` inyectado.

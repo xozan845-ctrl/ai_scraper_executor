@@ -34,4 +34,4 @@ real.
 
 ## Estado
 
-- **`README.md` por paquete/app (R-DO-1): cumplido**. Las 14 libs de `libs/*/*` y las 2 apps de `apps/*` tienen su README (responsabilidad, dependencias, superficie pública y comandos). Antes era deuda registrada en [`../_meta/AUDIT.md`](../_meta/AUDIT.md).
+- **`README.md` por paquete/app (R-DO-1): cumplido**. Las 15 libs de `libs/*/*` y las 2 apps de `apps/*` tienen su README (responsabilidad, dependencias, superficie pública y comandos). Antes era deuda registrada en [`../_meta/AUDIT.md`](../_meta/AUDIT.md).

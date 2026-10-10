@@ -9,8 +9,7 @@ import { createAIProviderForJob, withCircuitBreaker } from '@ai-scraper/infrastr
 import { ExecutionEngine } from '@ai-scraper/infrastructure-execution';
 import { incMetric } from './metrics-bridge';
 import { getJsonCache } from '@ai-scraper/infrastructure-redis';
-import type { JobStore } from '@ai-scraper/infrastructure-storage';
-import type { ScrapingJobPayload } from '@ai-scraper/infrastructure-queue';
+import type { JobStore, ScrapingJobPayload } from '@ai-scraper/application-execution';
 import { AgentRunner, type AgentResult } from './agent-runner';
 import { enrichItems } from './interpret';
 import { createProductionEngine } from './browser-engine';
