@@ -1,10 +1,11 @@
 # @ai-scraper/infrastructure-queue
 
-La **cola de trabajos**: BullMQ sobre Redis con respaldo en memoria, incluida la cola
-de muertos. Es lo que permite que la API solo encole y el worker consuma (`R-AR-3`).
+Adaptadores de `JobQueue`: BullMQ sobre Redis y respaldo en memoria, incluida la cola
+de muertos. La API encola y el worker consume (`R-AR-3`).
 
-- **Capa**: orquestación.
-- **Dependencias exclusivas**: `bullmq` e `ioredis`.
+- **Capa**: infraestructura.
+- **Dependencias exclusivas**: `bullmq`, `ioredis` y
+  `@ai-scraper/application-execution`, que es propietario del puerto (`R-HX-11`).
 - **Superficie pública**:
   - `createJobQueue` / `BullMQJobQueue` / `InMemoryJobQueue` — la cola; sin Redis cae a
     memoria avisando (`R-AR-6`).
@@ -12,7 +13,9 @@ de muertos. Es lo que permite que la API solo encole y el worker consuma (`R-AR-
     de la dead-letter (`R-AR-8`).
   - `createScrapingWorker`, `createRedisConnection`, `createDeadLetterQueue` — worker y
     conexiones.
-  - `normalizePriority` — prioridad acotada del job.
+
+No reexporta `JobQueue`, `ScrapingJobPayload` ni `normalizePriority`; los consumidores
+los importan de `@ai-scraper/application-execution`.
 
 > Los reintentos con espera creciente y el paso a la cola de muertos al agotarlos se
 > gobiernan aquí (`R-SC-8`); un fallo determinista (SSRF, plan inválido) no se
@@ -23,5 +26,5 @@ de muertos. Es lo que permite que la API solo encole y el worker consuma (`R-AR-
 ```bash
 npm run build -w @ai-scraper/infrastructure-queue
 docker compose up -d redis
-node --test tests/retry-cleanup.test.mjs
+MONGODB_MOCK=1 npm test
 ```

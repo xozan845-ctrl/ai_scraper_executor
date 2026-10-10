@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
-import type { JobStore, SaveResultInput } from './job-store';
 import type {
+  JobStore,
+  SaveResultInput,
   JobStatus,
   JobRecord,
   CreateJobInput,
@@ -11,7 +12,8 @@ import type {
   AIInteractionInput,
   AIInteractionRow,
   StoreStats,
-} from './types';
+  ListJobsOptions,
+} from '@ai-scraper/application-execution';
 
 const toRecord = (j: {
   id: string;
@@ -92,7 +94,7 @@ export class PrismaJobStore implements JobStore {
     return j ? toRecord(j) : null;
   }
 
-  async listJobs(limit = 20, opts?: import('./job-store').ListJobsOptions): Promise<JobRecord[]> {
+  async listJobs(limit = 20, opts?: ListJobsOptions): Promise<JobRecord[]> {
     const rows = await this.prisma.job.findMany({
       where: {
         ...(opts?.status ? { status: opts.status } : {}),

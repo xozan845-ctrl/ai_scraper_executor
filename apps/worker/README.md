@@ -1,12 +1,12 @@
 # worker
 
-El **motor en marcha**: consume la cola y ejecuta el bucle Observe→Think→Act
-(planifica con la IA, ejecuta con el DSL, recupera y persiste). Es la capa de
-ejecución/orquestación (`R-AR-2`).
+El **adaptador de entrada de la cola**: arranca el proceso, compone dependencias y
+consume jobs. El bucle Observe→Think→Act es lógica de aplicación y su destino es
+`libs/application/*` (`R-HX-10`).
 
-- **Dependencias exclusivas**: los packages `ai`, `ai-providers`, `commands`,
-  `execution-engine`, `crawler`, `mongodb`, `redis`, `storage`, `queue`, `core` y
-  `observability`. No usa NestJS.
+- **Dependencias exclusivas**: las libs `application-ai`, `application-execution`,
+  `domain-*`, los adaptadores de infraestructura y `shared-observability` declarados
+  en `package.json`. No usa NestJS.
 - **Superficie (interna, no HTTP)**:
   - `AgentRunner` (`agent-runner.ts`) — el bucle del agente con recovery acotado
     (2 intentos) y presupuestos (`R-SC-3`, `R-SC-9`).
@@ -29,3 +29,8 @@ npm run start -w worker   # node dist/main.js
 
 > Requiere Redis (cola) y Postgres/Mongo; puede escalarse con
 > `docker compose up --scale worker=3` (ver [`docs/rules/cd/`](../../docs/rules/cd/README.md)).
+
+> **Deuda F8–F9 (ADR-33):** `AgentRunner`, planner, browser engine e implementación de
+> `job-processor` todavía viven en la app. `job-processor` ya depende de los puertos de
+> `application-execution`, pero la coordinación debe quedar como casos de uso en
+> `libs/application/{execution,scraper}`; aquí quedarán bootstrap, consumer y wiring.

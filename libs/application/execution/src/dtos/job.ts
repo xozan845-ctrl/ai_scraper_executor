@@ -1,15 +1,9 @@
-/**
- * Tipos de persistencia (§11, §40).
- * Fuente única: JobStatus/JobLimits/DEFAULT_LIMITS viven en @ai-scraper/domain-execution.
- * Aquí se re-exportan para compatibilidad (ETAPA 1: elimina duplicación).
- */
 import { JobStatus as CoreStatus } from '@ai-scraper/domain-execution';
 import type { JobLimits } from '@ai-scraper/domain-execution';
 
 export { JobStatus as CoreStatus, DEFAULT_LIMITS } from '@ai-scraper/domain-execution';
 export type { JobLimits } from '@ai-scraper/domain-execution';
 
-/** Unión de strings derivada del enum core — acepta 'QUEUED' y JobStatus.QUEUED. */
 export type JobStatus = `${CoreStatus}`;
 
 export interface CreateJobInput {
@@ -18,9 +12,7 @@ export interface CreateJobInput {
   limits?: JobLimits;
   aiProvider?: string;
   aiModel?: string;
-  /** Sesión (chat) de origen, si el job se creó desde /sessions. */
   sessionId?: string;
-  /** Identidad opaca derivada de la API key; nunca contiene la clave en claro. */
   ownerScope?: string;
 }
 
@@ -83,16 +75,27 @@ export interface AIInteractionRow {
   createdAt: string;
 }
 
-/** Agregados para dashboard (FASE 9) y /metrics (FASE 10, §56). */
 export interface StoreStats {
   jobsTotal: number;
   jobsByStatus: Record<string, number>;
   resultsTotal: number;
   commandsTotal: number;
-  /** Comandos con status RECOVERED — numerador del AI Recovery Rate §56. */
   commandsRecovered: number;
   pagesTotal: number;
   errorsTotal: number;
   aiCallsTotal: number;
   aiTokensTotal: number;
+}
+
+export interface SaveResultInput {
+  data: unknown;
+  sourceUrl?: string;
+  selector?: string;
+  confidence?: number;
+}
+
+export interface ListJobsOptions {
+  cursor?: string;
+  status?: string;
+  ownerScope?: string;
 }

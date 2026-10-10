@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import type { JobStore } from './job-store';
+import type { JobStore } from '@ai-scraper/application-execution';
 import { InMemoryJobStore } from './memory-store';
 import { PrismaJobStore } from './prisma-store';
 

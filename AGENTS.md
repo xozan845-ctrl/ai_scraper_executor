@@ -24,7 +24,7 @@ npm run build                  # compila TODO en orden de dependencias (packages
 npm run build:core             # solo libs base (sin apps)
 npm run lint                   # eslint apps libs scripts + boundaries (0 errors/0 warnings)
 npm run typecheck              # alias de build
-npm test                       # 167 tests unitarios + propiedades (mocks, sin BD reales)
+npm test                       # 174 tests unitarios + propiedades (mocks, sin BD reales)
 MONGODB_MOCK=1 npm test        # fuerza mock MongoDB (recomendado en local sin Docker)
 npm run test:contract          # contrato de la API /api/v1 (G-5), sin infra
 npm run test:integration       # integración con Postgres/Mongo/Redis reales (G-4)
@@ -58,7 +58,7 @@ npm run build && npm run lint && MONGODB_MOCK=1 npm test
 
 `lint` debe reportar **0 errors y 0 warnings** (el alcance incluye `scripts/`; por eso
 `@typescript-eslint/no-explicit-any` y `no-unused-vars` son warnings que rompen el gate).
-`npm test` falla **también si baja la cobertura** (líneas 70 / ramas 72 / funciones 67):
+`npm test` falla **también si baja la cobertura** (líneas 65 / ramas 54 / funciones 56):
 código nuevo sin test tumba el gate.
 Antes del push conviene además `npm run test:contract` (sin infra), `npm run openapi:check`
 y `npm audit --audit-level=high` (R-QA-6: 0 vulnerabilidades); con Docker, `npm run test:integration`.
@@ -78,8 +78,10 @@ No commitear ni hacer push salvo que el usuario lo pida explícitamente.
 > `apps/*` como composition root sobre `libs/{domain,application,infrastructure,shared}`.
 > Plan y mapeo: [`docs/migracion-arquitectura.md`](docs/migracion-arquitectura.md).
 > Reglas canónicas: [`docs/rules/architecture/03-arquitectura-hexagonal.md`](docs/rules/architecture/03-arquitectura-hexagonal.md)
-> (`R-HX-*`). **Migración estructural completada**: `packages/` retirado; todo vive en
-> `libs/`. Queda **F5**: adoptar **Vitest** como runner (ADR-29).
+> (`R-HX-*`). **Traslado físico F0–F5 completado**: `packages/` retirado y Vitest
+> activo. F7 ya extrajo los contratos de jobs, sesiones y cola; la conformidad
+> hexagonal sigue pendiente (ADR-33): quedan otros puertos, casos de uso, adelgazar
+> `apps/*`, desacoplar adaptadores y cerrar el enforcement de `R-HX-14`.
 
 ```
 apps/api        NestJS: /jobs /radiography /sessions /metrics /dashboard /health (prefijo /api/v1)
@@ -97,10 +99,11 @@ libs/infrastructure/execution        ExecutionEngine (HTTP/Cheerio + browserInte
 libs/infrastructure/ai-providers     OpenRouterProvider (fallback modelos), Custom, FallbackAIProvider
 libs/infrastructure/mongodb          SiteProfile/PageRadiography, MongoRepository, performRadiography/getLearnedProfile
 libs/infrastructure/redis            RedisPageCache/RedisRateLimiter/RedisMetricsAggregator (fallback memoria)
-libs/infrastructure/queue            JobQueue (BullMQ + InMemory)
-libs/infrastructure/storage          JobStore (Prisma + InMemory)
+libs/application/execution           JobStore/SessionStore/JobQueue (puertos) + DTOs de ejecución
+libs/infrastructure/queue            Adaptadores BullMQ + InMemory de JobQueue
+libs/infrastructure/storage          Adaptadores Prisma + InMemory de JobStore/SessionStore
 
-libs/application/ai               AIOrchestrator, prompts, context-builder  # pendiente: -> libs/application/ai (F4)
+libs/application/ai               AIOrchestrator, prompts, context-builder; F8 ampliará casos de uso
 ```
 
 ## Reglas del proyecto (importantes)

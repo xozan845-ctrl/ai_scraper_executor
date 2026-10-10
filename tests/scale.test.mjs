@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 describe('Escala FASE 11 ETAPA 6 (prioridades + caché + dedupe)', async () => {
   const { InMemoryJobQueue } = await import('../libs/infrastructure/queue/dist/memory-queue.js');
-  const { normalizePriority } = await import('../libs/infrastructure/queue/dist/types.js');
+  const { normalizePriority } = await import('../libs/application/execution/dist/index.js');
   const { ExecutionEngine, PageCache, normalizeUrlForDedupe } = await import('../libs/infrastructure/execution/dist/index.js');
 
   it('normalizePriority acota a 1..10 con defecto 5', () => {

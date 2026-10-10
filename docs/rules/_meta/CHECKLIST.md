@@ -144,12 +144,17 @@ Marcar las capas ✅ que apliquen y **justificar las que no**.
 
 ## 14. Arquitectura hexagonal ([`03-arquitectura-hexagonal.md`](../architecture/03-arquitectura-hexagonal.md)) — si el PR mueve código entre capas o crea una lib
 
-- [ ] **R-HX-1/2** — El código respeta la capa que le corresponde y la dirección de dependencia permitida (prohibidas `domain→application/infra`, `application→infra`, `libs→apps`).
-- [ ] **R-HX-3** — `domain`/`application` no importan SDKs (`prisma`, `mongoose`, `bullmq`, `crawlee`, `playwright`, OpenRouter) ni hacen I/O; los puertos viven en el dominio.
-- [ ] **R-HX-4** — `npm run lint` (que ejecuta `boundaries:check`) pasa: ninguna arista prohibida nueva; las excepciones legacy declaradas no crecen.
+- [ ] **R-HX-1/2** — El código respeta la capa y dirección permitidas (prohibidas `domain→application/infra`, `application→infra`, `libs→apps` e `infrastructure→infrastructure`).
+- [ ] **R-HX-3** — `domain`/`application` no importan SDKs (`prisma`, `mongoose`, `bullmq`, `crawlee`, `playwright`, OpenRouter) ni hacen I/O.
+- [ ] **R-HX-4** — `npm run lint` (que ejecuta `boundaries:check`) pasa; imports y dependencias declaradas respetan las fronteras que cubre el gate.
 - [ ] **R-HX-5** — La instanciación de adaptadores ocurre solo en `apps/*` o en una `factory` de `infrastructure/`.
-- [ ] **R-HX-6/7** — La lib vive en `libs/<capa>/<contexto>`; Prisma sigue en `prisma/` y su adaptador en `infrastructure/persistence/prisma`.
+- [ ] **R-HX-6/7/8** — La lib vive en `libs/<capa>/<contexto>`, su `src/` está organizado por responsabilidad y Prisma sigue en `prisma/` con su adaptador en `libs/infrastructure/storage`.
 - [ ] **R-HX-9** — `packages/` retirado; todo en `libs/*`; un tema por PR y el repo verde.
-- [ ] **ADR-27/ADR-30** — Si es estructural (nueva capa, cambio de orden de build, adopción de herramienta), hay ADR en [`docs/decisiones.md`](../../decisiones.md).
+- [ ] **R-HX-10** — Controller/consumer delgado: traduce transporte, ejecuta un caso de uso y mapea salida; no coordina storage + queue + LLM + crawler.
+- [ ] **R-HX-11** — El puerto pertenece a `domain` o `application`; ningún caso de uso tipa dependencias importando interfaces de infraestructura.
+- [ ] **R-HX-12** — Un adaptador no importa otro adaptador; la coordinación ocurre en application y el wiring en apps.
+- [ ] **R-HX-13** — `shared` no contiene lógica de un contexto y el dominio solo consume de shared piezas deterministas sin I/O.
+- [ ] **R-HX-14** — No se declara «arquitectura completada» solo porque el árbol sea `apps/` + `libs/`; se adjunta evidencia de todos los criterios de cierre.
+- [ ] **ADR-27/ADR-30/ADR-33** — Si es estructural (nueva capa, cambio de orden de build, adopción de herramienta), hay ADR en [`docs/decisiones.md`](../../decisiones.md).
 
 > Estado actual de los gates y deudas: [`AUDIT.md`](./AUDIT.md) (snapshot).

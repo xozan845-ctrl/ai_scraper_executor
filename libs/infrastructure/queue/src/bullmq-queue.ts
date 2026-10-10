@@ -1,9 +1,8 @@
 import { Queue, Worker, type Processor } from 'bullmq';
 import IORedis from 'ioredis';
-import type { JobQueue } from './job-queue';
-import { SCRAPING_QUEUE } from './job-queue';
-import type { ScrapingJobPayload } from './types';
-import { normalizePriority } from './types';
+import type { JobQueue, ScrapingJobPayload } from '@ai-scraper/application-execution';
+import { normalizePriority } from '@ai-scraper/application-execution';
+import { SCRAPING_QUEUE } from './queue-names';
 
 export const SCRAPING_DEAD_QUEUE = 'scraping-jobs-dead';
 

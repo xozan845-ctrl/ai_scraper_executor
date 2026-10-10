@@ -7,6 +7,8 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SCOPE = ['apps', 'libs'];
 const LAYERS = ['domain', 'application', 'infrastructure', 'shared'];
 const SOURCE_EXT = '.ts';
+const IGNORED_DIRS = new Set(['dist', 'node_modules', 'coverage']);
+const EXTRACTED_EXECUTION_PORTS = ['JobStore', 'SessionStore', 'JobQueue'];
 
 // R-HX-2: capas a las que puede importar cada capa (una lib nunca importa de apps/*).
 const ALLOWED = {
@@ -43,6 +45,7 @@ function collectTsFiles(dir) {
     return out;
   }
   for (const entry of entries) {
+    if (entry.isDirectory() && IGNORED_DIRS.has(entry.name)) continue;
     const full = join(dir, entry.name);
     if (entry.isDirectory()) out.push(...collectTsFiles(full));
     else if (entry.name.endsWith(SOURCE_EXT) && !/\.(test|spec)\.ts$/.test(entry.name)) out.push(full);
@@ -51,7 +54,9 @@ function collectTsFiles(dir) {
 }
 
 const IMPORT_RE = /(?:from\s*|import\s*\(\s*)['"]@ai-scraper\/([a-z0-9-]+)['"]/g;
+const APPLICATION_EXECUTION_REEXPORT_RE = /export\s+(?:type\s+)?(?:\*|\{[^}]+\})\s+from\s+['"]@ai-scraper\/application-execution['"]/;
 const violations = [];
+const ownershipViolations = [];
 let checked = 0;
 
 for (const scope of SCOPE) {
@@ -60,7 +65,17 @@ for (const scope of SCOPE) {
     const { layer: fromLayer, pkgDir } = layerFromDir(relFile);
     if (fromLayer === 'unknown') continue;
     const sourcePkg = pkgDir.split('/').pop();
-    const lines = readFileSync(file, 'utf8').split('\n');
+    const source = readFileSync(file, 'utf8');
+    const lines = source.split('\n');
+    if (fromLayer === 'infrastructure') {
+      for (const port of EXTRACTED_EXECUTION_PORTS) {
+        const declaration = new RegExp(`export\\s+interface\\s+${port}\\b`);
+        if (declaration.test(source)) ownershipViolations.push({ file: relFile, port, kind: 'declaración' });
+      }
+      if (APPLICATION_EXECUTION_REEXPORT_RE.test(source)) {
+        ownershipViolations.push({ file: relFile, port: '@ai-scraper/application-execution', kind: 're-export' });
+      }
+    }
     lines.forEach((line, i) => {
       for (const match of line.matchAll(IMPORT_RE)) {
         if (sourcePkg === match[1]) continue; // auto-import
@@ -84,4 +99,13 @@ if (violations.length > 0) {
   process.exit(1);
 }
 
+if (ownershipViolations.length > 0) {
+  console.error(`[boundaries] ${ownershipViolations.length} violación(es) de propiedad de puertos (R-HX-11):`);
+  for (const violation of ownershipViolations) {
+    console.error(`  ${violation.file} — ${violation.kind} de ${violation.port} en infraestructura`);
+  }
+  process.exit(1);
+}
+
 console.log('[boundaries] OK — ninguna arista prohibida (R-HX-2).');
+console.log('[boundaries] OK — puertos extraídos de ejecución pertenecen a application (R-HX-11).');

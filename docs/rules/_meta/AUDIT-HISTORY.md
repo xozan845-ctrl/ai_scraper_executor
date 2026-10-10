@@ -1771,8 +1771,6 @@ el stack es local, no de producción (allí el scrape debe llevar `x-api-key`, `
 - Staging y producción consumen el **mismo digest** (inmutabilidad, `R-CD-3`).
 - `npm audit` en **0**; sin cambios en gates.
 
----
-
 # AUDIT — Stryker con command runner (falsos supervivientes del runner de Vitest)
 
 - **Fecha:** 2026-10-09
@@ -1809,3 +1807,65 @@ el stack es local, no de producción (allí el scrape debe llevar `x-api-key`, `
 - Fallo de **infra** (Docker Hub), no de código: los checks de PR de #41/#42 estaban verdes.
 - `docker-compose.yml` (dev local) mantiene los tags de Docker Hub a propósito.
 - `npm audit` en **0**; gates sin cambios.
+
+---
+
+# AUDIT — Conformidad hexagonal después del traslado físico (ADR-33)
+
+- **Fecha:** 2026-10-10
+- **Disparador:** revisar si la migración F0–F5 produjo realmente puertos y adaptadores,
+  no solo la topología `apps/` + `libs/`.
+
+## Evidencia
+
+- `packages/` está retirado; hay 14 libs, 2 apps y Vitest está activo: el traslado
+  físico sí terminó.
+- `npm run boundaries:check` pasa y reporta 129 imports, pero solo cubre imports
+  `@ai-scraper/*` por capa; no prueba manifests, ownership de puertos ni apps delgadas.
+- `apps/worker/src/agent-runner.ts` (592 líneas), `apps/api/src/jobs/jobs.service.ts`
+  (223), `apps/worker/src/job-processor.ts` (211) y `sessions.service.ts` (172) contienen
+  workflows/casos de uso que deben vivir en application.
+- `JobStore`, `SessionStore`, `JobQueue`, `JsonCache`, `EngineMemory` y
+  `EnginePageCache` se declaran públicamente en infraestructura.
+- `libs/infrastructure/mongodb/src/radiography.ts` importa directamente crawler y
+  execution, acoplando tres adaptadores.
+- `domain/ai` usa `assertPublicUrl`, cuya decisión de bypass consulta `process.env` a
+  través de `isPrivateHostsAllowed`; el dominio no queda completamente determinista.
+- Los tres contextos de dominio mantienen `src/` plano aunque `R-HX-8` exige separar
+  responsabilidades reales por rol.
+
+## Decisión y estado
+
+- ADR-33 separa **traslado físico F0–F5** de **conformidad hexagonal F6–F10**.
+- Se añaden `R-HX-10..14` (apps delgadas, puertos del consumidor, adaptadores
+  independientes, límites de shared y definición de cierre) y se endurece `R-HX-2`.
+- F6 (norma + baseline) queda completada. F7–F10 quedan abiertas.
+- El snapshot pasa de 🟢 a 🟡: **traslado físico completado, conformidad hexagonal
+  pendiente**. No se cambió runtime ni contrato HTTP en esta auditoría documental.
+- Verificación local: build y lint verdes; **174/174** tests (29 ficheros), contrato
+  **9/9** y OpenAPI sincronizada. Las pruebas que enlazan puertos se ejecutaron fuera
+  del sandbox; la primera ejecución confinada falló por `EPERM`, no por el proyecto.
+
+---
+
+# F7.1 — Puertos de ejecución propiedad de application
+
+- **Fecha:** 2026-10-10
+- **Disparador:** ejecutar el primer corte del orden recomendado por ADR-33 sin cambiar
+  endpoints ni comportamiento.
+
+## Cambio y evidencia
+
+- Se crea `@ai-scraper/application-execution` con los puertos `JobStore`,
+  `SessionStore`, `JobQueue`, sus DTOs y la regla pura `normalizePriority`.
+- Prisma, memoria y BullMQ implementan esos contratos desde infraestructura; storage y
+  queue dejan de declarar o reexportar los tres puertos.
+- API y worker reciben esos tipos desde application; las factories concretas siguen en
+  los composition roots.
+- El trabajo se aisló en `refactor/arquitectura-puertos-ejecucion`; no se hizo stage,
+  commit ni push automático (`R-AC-3`, `R-GA-1`).
+- `boundaries:check` omite artefactos generados y falla si cualquiera de los tres
+  puertos vuelve a declararse o reexportarse en infraestructura (`R-HX-11`).
+- F7 continúa abierta: faltan caché/motor/repositorios y ordenar el dominio por roles.
+- Verificación local: build y lint verdes; **174/174** tests (29 ficheros), cobertura
+  **66.61/55.02/57.06**, contrato **9/9** y OpenAPI sincronizada.

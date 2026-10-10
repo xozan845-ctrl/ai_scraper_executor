@@ -13,7 +13,7 @@ commits.
 |---|---|---|
 | `01-arquitectura.md` | Las 5 capas históricas (mapeo de runtime), separación API/worker, orden de build, `dist/` y no `src/`, fallbacks en memoria, caché con TTL, comunicacion con proveedores externos | `R-AR` (1–9) |
 | `02-naming.md` | Archivos y carpetas, sufijos NestJS, clases/DTOs, variables, constantes, tablas Prisma, idioma, estructura interna de una lib | `R-NC` (1–10) |
-| `03-arquitectura-hexagonal.md` | Modelo canónico: 4 capas + composition root, dirección de dependencia y aristas prohibidas, puertos/adaptadores, enforcement por lint, mapeo por bounded context y migración strangler | `R-HX` (1–9) |
+| `03-arquitectura-hexagonal.md` | Modelo canónico: 4 capas + composition root, dirección de dependencia, apps delgadas, propiedad de puertos, adaptadores independientes, enforcement y migración strangler | `R-HX` (1–14) |
 
 > Los documentos derivados de este área (**AUDIT, CHECKLIST, historiales**) no
 > viven aquí: están en [`../_meta/`](../_meta/README.md). Un área de reglas solo
@@ -25,21 +25,22 @@ commits.
 |---|---|---|---|
 | `R-AR-*` | 1–9 | `01-arquitectura.md` | Capas históricas, procesos, build y degradación |
 | `R-NC-*` | 1–10 | `02-naming.md` | Nomenclatura de código, BD, libs y commits |
-| `R-HX-*` | 1–9 | `03-arquitectura-hexagonal.md` | Modelo canónico, fronteras y migración |
+| `R-HX-*` | 1–14 | `03-arquitectura-hexagonal.md` | Modelo canónico, fronteras, responsabilidades y migración |
 
 ## Modelo canónico (hexagonal, ADR-27)
 
 ```
-apps/*            composition root — instancia adaptadores y los inyecta
+apps/*            entry points delgados + composition root — instancia adaptadores y los inyecta
 libs/domain/*     entidades, value objects, servicios puros y PUERTOS (sin frameworks)
 libs/application/* casos de uso y DTOs (coordinan puertos)
-libs/infrastructure/* adaptadores concretos (Prisma, Mongo, Redis, BullMQ, Crawlee, OpenRouter)
-libs/shared/*     transversal pura (core, observability, config, contracts)
+libs/infrastructure/* adaptadores concretos e independientes (Prisma, Mongo, Redis, BullMQ, Crawlee, OpenRouter)
+libs/shared/*     transversal sin lógica de bounded context (core, security, observability, config, contracts)
 ```
 
 La dirección de dependencia y las aristas prohibidas están normadas en `R-HX-2`; el
-enforcement por lint en `R-HX-4`. El mapeo de los paquetes actuales a `libs/` y el
-orden de migración strangler viven en
+enforcement por lint en `R-HX-4`; apps delgadas, puertos y adaptadores en
+`R-HX-10..13`; y la definición de cierre en `R-HX-14`. El mapeo de los paquetes
+actuales a `libs/` y el orden de migración strangler viven en
 [`../../migracion-arquitectura.md`](../../migracion-arquitectura.md).
 
 ## Vista histórica de las 5 capas (runtime, `R-AR-2`)
@@ -70,16 +71,20 @@ Una capa solo depende de las que están **debajo**; un lib nunca importa de `app
 | `R-NC-9` | Commits → `R-GC-1..7` (`../git/02-commits.md`) |
 | `R-HX-4` | Fronteras de capa verificadas por lint → gate `G-7` (`../test/07-qa-gates.md`) |
 | `R-HX-9` | Migración strangler sin romper build → `R-AR-4` y `R-PR-2` (`../git/04-pr.md`) |
+| `R-HX-10..14` | Conformidad completa: apps delgadas, puertos del consumidor, adaptadores independientes y evidencia de cierre → ADR-33 |
 
 ## Pendientes
 
-- **Fronteras (`R-HX-4`)**: activas vía
+- **Fronteras (`R-HX-4`)**: el verificador actual está activo vía
   [`scripts/check-boundaries.mjs`](../../../scripts/check-boundaries.mjs) dentro de
-  `npm run lint`; **sin excepciones legacy**. Se descartó `eslint-plugin-boundaries`
-  por vulnerabilidades `high`/`critical` (ADR-28, revisión 2026-10-09).
-- **Migración a `libs/` (`R-HX-9`)**: **completada** — `packages/` retirado; shared,
-  domain, application e infrastructure viven en `libs/`. Mapeo y fases en
-  [`../../migracion-arquitectura.md`](../../migracion-arquitectura.md) (ADR-27, ADR-30).
+  `npm run lint`, pero aún cubre solo imports de fuente entre capas. F10 debe añadir
+  manifiestos, puertos, apps delgadas y adaptadores independientes (ADR-33).
+- **Traslado a `libs/` (`R-HX-9`)**: **completado** — `packages/` retirado; shared,
+  domain, application e infrastructure viven en `libs/`.
+- **Conformidad hexagonal (`R-HX-10..14`)**: **pendiente** — F7–F10 extraen puertos y
+  casos de uso, desacoplan adaptadores, adelgazan apps y activan la verificación completa.
+  Mapeo, evidencia y fases en
+  [`../../migracion-arquitectura.md`](../../migracion-arquitectura.md) (ADR-27/30/33).
 - **Runner Vitest (ADR-29)**: **implementado** (F5); el área
   [`../test/`](../test/README.md) describe Vitest y `vitest.config.mjs`.
 - La puerta de seguridad (`npm audit`) ya es un paso de CI y reporta **0

@@ -1,47 +1,14 @@
 import { PrismaClient } from '@prisma/client';
 import { randomUUID } from 'crypto';
+import type {
+  CreateSessionInput,
+  SessionMessageRecord,
+  SessionRecord,
+  SessionStore,
+} from '@ai-scraper/application-execution';
 
 const now = () => new Date().toISOString();
 const nid = (p: string) => `${p}_${randomUUID().slice(0, 8)}`;
-
-export interface SessionRecord {
-  id: string;
-  url: string;
-  domain: string;
-  status: string; // RADIOGRAPHY | READY | FAILED
-  credentials?: string | null;
-  error?: string | null;
-  createdAt: string;
-  updatedAt: string;
-  ownerScope: string;
-}
-
-export interface SessionMessageRecord {
-  id: string;
-  sessionId: string;
-  role: string; // user | assistant
-  content: string;
-  jobId?: string | null;
-  createdAt: string;
-}
-
-export interface CreateSessionInput {
-  url: string;
-  domain: string;
-  credentials?: string | null;
-  ownerScope?: string;
-}
-
-/** Persistencia de sesiones tipo "chat" (una URL + contexto + historial). */
-export interface SessionStore {
-  readonly kind: 'prisma' | 'memory';
-  createSession(input: CreateSessionInput): Promise<SessionRecord>;
-  getSession(id: string, ownerScope?: string): Promise<SessionRecord | null>;
-  listSessions(limit?: number, ownerScope?: string): Promise<SessionRecord[]>;
-  updateSessionStatus(id: string, status: string, error?: string | null): Promise<SessionRecord | null>;
-  addMessage(sessionId: string, role: string, content: string, jobId?: string | null): Promise<SessionMessageRecord>;
-  getMessages(sessionId: string): Promise<SessionMessageRecord[]>;
-}
 
 /** Store en memoria (tests/dev sin Postgres). */
 export class InMemorySessionStore implements SessionStore {
