@@ -26,7 +26,10 @@ export default defineConfig({
     // El `dist` se carga como JS externo: sin transformar por Vite, la cobertura
     // se mide sobre el JS compilado (como la nativa de Node), no sobre las fuentes TS.
     server: { deps: { external: [/[\\/]dist[\\/]/] } },
-    reporters: ['default', ['junit', { outputFile: 'test-results.xml' }]],
+    reporters: [
+      'default',
+      ['junit', { outputFile: process.env.VITEST_JUNIT_OUTPUT_FILE ?? 'test-results.xml' }],
+    ],
     coverage: {
       provider: 'v8',
       // Vitest/Vite mapea la cobertura a los fuentes TS (por los sourcemaps del

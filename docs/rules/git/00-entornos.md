@@ -58,7 +58,7 @@ git status --short --untracked-files=all | head
 
 > Nota sobre `.gitignore`: cubre `node_modules/`, `dist/`, `*.log`, `.env`,
 > `.env.local`, `postgres-data/`, `redis-data/`, `crawlee-storage/`, `/storage/` y
-> `test-results.xml`. Un artefacto que aparezca como untracked es porque el patrón
+> `test-results*.xml`. Un artefacto que aparezca como untracked es porque el patrón
 > falta, no porque el artefacto deba versionarse (`R-GA-4`).
 
 > **Protección de rama (R-GE-4): bloqueada por el plan.** El intento de aplicarla

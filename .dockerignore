@@ -10,3 +10,4 @@ storage/
 .git/
 .docker/
 coverage/
+test-results*.xml
