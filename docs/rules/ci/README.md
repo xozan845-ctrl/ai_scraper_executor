@@ -101,11 +101,12 @@ La importancia es cerrar la evidencia: un cambio terminado es un commit con
   `concurrency` con `cancel-in-progress`; `R-EN-2` usa un servicio
   `mirror.gcr.io/library/postgres:16-alpine` en `build-test-lint` (schema/deriva) y **`postgres` +
   `mongodb` + `redis`** en el job `integration` (`G-4`).
-- **Artifacts (corrección implementada; evidencia remota pendiente)**: `R-EN-3`
-  conserva reportes JUnit independientes para unit, contrato, integración y E2E, y
-  cada job que los genera los sube con `if: always()`. `if-no-files-found: error`
-  impide que un run quede verde sin su evidencia. La deuda se cierra solo al comprobar
-  los artifacts del run de CI que contenga este cambio (`R-COV-3`).
+- **Artifacts (deuda cerrada con evidencia remota)**: `R-EN-3` conserva reportes
+  JUnit independientes para unit, contrato, integración y E2E, y cada job que los
+  genera los sube con `if: always()`. `if-no-files-found: error` impide que un run
+  quede verde sin su evidencia. El run `38068883867` verificó los artifacts de
+  `build-test-lint` (174 unit + 9 contrato) e `integration` (7 tests), sin
+  sobrescrituras (`R-COV-3`).
 - **Sin protección de rama (bloqueada por el plan)**: no puede configurarse en un repo
   privado sin GitHub Pro (`403 Upgrade to GitHub Pro …`). El workflow escucha
   `pull_request`; el enforcement de `R-GE-4` es por disciplina, no de GitHub. Ver

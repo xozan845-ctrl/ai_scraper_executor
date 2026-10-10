@@ -1869,3 +1869,22 @@ el stack es local, no de producción (allí el scrape debe llevar `x-api-key`, `
 - F7 continúa abierta: faltan caché/motor/repositorios y ordenar el dominio por roles.
 - Verificación local: build y lint verdes; **174/174** tests (29 ficheros), cobertura
   **66.61/55.02/57.06**, contrato **9/9** y OpenAPI sincronizada.
+
+---
+
+# R-EN-3 — Evidencia JUnit independiente por suite
+
+- **Fecha:** 2026-10-10
+- **Disparador:** la auditoría detectó que `test:contract` sobrescribía el JUnit de
+  `npm test` y que `integration`/`e2e` no publicaban sus reportes.
+
+## Cambio y evidencia
+
+- Vitest acepta `VITEST_JUNIT_OUTPUT_FILE`; unit, contrato, integración y E2E escriben
+  ficheros distintos.
+- `build-test-lint`, `integration` y `e2e` publican artifacts con `if: always()` y
+  `if-no-files-found: error` (`R-EN-3`).
+- Run `38068883867` en el SHA `98c089f`: `build-test-lint` e `integration` en
+  `success`; pasos de upload en verde.
+- Artifacts descargados y verificados: **174/174 unitarios**, **9/9 contrato** y
+  **7/7 integración**, en tres XML independientes y sin sobrescritura.

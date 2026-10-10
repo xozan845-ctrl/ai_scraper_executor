@@ -50,7 +50,7 @@
 | Mutation testing | 🟢 provisionado | `R-MT-1`/ADR-31: **Stryker** con **command runner** (`npm run test:mutation`). Se descartó el runner de Vitest por **falsos supervivientes** (stryker-js #6073/#4306). `libs/domain/execution` = **92.73 %** (51/55). No es gate de PR |
 | Lint / Build (`G-7`) | 🟢 | 0 errores / 0 warnings; `npm run build` exit 0 |
 | Security gate (`R-QA-6`/`R-SE-16`) | 🟢 | `npm audit` → 0 vulnerabilidades; paso `Security audit` |
-| Artifacts (`R-EN-3`) | 🟢 | `test-results.xml` (JUnit) subido en todos los runs |
+| Artifacts (`R-EN-3`) | 🟢 | run `38068883867`: artifacts separados con 174 unit + 9 contrato + 7 integración, todos sin fallos |
 | Documentación (`R-DO`) | 🟢 | área al día; **17/17** `README.md` de lib/app creados; `.env.production.example` versionada |
 | Contribución de IA (`R-AC`) | 🟢 | cambio F7 aislado en rama semántica, sin commit/push automático y con gates ejecutados |
 | Arquitectura hexagonal (`R-HX`) | 🟡 **parcial** | F0–F5 físicos completos; F7 extrajo jobs/sesiones/cola. Persisten dominio plano, workflows en apps, otros puertos en infraestructura, imports entre adaptadores y enforcement incompleto |
@@ -118,7 +118,7 @@ y ejecución de sus comandos de verificación. Resultado: **11/11 ✅**.
 | `R-CI-6` verificación con `gh` | ✅ | `gh run list` con runs `success` (p. ej. `main` `37504812694`) |
 | `R-EN-1` entorno reproducible | ✅ | `node-version: 22`, `cache: npm`, `npm ci --ignore-scripts`, actions `v7` |
 | `R-EN-2` servicios efímeros por job | ✅ | `mirror.gcr.io/library/postgres:16-alpine` en `build-test-lint`; `postgres`+`mirror.gcr.io/library/mongo:7-jammy`+`mirror.gcr.io/library/redis:7-alpine` en `integration` |
-| `R-EN-3` evidencia en todos los runs | ✅ | `test-results.xml` con `if: always()` |
+| `R-EN-3` evidencia en todos los runs | ✅ | run `38068883867`: `test-results-build-test-lint` (unit + contrato) y `test-results-integration`, ambos con `if: always()` |
 | `R-EN-4` secretos solo en GitHub Secrets | ✅ | `build-test-lint`/`integration` sin secretos; solo `e2e.yml` usa `OPENROUTER_API_KEY` |
 | `R-EN-5` navegadores fuera del job unitario | ✅ | Chromium solo en `e2e.yml` |
 
