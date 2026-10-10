@@ -7,7 +7,7 @@ postgres-data/
 redis-data/
 crawlee-storage/
 /storage/
-test-results.xml
+test-results*.xml
 *.tsbuildinfo
 reports/
 .stryker-tmp/

@@ -15,14 +15,16 @@ aquí**: son reglas de testing y siguen en
 >   npm ci --ignore-scripts → npm audit --audit-level=high → prisma generate
 >   prisma validate → migrate deploy → migrate diff --exit-code
 >   build → openapi:check → lint → test → contract
->   artifact: test-results.xml (if: always())
+>   artifacts: test-results-unit.xml + test-results-contract.xml (if: always())
 > jobs.integration:
 >   services: postgres + mongodb + redis
 >   migrate deploy → build → test:integration
+>   artifact: test-results-integration.xml (if: always())
 >
 > # e2e.yml — release / workflow_dispatch (no en PR)
 >   services: postgres + mongodb + redis · Chromium · OPENROUTER_API_KEY
 >   migrate deploy → build → test:e2e
+>   artifact: test-results-e2e.xml (if: always())
 >
 > # release.yml — push de tag v*.*.* / workflow_dispatch (dry_run por defecto)
 >   valida tag + procedencia (en main y con run de ci verde) → build de las 2 imágenes
@@ -99,9 +101,11 @@ La importancia es cerrar la evidencia: un cambio terminado es un commit con
   `concurrency` con `cancel-in-progress`; `R-EN-2` usa un servicio
   `mirror.gcr.io/library/postgres:16-alpine` en `build-test-lint` (schema/deriva) y **`postgres` +
   `mongodb` + `redis`** en el job `integration` (`G-4`).
-- **Artifacts (deuda cerrada)**: `R-EN-3` sube `test-results.xml` (reporter JUnit de
-  Node) como artifact en todos los runs (`if: always()`). Sirve de evidencia de la
-  suite sin depender del log del job.
+- **Artifacts (corrección implementada; evidencia remota pendiente)**: `R-EN-3`
+  conserva reportes JUnit independientes para unit, contrato, integración y E2E, y
+  cada job que los genera los sube con `if: always()`. `if-no-files-found: error`
+  impide que un run quede verde sin su evidencia. La deuda se cierra solo al comprobar
+  los artifacts del run de CI que contenga este cambio (`R-COV-3`).
 - **Sin protección de rama (bloqueada por el plan)**: no puede configurarse en un repo
   privado sin GitHub Pro (`403 Upgrade to GitHub Pro …`). El workflow escucha
   `pull_request`; el enforcement de `R-GE-4` es por disciplina, no de GitHub. Ver
