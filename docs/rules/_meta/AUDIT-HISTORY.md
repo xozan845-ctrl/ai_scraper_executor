@@ -1888,3 +1888,18 @@ el stack es local, no de producción (allí el scrape debe llevar `x-api-key`, `
   `success`; pasos de upload en verde.
 - Artifacts descargados y verificados: **174/174 unitarios**, **9/9 contrato** y
   **7/7 integración**, en tres XML independientes y sin sobrescritura.
+
+---
+
+# Corrección de deriva documental (AUDIT.md + endpoints)
+
+- **Fecha:** 2026-10-11
+- **Disparador:** detección de drift en `AUDIT.md:35` (decía "3 ramas locales, 119 commits"; real: **1 rama `main`, 122 commits**) y omisión de `POST /api/v1/auth/register-first` y `POST /api/v1/jobs/:id/retry` en `AGENTS.md` y `README.md` (ya presentes en `docs/openapi.json` y código).
+
+## Cambio y evidencia
+
+- `docs/rules/_meta/AUDIT.md:35`: corregidos números de ramas (1) y commits (122) tras `git branch -a` y `git rev-list --count main`.
+- `AGENTS.md`: añadidos `POST /api/v1/auth/register-first` y `POST /api/v1/jobs/:id/retry` a la lista de endpoints.
+- `README.md`: añadido `POST /api/v1/jobs/:id/retry` a la lista de endpoints de Jobs.
+- Verificación: `npm run openapi:check` (sin cambios), `npm run lint` (verde), `MONGODB_MOCK=1 npm test` (174/174 verde), cobertura 66/55/57.
+- Rama: `docs/fix-audit-snapshot-and-endpoints` (semántica, desde `main` actualizado).
