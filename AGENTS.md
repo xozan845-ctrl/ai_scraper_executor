@@ -84,7 +84,7 @@ No commitear ni hacer push salvo que el usuario lo pida explícitamente.
 > `apps/*`, desacoplar adaptadores y cerrar el enforcement de `R-HX-14`.
 
 ```
-apps/api        NestJS: /jobs /radiography /sessions /metrics /dashboard /health (prefijo /api/v1)
+apps/api        NestJS: /jobs /radiography /sessions /metrics /dashboard /health /auth (prefijo /api/v1)
 apps/worker     AgentRunner (planner + loop Observe→Think→Act + recovery), browser-engine, job-processor
 
 libs/shared/core                  utilidades puras (hashHtml)

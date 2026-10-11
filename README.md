@@ -158,6 +158,7 @@ GET    /api/v1/jobs/:id/results        # Items extraídos (con _source tracing)
 GET    /api/v1/jobs/:id/execution      # Comandos + páginas + errores
 GET    /api/v1/jobs/:id/ai?limit=50    # Interacciones LLM (paginado)
 POST   /api/v1/jobs/:id/cancel         # Cancelar (terminal seguro)
+POST   /api/v1/jobs/:id/retry          # Reintentar (limpia artefactos, idempotente)
 ```
 
 ### Radiografía / Memoria (FASE 12)

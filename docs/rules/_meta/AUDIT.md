@@ -32,7 +32,7 @@
 | Libs | **15** en `libs/*/*` + 2 apps | `ls -d libs/*/*` |
 | Modelos Prisma | **10**; migraciones **3** (`0_init`, `sessions`, `add_composite_indexes`) | `prisma/schema.prisma`, `ls prisma/migrations` |
 | Comandos del DSL | **15** literales Zod | `libs/domain/ai/src/schemas.ts` |
-| Git | **3 ramas locales** (`main`, la rama F7 actual y una rama de mutation testing), `origin/main`; **119 commits, 0 merge commits** | `git branch -a`, `git rev-list` |
+| Git | **1 rama local** (`main`); **122 commits, 0 merge commits** | `git branch -a`, `git rev-list` |
 | Workflows | **4** (`ci.yml` con 2 jobs, `e2e.yml`, `release.yml`, `promote.yml`) | `.github/workflows/` |
 
 ## Estado por capa
