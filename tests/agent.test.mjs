@@ -364,4 +364,38 @@ describe('AgentRunner FASE 5 + Recovery FASE 6 (§47, §28)', async () => {
     assert.equal(res.status, 'COMPLETED');
     assert.ok(received && typeof received.needsBrowser === 'boolean');
   });
+
+  it('Fase B pasa trajectory al LLM (pasos previos, itemsCount, visitedUrls)', async () => {
+    const { fake, calls } = makeFake({
+      plan: { version: '1.0', actions: [{ type: 'NAVIGATE', url: baseJob.url }] },
+      decisions: [
+        { ...EXTRACT_OK },
+        { type: 'FINISH' },
+      ],
+    });
+    const { fetcher } = makeFetcher();
+    await runner(fake, fetcher).run(baseJob);
+    // La primera llamada a analyzePage en Fase B (tras plan NAVIGATE) debe llevar trajectory con 1 paso (NAVIGATE).
+    const firstBcall = calls.analyzePage[0];
+    assert.ok(firstBcall, 'debe haber al menos 1 llamada a analyzePage en Fase B');
+    assert.ok(firstBcall.ctx.trajectory, 'contexto debe incluir trajectory');
+    assert.ok(Array.isArray(firstBcall.ctx.trajectory.steps));
+    assert.equal(firstBcall.ctx.trajectory.steps.length, 1);
+    assert.equal(firstBcall.ctx.trajectory.steps[0].type, 'NAVIGATE');
+    assert.ok(typeof firstBcall.ctx.trajectory.itemsCount === 'number');
+    assert.ok(Array.isArray(firstBcall.ctx.trajectory.visitedUrls));
+  });
+
+  it('Fase B incluye textSnippet, htmlLength, linksCount en la observación', async () => {
+    const { fake, calls } = makeFake({
+      plan: { version: '1.0', actions: [{ type: 'NAVIGATE', url: baseJob.url }] },
+      decisions: [{ ...EXTRACT_OK }, { type: 'FINISH' }],
+    });
+    const { fetcher } = makeFetcher();
+    await runner(fake, fetcher).run(baseJob);
+    const ctx = calls.analyzePage[0].ctx;
+    assert.ok(typeof ctx.textSnippet === 'string', 'textSnippet presente');
+    assert.ok(typeof ctx.htmlLength === 'number', 'htmlLength presente');
+    assert.ok(typeof ctx.linksCount === 'number', 'linksCount presente');
+  });
 });

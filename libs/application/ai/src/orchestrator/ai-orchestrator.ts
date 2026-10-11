@@ -82,7 +82,12 @@ export class AIOrchestrator {
   }
 
   private key(kind: string, ctx: unknown, model?: string): string {
-    return `llm:${kind}:${model ?? 'default'}:${djb2(JSON.stringify(ctx))}`;
+    // Excluir 'trajectory' de la clave de caché para analyze/recover: la decisión
+    // depende del contenido de la página, no del historial (R-AI-13).
+    const cacheCtx = kind === 'analyze' || kind === 'recover'
+      ? (({ _trajectory, ...rest }) => rest)(ctx as Record<string, unknown>)
+      : ctx;
+    return `llm:${kind}:${model ?? 'default'}:${djb2(JSON.stringify(cacheCtx))}`;
   }
 
   private async cached<T>(kind: string, ctx: unknown, model: string | undefined, opts: AIProviderCallOpts | undefined, produce: () => Promise<T>): Promise<T> {

@@ -38,6 +38,10 @@ export interface PageContext {
   depth: number;
   instruction: string;
   model?: string;
+  textSnippet?: string;
+  htmlLength?: number;
+  linksCount?: number;
+  trajectory?: import('../trajectory').Trajectory;
 }
 
 export interface RecoveryContext extends PageContext {

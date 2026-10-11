@@ -12,7 +12,7 @@
  * - FASE 12: consulta perfil aprendido (MongoDB) para selectores y needsBrowser;
  *   registra resultado del job para mejorar perfiles futuros.
  */
-import { AIOrchestrator, type AIProviderCallOpts } from '@ai-scraper/application-ai';
+import { AIOrchestrator, type AIProviderCallOpts, buildTrajectory, detectOscillation, buildStepRecord } from '@ai-scraper/application-ai';
 import { CommandValidator, normalizeRawCommand, clampCommandLimits } from '@ai-scraper/domain-ai';
 import { normalizeJobLimits } from '@ai-scraper/domain-execution';
 import { ExecutionEngine } from '@ai-scraper/infrastructure-execution';
@@ -214,6 +214,9 @@ export class AgentRunner {
     const items: unknown[] = [];
     let recoveryCount = 0;
     let browserEscalationSuggested = false;
+    // Trayectoria para el bucle Fase B (memoria de pasos previos).
+    const trajectorySteps: import('@ai-scraper/application-ai').TrajectoryStep[] = [];
+    const visitedUrls: string[] = [];
 
     /**
      * Registra el resultado del job en el perfil del sitio (FASE 12). Si el dominio
@@ -248,6 +251,9 @@ export class AgentRunner {
       links: Array<{ text: string; href: string }>;
       elements: Array<{ type: string; selector: string; text: string }>;
       depth: number;
+      textSnippet?: string;
+      htmlLength?: number;
+      linksCount?: number;
     }> => {
       const url = engine.getCurrentUrl() ?? job.url;
       const depth = engine.getMemory().visited.length;
@@ -256,14 +262,23 @@ export class AgentRunner {
         const page = await abortable(engine.execute({ type: 'INSPECT_PAGE' } as never), deadlineSignal);
         const linksRes = await abortable(engine.execute({ type: 'INSPECT_LINKS' } as never), deadlineSignal);
         const elsRes = await abortable(engine.execute({ type: 'INSPECT_ELEMENTS' } as never), deadlineSignal);
-        const data = (page.data as { title?: string }) ?? {};
+        const data = (page.data as { title?: string; textSnippet?: string; htmlLength?: number; linksCount?: number }) ?? {};
         const links = ((linksRes.items as Array<{ text: string; href: string }>) ?? []).slice(0, MAX_CONTEXT_LINKS);
         const elements = ((elsRes.items as Array<{ type: string; selector: string; text: string }>) ?? []).slice(
           0,
           MAX_CONTEXT_ELEMENTS,
         );
         debugLog('OBSERVE RESULT', { url, title: data.title, linksCount: links.length, elementsCount: elements.length, depth });
-        return { url, title: data.title ?? '', links, elements, depth };
+        return { 
+          url, 
+          title: data.title ?? '', 
+          links, 
+          elements, 
+          depth,
+          textSnippet: data.textSnippet,
+          htmlLength: data.htmlLength,
+          linksCount: data.linksCount,
+        };
       } catch (e) {
         if (deadlineSignal.aborted) throw e;
         debugError('OBSERVE ERROR', e);
@@ -279,10 +294,11 @@ export class AgentRunner {
       for (let attempt = 1; attempt <= this.maxRecoveryAttempts; attempt += 1) {
         debugLog('RECOVERY ATTEMPT', { attempt, maxAttempts: this.maxRecoveryAttempts });
         const ctx = await observe();
+        const trajectory = buildTrajectory(trajectorySteps, items.length, visitedUrls);
         let alternatives: unknown[];
         try {
           alternatives = await this.deps.orchestrator.recover(
-            { ...ctx, instruction: job.instruction, failedCommand, error, ...(job.ai?.model ? { model: job.ai.model } : {}) },
+            { ...ctx, instruction: job.instruction, failedCommand, error, trajectory, ...(job.ai?.model ? { model: job.ai.model } : {}) },
             aiCallOpts(),
           );
           addTokens();
@@ -427,6 +443,9 @@ export class AgentRunner {
       debugLog('EXECUTING PLAN ACTION', { action: action.type, step: steps.length + 1 });
       const step = await attemptStep(action as Record<string, unknown>);
       steps.push(step);
+      trajectorySteps.push(buildStepRecord(step.command, step.ok, step.count, step.error));
+      const currentUrl = engine.getCurrentUrl();
+      if (currentUrl) visitedUrls.push(currentUrl);
       if (deadlineSignal.aborted) {
         await recordResult(items.length > 0, items.length);
         return {
@@ -497,10 +516,12 @@ export class AgentRunner {
       }
       debugLog('PHASE B ITERATION', { currentStep: steps.length + 1, maxSteps: this.maxSteps });
       const ctx = await observe();
+      // Construir trayectoria para el LLM (últimos pasos, items, URLs visitadas).
+      const trajectory = buildTrajectory(trajectorySteps, items.length, visitedUrls);
       let decisions: unknown[];
       try {
         decisions = await this.deps.orchestrator.analyzePage(
-          { ...ctx, instruction: job.instruction, ...(job.ai?.model ? { model: job.ai.model } : {}) },
+          { ...ctx, instruction: job.instruction, trajectory, ...(job.ai?.model ? { model: job.ai.model } : {}) },
           aiCallOpts(),
         );
         addTokens();
@@ -535,8 +556,20 @@ export class AgentRunner {
             : { error: 'El LLM devolvió una decisión vacía' }),
         };
       }
+      // Guardia anti-oscilación: si el mismo comando ya falló, no reintentarlo.
+      if (detectOscillation(trajectory, decision)) {
+        debugWarn('OSCILLATION DETECTED', { decision: decision.type, selector: decision.selector, url: decision.url });
+        // Registrar como paso omitido y seguir para no consumir pasos inútiles.
+        trajectorySteps.push(buildStepRecord(decision, false, undefined, 'oscilación detectada'));
+        continue;
+      }
       const step = await attemptStep(decision);
       steps.push(step);
+      // Registrar paso en la trayectoria.
+      trajectorySteps.push(buildStepRecord(step.command, step.ok, step.count, step.error));
+      // Registrar URL visitada.
+      const currentUrl = engine.getCurrentUrl();
+      if (currentUrl) visitedUrls.push(currentUrl);
       if (deadlineSignal.aborted) {
         await recordResult(items.length > 0, items.length);
         return {

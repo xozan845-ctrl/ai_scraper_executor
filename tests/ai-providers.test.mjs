@@ -222,3 +222,25 @@ describe('AIOrchestrator (§20) reenvía opts y cuenta llamadas', async () => {
     assert.equal(orch.lastStats().provider, 'fake-llm');
   });
 });
+
+describe('Prompts (§15, R-AI-15) incluyen trayectoria y nuevos campos', async () => {
+  const prompts = await import('../libs/infrastructure/ai-providers/dist/prompts.js');
+
+  it('ANALYZE_SYSTEM_PROMPT contiene trajectory, textSnippet, htmlLength, linksCount y regla anti-oscilación', () => {
+    const p = prompts.ANALYZE_SYSTEM_PROMPT;
+    assert.match(p, /trajectory/);
+    assert.match(p, /textSnippet/);
+    assert.match(p, /htmlLength/);
+    assert.match(p, /linksCount/);
+    assert.match(p, /NO repitas un comando que ya falló/);
+    assert.match(p, /visitedUrls repite la misma URL/);
+    assert.match(p, /FINISH/);
+  });
+
+  it('RECOVER_SYSTEM_PROMPT contiene trajectory y regla anti-repetición', () => {
+    const p = prompts.RECOVER_SYSTEM_PROMPT;
+    assert.match(p, /trajectory/);
+    assert.match(p, /NO repitas el mismo failedCommand/);
+    assert.match(p, /trajectory\.steps/);
+  });
+});

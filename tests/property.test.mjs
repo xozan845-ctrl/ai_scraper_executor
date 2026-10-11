@@ -12,6 +12,7 @@ import fc from 'fast-check';
 const core = await import('../libs/domain/execution/dist/index.js');
 const { normalizeRawCommand, normalizeRawPlan } = await import('../libs/domain/ai/dist/index.js');
 const { normalizeDomain, isAllowedHost } = await import('../libs/shared/security/dist/index.js');
+const { buildTrajectory, detectOscillation, buildStepRecord } = await import('../libs/application/ai/dist/index.js');
 
 const KEYS = Object.keys(core.DEFAULT_LIMITS);
 const DSL_TYPES = [
@@ -105,5 +106,58 @@ describe('Property-based (R-PB)', () => {
       }),
       { numRuns: 200 },
     );
+  });
+
+  it('buildTrajectory: acota pasos a maxSteps y recorta strings', () => {
+    fc.assert(
+      fc.property(fc.array(fc.record({
+        type: fc.string(),
+        ok: fc.boolean(),
+        count: fc.integer(),
+        selector: fc.string(),
+        url: fc.string(),
+        error: fc.string(),
+      })), fc.integer({ min: 0, max: 1000 }), fc.array(fc.string()), (steps, itemsCount, visitedUrls) => {
+        const t = buildTrajectory(steps, itemsCount, visitedUrls, 8);
+        assert.ok(t.steps.length <= 8, 'pasos exceden maxSteps');
+        assert.equal(t.itemsCount, itemsCount);
+        assert.ok(t.visitedUrls.length <= 8, 'visitedUrls excede maxSteps');
+        for (const s of t.steps) {
+          if (s.selector) assert.ok(s.selector.length <= 200, 'selector no recortado');
+          if (s.error) assert.ok(s.error.length <= 300, 'error no recortado');
+        }
+      }),
+      { numRuns: 200 },
+    );
+  });
+
+  it('detectOscillation: detecta repetición de comando fallido con mismo selector/url', () => {
+    const baseTraj = {
+      steps: [{ type: 'EXTRACT_LIST', ok: false, selector: '.item' }],
+      itemsCount: 0,
+      visitedUrls: ['https://example.com/'],
+    };
+    assert.ok(detectOscillation(baseTraj, { type: 'EXTRACT_LIST', selector: '.item' }));
+    assert.ok(!detectOscillation(baseTraj, { type: 'EXTRACT_LIST', selector: '.other' }));
+    assert.ok(!detectOscillation(baseTraj, { type: 'CLICK', selector: '.item' }));
+  });
+
+  it('detectOscillation: detecta URL visitada ≥2 veces', () => {
+    const traj = {
+      steps: [],
+      itemsCount: 0,
+      visitedUrls: ['https://example.com/', 'https://example.com/'],
+    };
+    assert.ok(detectOscillation(traj, { type: 'NAVIGATE', url: 'https://example.com/' }));
+    assert.ok(!detectOscillation(traj, { type: 'NAVIGATE', url: 'https://other.com/' }));
+  });
+
+  it('buildStepRecord: crea registro con campos esperados', () => {
+    const cmd = { type: 'EXTRACT_LIST', selector: '.item', limit: 50 };
+    const rec = buildStepRecord(cmd, true, 5);
+    assert.equal(rec.type, 'EXTRACT_LIST');
+    assert.equal(rec.ok, true);
+    assert.equal(rec.count, 5);
+    assert.equal(rec.selector, '.item');
   });
 });

@@ -842,3 +842,16 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
 
 > El estado vigente de cada deuda, con el comando que la mide, está en
 > [`rules/_meta/AUDIT.md`](./rules/_meta/AUDIT.md).
+
+---
+
+## ADR-35: Memoria de trayectoria en el bucle Observe→Think→Act (Fase B)
+
+- **Fecha**: 2026-10-11
+- **Estado**: Aceptado
+- **Contexto**: El bucle dinámico del `AgentRunner` (Fase B) llamaba a `analyzePage` solo con el snapshot actual de la página (`title`, `links`, `elements`). El LLM no sabía qué comandos había ejecutado, qué falló, cuántos items llevaba extraídos ni qué URLs había visitado. Eso provocaba oscilaciones (repetir el mismo comando fallido) y decisiones ciegas.
+- **Decisión**: Extender el puerto `PageContext` (`libs/application/ai/src/interfaces/ai-provider.interface.ts`) con campos opcionales:
+  - `textSnippet`, `htmlLength`, `linksCount` (enriquecen la observación de `INSPECT_PAGE`).
+  - `trajectory: { steps, itemsCount, visitedUrls }` (historial acotado a 8 pasos recientes).
+  El `AgentRunner` construye la trayectoria tras cada paso (`buildTrajectory` en `libs/application/ai/src/trajectory.ts`) y la pasa a `analyzePage` y `recover`. Añade una **guardia anti-oscilación determinista** (`detectOscillation`) que salta comandos repetidos ya fallados antes de llamarlos. Los prompts `ANALYZE` y `RECOVER` documentan los nuevos campos y la regla anti-repetición (`R-AI-15`). La clave de caché del `AIOrchestrator` excluye `trajectory` para preservar aciertos de caché en Fase B (`R-AI-13`).
+- **Consecuencias**: (a) El LLM recibe memoria de lo hecho → menos repeticiones y mejor cobertura; (b) El motor sigue decidiendo *cómo* (guardia determinista), la IA solo *qué* (`R-AR-1`); (c) Cambia el contrato del puerto `AIProvider` → requiere rebuild de dobles de test y de proveedores; (d) `maxAiTokens` absorbe el contexto extra; (e) La caché de Fase B vuelve a servir para snapshots de página idénticos aunque la trayectoria cambie.
