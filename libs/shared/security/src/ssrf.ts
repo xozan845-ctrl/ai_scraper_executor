@@ -13,6 +13,30 @@ const BLOCKED_HOSTS = new Set([
   'metadata.google.internal',
 ]);
 
+/** Error HTTP con el código de estado tipado (para reintentos selectivos). */
+export class HttpError extends Error {
+  readonly status: number;
+  readonly retryAfterMs?: number;
+
+  constructor(message: string, status: number, retryAfterMs?: number) {
+    super(message);
+    this.name = 'HttpError';
+    this.status = status;
+    if (retryAfterMs !== undefined) this.retryAfterMs = retryAfterMs;
+  }
+}
+
+/** Interpreta `Retry-After` (segundos o fecha HTTP) como milisegundos. */
+function parseRetryAfterMs(value: string | string[] | undefined): number | undefined {
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (!raw) return undefined;
+  const seconds = Number(raw);
+  if (Number.isFinite(seconds)) return Math.max(0, Math.round(seconds * 1000));
+  const date = Date.parse(raw);
+  if (!Number.isNaN(date)) return Math.max(0, date - Date.now());
+  return undefined;
+}
+
 /** true si el bypass local está habilitado (solo tests/dev, nunca prod). */
 export function isPrivateHostsAllowed(): boolean {
   return process.env.ALLOW_PRIVATE_HOSTS === '1' && process.env.NODE_ENV !== 'production';
@@ -204,7 +228,7 @@ function requestPinned(
       }
       if (status < 200 || status >= 300) {
         res.resume();
-        reject(new Error(`HTTP ${status} en ${u.toString()}`));
+        reject(new HttpError(`HTTP ${status} en ${u.toString()}`, status, parseRetryAfterMs(res.headers['retry-after'])));
         return;
       }
       const declared = Number(res.headers['content-length'] ?? '0');
