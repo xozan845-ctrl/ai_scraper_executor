@@ -365,4 +365,38 @@ describe('AgentRunner FASE 5 + Recovery FASE 6 (§47, §28)', async () => {
     assert.ok(received && typeof received.needsBrowser === 'boolean');
     assert.ok(Array.isArray(received.learnedSelectors), 'el hint debe traer learnedSelectors (C, bloque 3)');
   });
+
+  it('Fase B pasa trajectory (pasos previos, itemsCount, visitedUrls) al LLM', async () => {
+    const { fake, calls } = makeFake({
+      plan: { version: '1.0', actions: [{ type: 'NAVIGATE', url: baseJob.url }] },
+      decisions: [{ ...EXTRACT_OK }, { type: 'FINISH' }],
+    });
+    const { fetcher } = makeFetcher();
+    const res = await runner(fake, fetcher).run(baseJob);
+    assert.equal(res.status, 'COMPLETED');
+    const first = calls.analyzePage[0].ctx;
+    assert.ok(first.trajectory, 'debe pasar trajectory');
+    assert.ok(first.trajectory.steps.some((s) => s.type === 'NAVIGATE'));
+    assert.equal(first.trajectory.itemsCount, 0);
+    assert.ok(first.trajectory.visitedUrls.includes(baseJob.url));
+    // Tras el EXTRACT_LIST, la segunda decisión ve los items ya acumulados.
+    assert.equal(calls.analyzePage[1].ctx.trajectory.itemsCount, 2);
+  });
+
+  it('Fase B enriquece la observación con textSnippet/htmlLength/linksCount', async () => {
+    const { fake, calls } = makeFake({
+      plan: { version: '1.0', actions: [{ type: 'NAVIGATE', url: baseJob.url }] },
+      decisions: [{ type: 'FINISH' }],
+    });
+    const { fetcher } = makeFetcher();
+    const res = await runner(fake, fetcher).run(baseJob);
+    assert.equal(res.status, 'COMPLETED');
+    const ctx = calls.analyzePage[0].ctx;
+    assert.equal(typeof ctx.textSnippet, 'string');
+    assert.ok(ctx.textSnippet.length > 0, 'textSnippet no debe estar vacío');
+    assert.equal(typeof ctx.htmlLength, 'number');
+    assert.ok(ctx.htmlLength > 0);
+    assert.equal(typeof ctx.linksCount, 'number');
+    assert.ok(ctx.linksCount >= 1);
+  });
 });

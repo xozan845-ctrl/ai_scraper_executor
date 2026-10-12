@@ -13,6 +13,8 @@ proveedor: eso es `@ai-scraper/infrastructure-ai-providers` (`R-AR-7`).
     una orden (`R-AI-16`).
   - `SYSTEM_GUARDRAILS` y los prompts (`PLAN_/ANALYZE_/RECOVER_/INTERPRET_SYSTEM_PROMPT`)
     — declaran el esquema DSL y prohíben comandos inventados — `R-AI-8`.
+  - `buildTrajectory` / `detectOscillation` / `buildStepRecord` — memoria de trayectoria
+    del bucle (historial acotado y anti-oscilación determinista) — ADR-35, `R-AI-8`.
 
 ## Comandos
 

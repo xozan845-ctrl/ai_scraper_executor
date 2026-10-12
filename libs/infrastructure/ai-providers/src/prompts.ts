@@ -48,24 +48,36 @@ ${DSL_EXAMPLE}
 
 Devuelve SOLO el JSON del plan.`;
 
-export const ANALYZE_SYSTEM_PROMPT = `Eres el Explorer de AI Web Scraping Executor. Dado un contexto reducido de página {url,title,links,elements}, decide el SIGUIENTE comando DSL a ejecutar.
+export const ANALYZE_SYSTEM_PROMPT = `Eres el Explorer de AI Web Scraping Executor. Dado un contexto de página {url,title,links,elements,textSnippet,htmlLength,linksCount,trajectory}, decide el SIGUIENTE comando DSL a ejecutar.
 
 ${DSL_SPEC}
+
+CAMPOS DE CONTEXTO ADICIONALES:
+- textSnippet: extracto del texto visible de la página (≤1000 car.).
+- htmlLength: tamaño del HTML renderizado en bytes.
+- linksCount: total de enlaces en la página.
+- trajectory: historial de pasos previos {steps:[{type,ok,count,selector,url,error}], itemsCount, visitedUrls}. Úsalo para no repetir comandos fallidos y saber qué ya se extrajo.
 
 - Responde SOLO con UN objeto comando (no un plan, no un array).
 - Si el objetivo ya está cumplido o no hay más que hacer, responde {"type":"FINISH"}.
 - Si necesitas ver más elementos antes de extraer, responde {"type":"INSPECT_ELEMENTS"}.
+- NO repitas un comando que ya falló según trajectory.steps (mismo type+selector).
+- Si trajectory.itemsCount alcanza el objetivo o visitedUrls repite la misma URL ≥2 veces, responde FINISH.
 
 Ejemplo de respuesta: {"type":"EXTRACT_LIST","selector":".item","fields":{"name":".title","price":".price"},"limit":50}`;
 
 export const RECOVER_SYSTEM_PROMPT = `Eres el Recovery Engine de AI Web Scraping Executor. Un comando falló (selector no encontrado, 0 elementos, timeout).
-Analiza el contexto y propone UN comando alternativo con otro selector o estrategia.
+Analiza el contexto (incluye trajectory con el historial de pasos) y propone UN comando alternativo con otro selector o estrategia.
 
 ${DSL_SPEC}
+
+CAMPOS ADICIONALES (igual que en analyzePage):
+- trajectory: historial de pasos previos {steps, itemsCount, visitedUrls}. El comando que falló viene en failedCommand y el error en error.
 
 - Responde SOLO con UN objeto comando.
 - Usa selectores que aparezcan en "elements" o "links" del contexto.
 - Puedes usar INSPECT_ELEMENTS para redescubrir selectores.
+- NO repitas el mismo failedCommand ni un comando que ya falló según trajectory.steps.
 
 Ejemplo: {"type":"EXTRACT_LIST","selector":".card","fields":{"name":".title","price":".price"},"limit":50}`;
 

@@ -826,6 +826,27 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
 
 ---
 
+## ADR-35: Memoria de trayectoria en el bucle Observe→Think→Act (Fase B)
+
+- **Fecha**: 2026-10-12
+- **Estado**: Aceptado
+- **Contexto**: El bucle dinámico del `AgentRunner` (Fase B) llamaba a `analyzePage`
+  solo con el snapshot actual de la página. El LLM no sabía qué comandos había ejecutado,
+  qué falló, cuántos items llevaba ni qué URLs había visitado. Eso provocaba oscilaciones
+  (repetir selectores fallidos) y navegación circular (volver a URLs ya visitadas).
+- **Decisión**: Extender `PageContext` con campos opcionales `textSnippet`, `htmlLength`,
+  `linksCount` y `trajectory` (historial acotado a 8 pasos, `apps/worker`). El
+  `AgentRunner` construye la trayectoria tras cada paso y la pasa a `analyzePage`/`recover`;
+  una guardia anti-oscilación determinista (`detectOscillation`) salta comandos ya fallidos.
+  La clave de caché de `AIOrchestrator` excluye `trajectory` en `analyze`/`recover` para no
+  perder hits (`R-AI-13`). Los prompts de `infrastructure/ai-providers` documentan los
+  campos y las reglas anti-repetición (`R-AI-15`).
+- **Consecuencias**: (a) el LLM recibe memoria → menos repeticiones y menos navegación
+  circular; (b) el motor sigue decidiendo *cómo* (la guardia es determinista, no IA);
+  (c) `maxAiTokens` absorbe el contexto extra. El PR es atómico: no incluye F7/F8.
+
+---
+
 ## Deudas que estos ADR dejan abiertas
 
 | Deuda | ADR relacionado | Dónde está registrada |
