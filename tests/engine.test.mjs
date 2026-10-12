@@ -98,4 +98,40 @@ describe('ExecutionEngine FASE 2 (HTTP/Cheerio con fetcher mock)', async () => {
     assert.match(result.error, /dominio permitido/);
     assert.deepEqual(fetched, ['https://shop.example/']);
   });
+
+  it('FOLLOW_LINKS paraleliza con concurrencia acotada preservando el orden', async () => {
+    const LINKS_HTML = `<!doctype html><html><body>${Array.from(
+      { length: 6 },
+      (_, i) => `<a class="next" href="/p/${i + 1}">L${i + 1}</a>`,
+    ).join('')}</body></html>`;
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const fetcher = async (url) => {
+      inFlight += 1;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      inFlight -= 1;
+      if (url === 'https://tienda.com/') return LINKS_HTML;
+      return `<html><head><title>${url}</title></head><body>x</body></html>`;
+    };
+    const engine = new ExecutionEngine({ fetcher });
+    await engine.execute({ type: 'NAVIGATE', url: 'https://tienda.com/' });
+    const r = await engine.execute({ type: 'FOLLOW_LINKS', selector: 'a.next', maxLinks: 6 });
+    assert.equal(r.ok, true);
+    assert.equal(r.count, 6);
+    assert.equal(maxInFlight, 3, 'la concurrencia debe ser 3');
+    assert.deepEqual(
+      r.items.map((i) => i.url),
+      Array.from({ length: 6 }, (_, i) => `https://tienda.com/p/${i + 1}`),
+    );
+    assert.ok(r.items.every((i) => i._source.selector === 'a.next'));
+  });
+
+  it('acota la memoria de URLs visitadas a maxVisited (FIFO)', async () => {
+    const engine = new ExecutionEngine({ fetcher, maxVisited: 2 });
+    await engine.execute({ type: 'NAVIGATE', url: 'https://tienda.com/a' });
+    await engine.execute({ type: 'NAVIGATE', url: 'https://tienda.com/b' });
+    await engine.execute({ type: 'NAVIGATE', url: 'https://tienda.com/c' });
+    assert.deepEqual(engine.getMemory().visited, ['https://tienda.com/b', 'https://tienda.com/c']);
+  });
 });
