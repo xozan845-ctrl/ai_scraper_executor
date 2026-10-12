@@ -172,14 +172,22 @@ export class JobsService {
     if (!['FAILED', 'TIMEOUT'].includes(job.status)) return this.publicJob(job);
     await this.store.clearJobArtifacts(id);
     await this.store.updateStatus(id, 'QUEUED');
-    await this.queue.enqueue({
-      jobId: job.id,
-      url: job.url,
-      instruction: job.instruction,
-      limits: (job.limits as Record<string, number>) ?? undefined,
-      ai: { provider: job.aiProvider, model: job.aiModel },
-      ...(getContext().correlationId ? { correlationId: getContext().correlationId } : {}),
-    });
+    await this.queue.remove(id).catch(() => false);
+    try {
+      await this.queue.enqueue({
+        jobId: job.id,
+        url: job.url,
+        instruction: job.instruction,
+        limits: (job.limits as Record<string, number>) ?? undefined,
+        ai: { provider: job.aiProvider, model: job.aiModel },
+        ...(getContext().correlationId ? { correlationId: getContext().correlationId } : {}),
+      });
+    } catch (e) {
+      const message = `Reencolado fallido: ${(e as Error).message}`;
+      await this.store.saveError(id, message).catch(() => undefined);
+      await this.store.updateStatus(id, 'FAILED');
+      throw new InternalServerErrorException(message);
+    }
     metrics().inc('jobs_retried_total');
     const updated = await this.store.getJob(id);
     return updated ? this.publicJob(updated) : null;

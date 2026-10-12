@@ -14,6 +14,69 @@ describe('Persistencia / idempotencia (ETAPA 8)', async () => {
 
   const newService = () => new JobsService(new InMemoryJobStore(), new InMemoryJobQueue());
 
+  it('retry deja el job en FAILED y registra el error cuando no puede reenviarlo', async () => {
+    const store = new InMemoryJobStore();
+    const queue = {
+      kind: 'memory',
+      enqueue: async () => { throw new Error('Redis no disponible'); },
+      remove: async () => true,
+      pendingCount: async () => 0,
+      close: async () => {},
+    };
+    const service = new JobsService(store, queue);
+    const job = await store.createJob({ url: 'https://shop.com/', instruction: 'x' });
+    await store.saveCommand(job.id, 'FINISH', { type: 'FINISH' }, 'OK');
+    await store.updateStatus(job.id, 'FAILED');
+
+    await assert.rejects(() => service.retry(job.id), /Reencolado fallido: Redis no disponible/);
+
+    assert.equal((await store.getJob(job.id)).status, 'FAILED');
+    assert.equal((await store.getCommands(job.id)).length, 0, 'el reintento no conserva artefactos previos');
+    const errors = await store.getErrors(job.id);
+    assert.equal(errors.length, 1);
+    assert.match(errors[0].message, /Reencolado fallido: Redis no disponible/);
+  });
+
+  it('retry vuelve a poner en cola un job fallido tras limpiar sus artefactos', async () => {
+    const store = new InMemoryJobStore();
+    const queue = new InMemoryJobQueue();
+    const service = new JobsService(store, queue);
+    const job = await store.createJob({ url: 'https://shop.com/', instruction: 'x' });
+    await store.saveCommand(job.id, 'FINISH', { type: 'FINISH' }, 'OK');
+    await store.updateStatus(job.id, 'FAILED');
+
+    const retried = await service.retry(job.id);
+
+    assert.equal(retried.status, 'QUEUED');
+    assert.equal((await store.getCommands(job.id)).length, 0, 'el nuevo intento empieza sin artefactos previos');
+    assert.equal(await queue.pendingCount(), 1, 'el job queda disponible para un worker');
+  });
+
+  it('retry elimina la entrada fallida antes de reutilizar su jobId', async () => {
+    const store = new InMemoryJobStore();
+    let staleEntryExists = true;
+    const queue = {
+      kind: 'bullmq',
+      enqueue: async (payload) => {
+        assert.equal(staleEntryExists, false, 'BullMQ no admite reutilizar un jobId que sigue en cola');
+        return { id: payload.jobId };
+      },
+      remove: async () => {
+        staleEntryExists = false;
+        return true;
+      },
+      pendingCount: async () => 0,
+      close: async () => {},
+    };
+    const service = new JobsService(store, queue);
+    const job = await store.createJob({ url: 'https://shop.com/', instruction: 'x' });
+    await store.updateStatus(job.id, 'FAILED');
+
+    const retried = await service.retry(job.id);
+
+    assert.equal(retried.status, 'QUEUED');
+  });
+
   it('clearJobArtifacts elimina también las interacciones IA (reintentos limpios)', async () => {
     const store = new InMemoryJobStore();
     const job = await store.createJob({ url: 'https://x.com/', instruction: 'i' });
