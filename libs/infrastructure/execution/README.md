@@ -17,6 +17,10 @@ donde vive la trazabilidad de cada item extraído.
     errores transitorios (red, 5xx, 429); un 4xx determinista no se reintenta — `R-SC-8`.
   - `needsBrowserRender`, `detectChallenge` — heurística de render-on-demand y detección
     de anti-bot (Cloudflare/captcha); el navegador sigue siendo el plan B — `R-SC-1`.
+  - `dedupeItems`, `itemKey` — dedupe de items por contenido (ignora `_source.scrapedAt`),
+    para no repetir tarjetas entre páginas.
+  - `FOLLOW_LINKS` hace fetch en paralelo acotado (concurrencia 3) y la memoria de URLs
+    visitadas está topada (`maxVisited`, FIFO) para no crecer sin límite.
 
 El motor vuelve a recortar los límites (`clampCommandLimits`) aunque el DTO se evite
 — `R-SC-2` — y comprueba `maxRuntimeSec` en cada paso del bucle — `R-SC-3`. El

@@ -140,4 +140,24 @@ describe('Property-based (R-PB)', () => {
       { numRuns: 300 },
     );
   });
+
+  it('dedupeItems: subconjunto en orden, sin duplicados e idempotente', () => {
+    const itemArb = fc.record({ a: fc.string(), b: fc.integer() });
+    fc.assert(
+      fc.property(fc.array(itemArb), (items) => {
+        const out = exec.dedupeItems(items);
+        assert.ok(out.length <= items.length);
+        let from = 0;
+        for (const o of out) {
+          const at = items.findIndex((x, i) => i >= from && x === o);
+          assert.ok(at >= 0, 'la salida no conserva el orden de la entrada');
+          from = at + 1;
+        }
+        const keys = out.map((o) => exec.itemKey(o));
+        assert.equal(new Set(keys).size, keys.length, 'quedaron duplicados');
+        assert.equal(exec.dedupeItems(out).length, out.length, 'no es idempotente');
+      }),
+      { numRuns: 200 },
+    );
+  });
 });
