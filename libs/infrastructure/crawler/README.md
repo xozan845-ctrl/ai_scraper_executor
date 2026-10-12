@@ -8,7 +8,8 @@ navegación. Es la única pieza que habla con el sitio objetivo.
   `crawlee` y `playwright`.
 - **Superficie pública**:
   - `CrawlerService` — híbrido HTTP/Cheerio y Playwright; el navegador es el plan B
-    (`R-SC-1`) y `interact()` cubre `CLICK`/`SCROLL`/`TYPE`/`AUTHENTICATE`.
+    (`R-SC-1`) y `interact()` cubre `CLICK`/`SCROLL`/`render` (render-on-demand para
+    SPA y escape de anti-bot).
   - `BrowserPool`, `Semaphore` — reutiliza Chromium entre jobs y acota la concurrencia
     (`R-SC-6`).
   - `installNavigationGuard(page)` — aborta redirects y subrecursos hacia hosts

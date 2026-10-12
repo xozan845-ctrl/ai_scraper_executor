@@ -11,7 +11,8 @@ import fc from 'fast-check';
 
 const core = await import('../libs/domain/execution/dist/index.js');
 const { normalizeRawCommand, normalizeRawPlan } = await import('../libs/domain/ai/dist/index.js');
-const { normalizeDomain, isAllowedHost } = await import('../libs/shared/security/dist/index.js');
+const { normalizeDomain, isAllowedHost, HttpError } = await import('../libs/shared/security/dist/index.js');
+const exec = await import('../libs/infrastructure/execution/dist/index.js');
 
 const KEYS = Object.keys(core.DEFAULT_LIMITS);
 const DSL_TYPES = [
@@ -104,6 +105,39 @@ describe('Property-based (R-PB)', () => {
         if (out.length > 0) assert.equal(out[0].type, 'NAVIGATE');
       }),
       { numRuns: 200 },
+    );
+  });
+
+  it('isRetryableError: 5xx/429 sí, 4xx (no 429) no', () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 100, max: 599 }), (status) => {
+        const retry = exec.isRetryableError(new HttpError('http', status));
+        if (status >= 500 || status === 429) assert.equal(retry, true, `${status} debería reintentar`);
+        else assert.equal(retry, false, `${status} no debería reintentar`);
+      }),
+      { numRuns: 300 },
+    );
+  });
+
+  it('needsBrowserRender: nunca lanza, es determinista y el texto largo no pide render', () => {
+    fc.assert(
+      fc.property(fc.string(), (s) => {
+        const value = exec.needsBrowserRender(s);
+        assert.equal(typeof value, 'boolean');
+        assert.equal(exec.needsBrowserRender(s), value, 'no determinista');
+        if (exec.visibleTextLength(s) >= 500) assert.equal(value, false, 'texto largo pidió render');
+      }),
+      { numRuns: 300 },
+    );
+  });
+
+  it('detectChallenge: devuelve null o una clase conocida', () => {
+    fc.assert(
+      fc.property(fc.string(), (s) => {
+        const kind = exec.detectChallenge(s);
+        assert.ok(kind === null || ['cloudflare', 'recaptcha', 'hcaptcha'].includes(kind), `clase desconocida: ${kind}`);
+      }),
+      { numRuns: 300 },
     );
   });
 });

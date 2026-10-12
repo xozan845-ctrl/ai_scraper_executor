@@ -14,6 +14,9 @@ import type { ScrapingCommand as StrictCommand } from '@ai-scraper/domain-ai';
 import { logger } from '@ai-scraper/shared-observability';
 import { assertPublicUrl, isAllowedHost, safeFetchText } from '@ai-scraper/shared-security';
 import { PageCache, normalizeUrlForDedupe } from './page-cache';
+import { fetchWithRetry } from './fetch-retry';
+import { needsBrowserRender } from './render-heuristic';
+import { detectChallenge } from './antibot';
 
 /**
  * Fuente única del DSL: @ai-scraper/domain-ai (Zod).
@@ -49,11 +52,13 @@ export interface ExecutionResult {
   needsBrowser?: boolean;
   /** true cuando la acción se resolvió en Chromium real (ETAPA 3). */
   usedBrowser?: boolean;
+  /** Código HTTP de la página cuando hubo fetch real (D, bloque 1). */
+  statusCode?: number;
 }
 
 /** Acción browser delegada al CrawlerService (ETAPA 3, §34). */
 export interface BrowserAction {
-  kind: 'click' | 'scroll';
+  kind: 'click' | 'scroll' | 'render';
   selector?: string;
 }
 
@@ -98,19 +103,27 @@ function abortable<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
 async function defaultFetchHtml(
   url: string,
   opts?: { headers?: Record<string, string>; credentialOrigin?: string; allowedDomain?: string; signal?: AbortSignal },
-): Promise<string> {
+): Promise<{ html: string; statusCode: number }> {
   // SSRF: valida host + DNS en cada hop y sigo redirects a mano (sin auto-follow).
-  const { html } = await safeFetchText(url, {
-    headers: opts?.headers,
-    publicHeaders: { 'User-Agent': 'AI-Scraping-Executor/0.2 (+agnostic crawler)' },
-    credentialOrigin: opts?.credentialOrigin,
-    allowedDomain: opts?.allowedDomain,
-    timeoutMs: 20000,
-    maxBytes: 2_000_000,
-    maxRedirects: 5,
-    signal: opts?.signal,
-  });
-  return html;
+  // D (bloque 1): reintento acotado solo en errores transitorios (red/5xx/429).
+  const { html, status } = await fetchWithRetry(
+    () =>
+      safeFetchText(url, {
+        headers: opts?.headers,
+        publicHeaders: { 'User-Agent': 'AI-Scraping-Executor/0.2 (+agnostic crawler)' },
+        credentialOrigin: opts?.credentialOrigin,
+        allowedDomain: opts?.allowedDomain,
+        timeoutMs: 20000,
+        maxBytes: 2_000_000,
+        maxRedirects: 5,
+        signal: opts?.signal,
+      }),
+    {
+      onRetry: ({ attempt, delayMs, error }) =>
+        logger.warn('fetch_retry', { url, attempt, delayMs, error: (error as Error).message }),
+    },
+  );
+  return { html, statusCode: status };
 }
 
 function toAbs(href: string, base: string): string | null {
@@ -169,7 +182,11 @@ function credentialScope(headers: Record<string, string>): string {
 export class ExecutionEngine {
   private $: cheerio.CheerioAPI | null = null;
   private currentUrl: string | null = null;
+  private currentHtml: string | null = null;
   private currentHtmlLength = 0;
+  private lastStatusCode: number | undefined = undefined;
+  /** URLs ya renderizadas en Chromium en este job (render a lo sumo una vez por URL). */
+  private readonly renderedUrls = new Set<string>();
   private memory: EngineMemory = { visited: [], lastUrl: null, lastItems: 0, discoveredSelectors: [] };
 
   constructor(
@@ -232,7 +249,7 @@ export class ExecutionEngine {
     return this.currentUrl;
   }
 
-  private async fetchHtml(url: string): Promise<string> {
+  private async fetchHtml(url: string): Promise<{ html: string; statusCode?: number }> {
     if (this.deps?.signal?.aborted) throw this.deps.signal.reason;
     this.assertUrlAllowed(url);
     // Caché (memoria o Redis) aislada por scope de credenciales. Si falla
@@ -240,39 +257,36 @@ export class ExecutionEngine {
     const key = this.cacheKey(url);
     try {
       const cached = await this.pageCache.get(key);
-      if (cached !== null && cached !== undefined) return cached;
+      if (cached !== null && cached !== undefined) return { html: cached };
     } catch { /* cache miss/error → fetch */ }
     let html: string;
+    let statusCode: number | undefined;
     if (this.deps?.fetcher) {
       html = await abortable(this.deps.fetcher(url, this.deps.signal), this.deps.signal);
-    } else if (this.deps?.crawlPage) {
-      // Compat FASE 0: solo metadata, sin DOM → marcar y seguir con fetch real.
-      await abortable(this.deps.crawlPage(url), this.deps.signal);
-      html = await defaultFetchHtml(url, {
-        headers: this.deps?.headers,
-        credentialOrigin: this.credentialOrigin,
-        allowedDomain: this.allowedDomain,
-        signal: this.deps?.signal,
-      });
     } else {
-      html = await defaultFetchHtml(url, {
+      if (this.deps?.crawlPage) await abortable(this.deps.crawlPage(url), this.deps.signal);
+      const fetched = await defaultFetchHtml(url, {
         headers: this.deps?.headers,
         credentialOrigin: this.credentialOrigin,
         allowedDomain: this.allowedDomain,
         signal: this.deps?.signal,
       });
+      html = fetched.html;
+      statusCode = fetched.statusCode;
     }
     try {
       await this.pageCache.set(key, html);
     } catch { /* noop */ }
-    return html;
+    return statusCode === undefined ? { html } : { html, statusCode };
   }
 
   private async loadUrl(url: string): Promise<void> {
     this.assertUrlAllowed(url);
-    const html = await this.fetchHtml(url);
+    const { html, statusCode } = await this.fetchHtml(url);
     this.$ = cheerio.load(html);
+    this.currentHtml = html;
     this.currentUrl = url;
+    this.lastStatusCode = statusCode;
     this.currentHtmlLength = html.length;
     if (!this.memory.visited.includes(url)) this.memory.visited.push(url);
     this.memory.lastUrl = url;
@@ -282,15 +296,96 @@ export class ExecutionEngine {
   private loadHtml(url: string, html: string): void {
     this.assertUrlAllowed(url);
     this.$ = cheerio.load(html);
+    this.currentHtml = html;
     this.currentUrl = url;
     this.currentHtmlLength = html.length;
     if (!this.memory.visited.includes(url)) this.memory.visited.push(url);
     this.memory.lastUrl = url;
   }
 
+  /**
+   * Render-on-demand (A, bloque 1): si hay delegado browser y la página no se
+   * renderizó ya en este job, la carga en Chromium y sustituye el DOM. Devuelve
+   * true si el render se aplicó; false si no hay browser, ya se hizo, o falló.
+   */
+  private async maybeRender(): Promise<boolean> {
+    const interact = this.deps?.browserInteract;
+    const url = this.currentUrl;
+    if (!interact || !url) return false;
+    const key = normalizeUrlForDedupe(url);
+    if (this.renderedUrls.has(key)) return false;
+    try {
+      const out = await interact(url, { kind: 'render' }, this.deps?.signal);
+      this.renderedUrls.add(key);
+      this.loadHtml(out.url, out.html);
+      return true;
+    } catch (e) {
+      if (this.deps?.signal?.aborted) throw this.deps.signal.reason;
+      logger.warn('render_fallback_failed', { url, error: (e as Error).message });
+      return false;
+    }
+  }
+
   private requirePage(): cheerio.CheerioAPI {
     if (!this.$ || !this.currentUrl) throw new Error('Sin página cargada: emite NAVIGATE primero');
     return this.$;
+  }
+
+  /**
+   * EXTRACT_LIST con render-on-demand (A, bloque 1): si la página parece JS y la
+   * extracción HTTP devuelve 0 elementos, renderiza una vez y reintenta antes de fallar.
+   */
+  private async extractList(cmd: LooseCommand): Promise<ExecutionResult> {
+    const first = this.extractListOnce(cmd);
+    if (first.ok && (first.count ?? 0) > 0) return first;
+    if (this.deps?.browserInteract && needsBrowserRender(this.currentHtml ?? '')) {
+      if (await this.maybeRender()) {
+        const retried = this.extractListOnce(cmd);
+        if (retried.ok && (retried.count ?? 0) > 0) return { ...retried, usedBrowser: true };
+      }
+    }
+    return first;
+  }
+
+  private extractListOnce(cmd: LooseCommand): ExecutionResult {
+    const $ = this.requirePage();
+    if (!cmd.selector) return { ok: false, commandType: 'EXTRACT_LIST', error: 'selector requerido' };
+    if (!cmd.fields) return { ok: false, commandType: 'EXTRACT_LIST', error: 'fields requerido' };
+    const limit = Math.min(cmd.limit ?? 100, 1000);
+    const items: Record<string, unknown>[] = [];
+    const cards = $(cmd.selector);
+    logger.debug('extract_list.start', { selector: cmd.selector, limit, cardsFound: cards.length, fields: Object.keys(cmd.fields), url: this.currentUrl });
+    if (cards.length === 0) {
+      return {
+        ok: false,
+        commandType: 'EXTRACT_LIST',
+        error: `0 elementos para selector "${cmd.selector}" → Recovery (§28): probar INSPECT_ELEMENTS`,
+      };
+    }
+    cards.each((_, card) => {
+      if (items.length >= limit) return false;
+      const row: Record<string, unknown> = {};
+      for (const [k, spec] of Object.entries(cmd.fields!)) {
+        const sel = typeof spec === 'string' ? spec : spec.selector;
+        const attr = typeof spec === 'string' ? undefined : spec.attribute;
+        const el = $(card).find(sel).first();
+        const value =
+          el.length === 0
+            ? null
+            : !attr || attr === 'text'
+              ? el.text().replace(/\s+/g, ' ').trim().slice(0, 500) || null
+              : el.attr(attr)?.slice(0, 1000) ?? null;
+        row[k] = {
+          value,
+          source: { url: this.currentUrl, selector: `${cmd.selector} ${sel}`, scrapedAt: new Date().toISOString() },
+        };
+      }
+      row._source = { url: this.currentUrl, selector: cmd.selector, scrapedAt: new Date().toISOString() };
+      items.push(row);
+    });
+    this.memory.lastItems = items.length;
+    logger.debug('extract_list.done', { extracted: items.length, url: this.currentUrl });
+    return { ok: true, commandType: 'EXTRACT_LIST', items, count: items.length };
   }
 
   async execute(command: ScrapingCommand): Promise<ExecutionResult> {
@@ -302,9 +397,30 @@ export class ExecutionEngine {
         case 'NAVIGATE': {
           if (!cmd.url) return { ok: false, commandType: 'NAVIGATE', error: 'NAVIGATE requiere url' };
           await this.loadUrl(cmd.url);
+          let usedBrowser = false;
+          let challenge = detectChallenge(this.currentHtml ?? '');
+          const thin = needsBrowserRender(this.currentHtml ?? '');
+          // Render-on-demand (A) y escape de anti-bot (E) comparten el mismo delegado.
+          if (this.deps?.browserInteract && (challenge === 'cloudflare' || thin)) {
+            if (await this.maybeRender()) {
+              usedBrowser = true;
+              challenge = detectChallenge(this.currentHtml ?? '');
+            }
+          }
+          if (challenge === 'cloudflare') {
+            logger.warn('antibot_challenge', { url: cmd.url, kind: challenge, usedBrowser });
+            return {
+              ok: false,
+              commandType: 'NAVIGATE',
+              usedBrowser,
+              statusCode: this.lastStatusCode,
+              error: `anti-bot challenge detectado (${challenge})`,
+            };
+          }
+          if (challenge) logger.debug('antibot_marker', { url: cmd.url, kind: challenge });
           const title = this.$!('title').first().text().trim().slice(0, 200);
-          logger.debug('navigate', { url: cmd.url, title, htmlLength: this.currentHtmlLength });
-          return { ok: true, commandType: 'NAVIGATE', count: this.currentHtmlLength, nextHint: title || cmd.url };
+          logger.debug('navigate', { url: cmd.url, title, htmlLength: this.currentHtmlLength, usedBrowser });
+          return { ok: true, commandType: 'NAVIGATE', count: this.currentHtmlLength, statusCode: this.lastStatusCode, usedBrowser, nextHint: title || cmd.url };
         }
 
         case 'INSPECT_PAGE': {
@@ -388,46 +504,8 @@ export class ExecutionEngine {
           return { ok: true, commandType: 'EXTRACT', items: [obj], count: 1 };
         }
 
-        case 'EXTRACT_LIST': {
-          const $ = this.requirePage();
-          if (!cmd.selector) return { ok: false, commandType: 'EXTRACT_LIST', error: 'selector requerido' };
-          if (!cmd.fields) return { ok: false, commandType: 'EXTRACT_LIST', error: 'fields requerido' };
-          const limit = Math.min(cmd.limit ?? 100, 1000);
-          const items: Record<string, unknown>[] = [];
-          const cards = $(cmd.selector);
-          logger.debug('extract_list.start', { selector: cmd.selector, limit, cardsFound: cards.length, fields: Object.keys(cmd.fields), url: this.currentUrl });
-          if (cards.length === 0) {
-            return {
-              ok: false,
-              commandType: 'EXTRACT_LIST',
-              error: `0 elementos para selector "${cmd.selector}" → Recovery (§28): probar INSPECT_ELEMENTS`,
-            };
-          }
-          cards.each((_, card) => {
-            if (items.length >= limit) return false;
-            const row: Record<string, unknown> = {};
-            for (const [k, spec] of Object.entries(cmd.fields!)) {
-              const sel = typeof spec === 'string' ? spec : spec.selector;
-              const attr = typeof spec === 'string' ? undefined : spec.attribute;
-              const el = $(card).find(sel).first();
-              const value =
-                el.length === 0
-                  ? null
-                  : !attr || attr === 'text'
-                    ? el.text().replace(/\s+/g, ' ').trim().slice(0, 500) || null
-                    : el.attr(attr)?.slice(0, 1000) ?? null;
-              row[k] = {
-                value,
-                source: { url: this.currentUrl, selector: `${cmd.selector} ${sel}`, scrapedAt: new Date().toISOString() },
-              };
-            }
-            row._source = { url: this.currentUrl, selector: cmd.selector, scrapedAt: new Date().toISOString() };
-            items.push(row);
-          });
-          this.memory.lastItems = items.length;
-          logger.debug('extract_list.done', { extracted: items.length, url: this.currentUrl });
-          return { ok: true, commandType: 'EXTRACT_LIST', items, count: items.length };
-        }
+        case 'EXTRACT_LIST':
+          return await this.extractList(cmd);
 
         case 'GET_ATTRIBUTE': {
           const $ = this.requirePage();
@@ -549,7 +627,7 @@ export class ExecutionEngine {
           const pending = hrefs.filter((h) => !seenVisited.has(normalizeUrlForDedupe(h)));
           for (const href of pending) {
             try {
-              const html = await this.fetchHtml(href);
+              const { html } = await this.fetchHtml(href);
               const $$ = cheerio.load(html);
               visited.push({
                 url: href,

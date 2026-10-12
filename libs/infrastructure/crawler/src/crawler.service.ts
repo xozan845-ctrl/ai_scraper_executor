@@ -16,7 +16,7 @@ export { hashHtml };
 
 /** Acción browser delegada por el ExecutionEngine (ETAPA 3, §34). */
 export interface BrowserAction {
-  kind: 'click' | 'scroll';
+  kind: 'click' | 'scroll' | 'render';
   selector?: string;
 }
 
@@ -330,10 +330,14 @@ export class CrawlerService {
         await page.click(action.selector, { timeout: 10000 });
         await page.waitForLoadState('domcontentloaded', { timeout: 15000 }).catch(() => undefined);
         await page.waitForTimeout(800).catch(() => undefined);
-      } else {
+      } else if (action.kind === 'scroll') {
         // scroll: disparar lazy-load / infinite-scroll inicial (§59)
         await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)).catch(() => undefined);
         await page.waitForTimeout(1200).catch(() => undefined);
+      } else {
+        // render: esperar a que el framework hidrate el DOM sin interactuar.
+        await page.waitForLoadState('domcontentloaded', { timeout: 15000 }).catch(() => undefined);
+        await page.waitForTimeout(500).catch(() => undefined);
       }
       const html = await page.content().catch(() => '');
       const title = (await page.title().catch(() => ''))?.slice(0, 200) ?? '';
