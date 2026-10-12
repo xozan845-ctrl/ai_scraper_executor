@@ -213,6 +213,8 @@ export class ExecutionEngine {
       signal?: AbortSignal;
       /** Tope de URLs recordadas en memoria (FIFO). Default 1000. */
       maxVisited?: number;
+      /** Selectores aprendidos del dominio; fallback si el selector de la IA da 0 (C). */
+      fallbackSelectors?: () => Promise<string[]>;
     },
   ) {
     this.pageCache = deps?.pageCache ?? new PageCache();
@@ -351,41 +353,20 @@ export class ExecutionEngine {
     return this.$;
   }
 
-  /**
-   * EXTRACT_LIST con render-on-demand (A, bloque 1): si la página parece JS y la
-   * extracción HTTP devuelve 0 elementos, renderiza una vez y reintenta antes de fallar.
-   */
-  private async extractList(cmd: LooseCommand): Promise<ExecutionResult> {
-    const first = this.extractListOnce(cmd);
-    if (first.ok && (first.count ?? 0) > 0) return first;
-    if (this.deps?.browserInteract && needsBrowserRender(this.currentHtml ?? '')) {
-      if (await this.maybeRender()) {
-        const retried = this.extractListOnce(cmd);
-        if (retried.ok && (retried.count ?? 0) > 0) return { ...retried, usedBrowser: true };
-      }
-    }
-    return first;
-  }
-
-  private extractListOnce(cmd: LooseCommand): ExecutionResult {
+  /** Extrae items con un selector concreto; el `_source.selector` refleja el real (R-SC-12). */
+  private extractListOnce(
+    selector: string,
+    limit: number,
+    fields: Record<string, string | { selector: string; attribute?: string }>,
+  ): { items: Record<string, unknown>[]; count: number } {
     const $ = this.requirePage();
-    if (!cmd.selector) return { ok: false, commandType: 'EXTRACT_LIST', error: 'selector requerido' };
-    if (!cmd.fields) return { ok: false, commandType: 'EXTRACT_LIST', error: 'fields requerido' };
-    const limit = Math.min(cmd.limit ?? 100, 1000);
     const items: Record<string, unknown>[] = [];
-    const cards = $(cmd.selector);
-    logger.debug('extract_list.start', { selector: cmd.selector, limit, cardsFound: cards.length, fields: Object.keys(cmd.fields), url: this.currentUrl });
-    if (cards.length === 0) {
-      return {
-        ok: false,
-        commandType: 'EXTRACT_LIST',
-        error: `0 elementos para selector "${cmd.selector}" → Recovery (§28): probar INSPECT_ELEMENTS`,
-      };
-    }
+    const cards = $(selector);
+    logger.debug('extract_list.start', { selector, limit, cardsFound: cards.length, fields: Object.keys(fields), url: this.currentUrl });
     cards.each((_, card) => {
       if (items.length >= limit) return false;
       const row: Record<string, unknown> = {};
-      for (const [k, spec] of Object.entries(cmd.fields!)) {
+      for (const [k, spec] of Object.entries(fields)) {
         const sel = typeof spec === 'string' ? spec : spec.selector;
         const attr = typeof spec === 'string' ? undefined : spec.attribute;
         const el = $(card).find(sel).first();
@@ -397,15 +378,66 @@ export class ExecutionEngine {
               : el.attr(attr)?.slice(0, 1000) ?? null;
         row[k] = {
           value,
-          source: { url: this.currentUrl, selector: `${cmd.selector} ${sel}`, scrapedAt: new Date().toISOString() },
+          source: { url: this.currentUrl, selector: `${selector} ${sel}`, scrapedAt: new Date().toISOString() },
         };
       }
-      row._source = { url: this.currentUrl, selector: cmd.selector, scrapedAt: new Date().toISOString() };
+      row._source = { url: this.currentUrl, selector, scrapedAt: new Date().toISOString() };
       items.push(row);
     });
-    this.memory.lastItems = items.length;
-    logger.debug('extract_list.done', { extracted: items.length, url: this.currentUrl });
-    return { ok: true, commandType: 'EXTRACT_LIST', items, count: items.length };
+    return { items, count: items.length };
+  }
+
+  /** Lista de selectores aprendidos candidatos (sin el que falló). Degrada a [] si la memoria falla. */
+  private async getFallbackSelectors(failedSelector: string): Promise<string[]> {
+    const provider = this.deps?.fallbackSelectors;
+    if (!provider) return [];
+    try {
+      const list = await provider();
+      return list.filter((s) => typeof s === 'string' && s.length > 0 && s !== failedSelector).slice(0, 5);
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * EXTRACT_LIST con render-on-demand (A, bloque 1) y fallback a selectores aprendidos
+   * (C, bloque 3): si el selector de la IA da 0 elementos, reintenta tras render y, si
+   * sigue vacío, prueba los selectores aprendidos del dominio antes de devolver el error.
+   */
+  private async extractList(cmd: LooseCommand): Promise<ExecutionResult> {
+    const selector = cmd.selector!;
+    const fields = cmd.fields!;
+    const limit = Math.min(cmd.limit ?? 100, 1000);
+    const first = this.extractListOnce(selector, limit, fields);
+    if (first.count > 0) {
+      this.memory.lastItems = first.count;
+      logger.debug('extract_list.done', { extracted: first.count, url: this.currentUrl });
+      return { ok: true, commandType: 'EXTRACT_LIST', items: first.items, count: first.count };
+    }
+    if (this.deps?.browserInteract && needsBrowserRender(this.currentHtml ?? '')) {
+      if (await this.maybeRender()) {
+        const retried = this.extractListOnce(selector, limit, fields);
+        if (retried.count > 0) {
+          this.memory.lastItems = retried.count;
+          logger.debug('extract_list.done', { extracted: retried.count, url: this.currentUrl });
+          return { ok: true, commandType: 'EXTRACT_LIST', items: retried.items, count: retried.count, usedBrowser: true };
+        }
+      }
+    }
+    const learned = await this.getFallbackSelectors(selector);
+    for (const alt of learned) {
+      const altResult = this.extractListOnce(alt, limit, fields);
+      if (altResult.count > 0) {
+        this.memory.lastItems = altResult.count;
+        logger.warn('extract_list.learned_fallback', { failed: selector, used: alt, count: altResult.count, url: this.currentUrl });
+        return { ok: true, commandType: 'EXTRACT_LIST', items: altResult.items, count: altResult.count, nextHint: `selector aprendido: ${alt}` };
+      }
+    }
+    return {
+      ok: false,
+      commandType: 'EXTRACT_LIST',
+      error: `0 elementos para selector "${selector}" → Recovery (§28): probar INSPECT_ELEMENTS`,
+    };
   }
 
   async execute(command: ScrapingCommand): Promise<ExecutionResult> {

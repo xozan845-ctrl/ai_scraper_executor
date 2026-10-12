@@ -37,16 +37,24 @@ export interface EngineOptions {
   allowedDomain?: string;
   credentialOrigin?: string;
   signal?: AbortSignal;
+  /** Selectores aprendidos del dominio para el fallback de EXTRACT_LIST (C, bloque 3). */
+  learnedSelectors?: string[];
 }
 
 export function createProductionEngine(opts?: EngineOptions): ExecutionEngine {
-  return new ExecutionEngine({
-    browserInteract: (url, action, signal) => crawler.interact(url, action, { ...opts, signal }),
-    pageCache: sharedCache,
+  const interactOpts = {
     ...(opts?.headers ? { headers: opts.headers } : {}),
     ...(opts?.allowedDomain ? { allowedDomain: opts.allowedDomain } : {}),
     ...(opts?.credentialOrigin ? { credentialOrigin: opts.credentialOrigin } : {}),
+  };
+  return new ExecutionEngine({
+    browserInteract: (url, action, signal) => crawler.interact(url, action, { ...interactOpts, signal }),
+    pageCache: sharedCache,
+    ...interactOpts,
     ...(opts?.signal ? { signal: opts.signal } : {}),
+    ...(opts?.learnedSelectors && opts.learnedSelectors.length > 0
+      ? { fallbackSelectors: () => Promise.resolve(opts.learnedSelectors ?? []) }
+      : {}),
   });
 }
 

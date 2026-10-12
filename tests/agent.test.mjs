@@ -363,5 +363,6 @@ describe('AgentRunner FASE 5 + Recovery FASE 6 (§47, §28)', async () => {
     }).run(baseJob);
     assert.equal(res.status, 'COMPLETED');
     assert.ok(received && typeof received.needsBrowser === 'boolean');
+    assert.ok(Array.isArray(received.learnedSelectors), 'el hint debe traer learnedSelectors (C, bloque 3)');
   });
 });

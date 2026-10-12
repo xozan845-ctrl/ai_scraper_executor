@@ -9,8 +9,8 @@ consume jobs. El bucle Observe→Think→Act es lógica de aplicación y su dest
   en `package.json`. No usa NestJS.
 - **Superficie (interna, no HTTP)**:
   - `AgentRunner` (`agent-runner.ts`) — el bucle del agente con recovery acotado
-    (2 intentos), presupuestos (`R-SC-3`, `R-SC-9`) y dedupe de items entre páginas
-    (`itemKey`).
+    (2 intentos), presupuestos (`R-SC-3`, `R-SC-9`), dedupe de items entre páginas
+    (`itemKey`) y paso de selectores aprendidos al motor como fallback de extracción (C).
   - `planner.ts` — convierte la intención en un plan del DSL y lo valida (`R-AI-3`).
   - `browser-engine.ts` / `job-processor.ts` — motor de producción y consumo de la cola
     BullMQ, con reintentos hacia `scraping-jobs-dead` (`R-SC-8`).
