@@ -13,9 +13,14 @@ donde vive la trazabilidad de cada item extraído.
   - `PageCache` — caché de páginas con TTL y tope de entradas; un acierto es una
     optimización, no una verdad — `R-SC-5`, `R-DI-5`.
   - `normalizeUrlForDedupe` — clave de deduplicación de URLs dentro de un job — `R-SC-4`.
+  - `fetchWithRetry`, `isRetryableError` — reintento acotado con backoff que solo toca
+    errores transitorios (red, 5xx, 429); un 4xx determinista no se reintenta — `R-SC-8`.
+  - `needsBrowserRender`, `detectChallenge` — heurística de render-on-demand y detección
+    de anti-bot (Cloudflare/captcha); el navegador sigue siendo el plan B — `R-SC-1`.
 
 El motor vuelve a recortar los límites (`clampCommandLimits`) aunque el DTO se evite
-— `R-SC-2` — y comprueba `maxRuntimeSec` en cada paso del bucle — `R-SC-3`.
+— `R-SC-2` — y comprueba `maxRuntimeSec` en cada paso del bucle — `R-SC-3`. El
+resultado de un comando expone `statusCode` cuando hubo fetch real.
 
 ## Comandos
 
