@@ -222,3 +222,21 @@ describe('AIOrchestrator (§20) reenvía opts y cuenta llamadas', async () => {
     assert.equal(orch.lastStats().provider, 'fake-llm');
   });
 });
+
+describe('Prompts documentan la trayectoria (ADR-35, R-AI-15)', async () => {
+  const { ANALYZE_SYSTEM_PROMPT, RECOVER_SYSTEM_PROMPT } = await import(
+    '../libs/infrastructure/ai-providers/dist/prompts.js'
+  );
+
+  it('ANALYZE documenta trajectory/textSnippet y las reglas anti-repetición', () => {
+    assert.match(ANALYZE_SYSTEM_PROMPT, /trajectory/);
+    assert.match(ANALYZE_SYSTEM_PROMPT, /textSnippet/);
+    assert.match(ANALYZE_SYSTEM_PROMPT, /NO repitas/);
+    assert.match(ANALYZE_SYSTEM_PROMPT, /FINISH/);
+  });
+
+  it('RECOVER documenta trajectory y prohíbe repetir el failedCommand', () => {
+    assert.match(RECOVER_SYSTEM_PROMPT, /trajectory/);
+    assert.match(RECOVER_SYSTEM_PROMPT, /NO repitas el mismo failedCommand/);
+  });
+});

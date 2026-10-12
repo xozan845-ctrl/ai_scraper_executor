@@ -13,6 +13,7 @@ const core = await import('../libs/domain/execution/dist/index.js');
 const { normalizeRawCommand, normalizeRawPlan } = await import('../libs/domain/ai/dist/index.js');
 const { normalizeDomain, isAllowedHost, HttpError } = await import('../libs/shared/security/dist/index.js');
 const exec = await import('../libs/infrastructure/execution/dist/index.js');
+const appAi = await import('../libs/application/ai/dist/index.js');
 
 const KEYS = Object.keys(core.DEFAULT_LIMITS);
 const DSL_TYPES = [
@@ -156,6 +157,58 @@ describe('Property-based (R-PB)', () => {
         const keys = out.map((o) => exec.itemKey(o));
         assert.equal(new Set(keys).size, keys.length, 'quedaron duplicados');
         assert.equal(exec.dedupeItems(out).length, out.length, 'no es idempotente');
+      }),
+      { numRuns: 200 },
+    );
+  });
+
+  it('buildTrajectory: acota a maxSteps y recorta selector/error largos', () => {
+    const stepArb = fc.record({
+      type: fc.string(),
+      ok: fc.boolean(),
+      selector: fc.option(fc.string(), { nil: undefined }),
+      error: fc.option(fc.string(), { nil: undefined }),
+    });
+    fc.assert(
+      fc.property(fc.array(stepArb), fc.integer({ min: 0, max: 100 }), (steps, itemsCount) => {
+        const t = appAi.buildTrajectory(steps, itemsCount, []);
+        assert.ok(t.steps.length <= 8, `demasiados pasos: ${t.steps.length}`);
+        for (const s of t.steps) {
+          if (s.selector !== undefined) assert.ok(s.selector.length <= 200);
+          if (s.error !== undefined) assert.ok(s.error.length <= 300);
+        }
+        assert.equal(t.itemsCount, itemsCount);
+      }),
+      { numRuns: 200 },
+    );
+  });
+
+  it('detectOscillation: solo cuenta pasos fallidos con el mismo type+selector', () => {
+    const okStep = appAi.buildTrajectory([{ type: 'EXTRACT_LIST', ok: true, selector: '.item' }], 0, []);
+    assert.equal(appAi.detectOscillation(okStep, { type: 'EXTRACT_LIST', selector: '.item' }), false);
+    const failed = appAi.buildTrajectory([{ type: 'EXTRACT_LIST', ok: false, selector: '.item' }], 0, []);
+    assert.equal(appAi.detectOscillation(failed, { type: 'EXTRACT_LIST', selector: '.item' }), true);
+    assert.equal(appAi.detectOscillation(failed, { type: 'EXTRACT_LIST', selector: '.otro' }), false);
+  });
+
+  it('detectOscillation: NAVIGATE a una URL visitada ≥2 veces', () => {
+    const twice = appAi.buildTrajectory([], 0, ['https://a.com/1', 'https://a.com/1']);
+    assert.equal(appAi.detectOscillation(twice, { type: 'NAVIGATE', url: 'https://a.com/1' }), true);
+    const once = appAi.buildTrajectory([], 0, ['https://a.com/1']);
+    assert.equal(appAi.detectOscillation(once, { type: 'NAVIGATE', url: 'https://a.com/1' }), false);
+  });
+
+  it('buildStepRecord: registra type/ok/count y recorta strings', () => {
+    const rec = appAi.buildStepRecord({ type: 'EXTRACT_LIST', selector: '.item' }, true, 5);
+    assert.equal(rec.type, 'EXTRACT_LIST');
+    assert.equal(rec.ok, true);
+    assert.equal(rec.selector, '.item');
+    assert.equal(rec.count, 5);
+    fc.assert(
+      fc.property(fc.string(), fc.string(), (selector, error) => {
+        const r = appAi.buildStepRecord({ type: 'X', selector }, false, undefined, error);
+        if (r.selector !== undefined) assert.ok(r.selector.length <= 200);
+        if (r.error !== undefined) assert.ok(r.error.length <= 300);
       }),
       { numRuns: 200 },
     );

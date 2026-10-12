@@ -2,6 +2,7 @@
  * AIProvider §14 — el core nunca depende de OpenRouter directamente.
  * OpenRouter es default (§15), custom endpoint opcional (§16).
  */
+import type { Trajectory } from '../trajectory';
 
 /** Selección de modelo por job §18: el job puede fijar el modelo en el contexto o en opts. */
 export interface AIProviderCallOpts {
@@ -38,6 +39,14 @@ export interface PageContext {
   depth: number;
   instruction: string;
   model?: string;
+  /** Extracto del texto visible (≤1000 car.), si el engine lo proporciona (ADR-35). */
+  textSnippet?: string;
+  /** Tamaño del HTML de la página en bytes, si el engine lo proporciona. */
+  htmlLength?: number;
+  /** Total de enlaces de la página, si el engine lo proporciona. */
+  linksCount?: number;
+  /** Historial acotado de pasos previos para anti-oscilación (ADR-35). */
+  trajectory?: Trajectory;
 }
 
 export interface RecoveryContext extends PageContext {
