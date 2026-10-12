@@ -13,7 +13,8 @@ consume jobs. El bucle Observe→Think→Act es lógica de aplicación y su dest
     (`itemKey`) y paso de selectores aprendidos al motor como fallback de extracción (C).
   - `planner.ts` — convierte la intención en un plan del DSL y lo valida (`R-AI-3`).
   - `browser-engine.ts` / `job-processor.ts` — motor de producción y consumo de la cola
-    BullMQ, con reintentos hacia `scraping-jobs-dead` (`R-SC-8`).
+    BullMQ, con reintentos hacia `scraping-jobs-dead` (`R-SC-8`) y rate limit por host
+    en el motor HTTP (`ENGINE_HOST_MAX_RPM`, `R-SC-7`).
   - `interpret.js` — interpretación opcional del resultado (`AI_INTERPRET=1`).
 
 > Todo comando que ejecuta pasó por `CommandValidator` y respeta `clampCommandLimits`

@@ -7,9 +7,55 @@
  */
 import { CrawlerService } from '@ai-scraper/infrastructure-crawler';
 import { ExecutionEngine, type EnginePageCache } from '@ai-scraper/infrastructure-execution';
-import { getPageCache } from '@ai-scraper/infrastructure-redis';
+import { getPageCache, getRateLimiter } from '@ai-scraper/infrastructure-redis';
 
 const crawler = new CrawlerService();
+
+function envInt(name: string, fallback: number): number {
+  const n = Number(process.env[name] ?? '');
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+interface HostLimiter {
+  consume(identifier: string, cost?: number): Promise<{ allowed: boolean; remaining: number; resetAt: number }>;
+}
+
+/** Limitador por host del propio worker (singleton perezoso; fallback a memoria, R-RD-5). */
+let hostLimiterPromise: Promise<HostLimiter> | null = null;
+function getHostLimiter(): Promise<HostLimiter> {
+  if (!hostLimiterPromise) {
+    hostLimiterPromise = getRateLimiter({ max: envInt('ENGINE_HOST_MAX_RPM', 30), windowMs: 60_000 });
+  }
+  return hostLimiterPromise;
+}
+
+const HOST_RATE_LIMIT_WAIT_CAP_MS = 10_000;
+
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason);
+      return;
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(signal?.reason);
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
+/** Cortesía con el sitio objetivo: limita peticiones por host (H, bloque 4). */
+async function rateLimitHost(host: string, signal?: AbortSignal): Promise<void> {
+  const limiter = await getHostLimiter();
+  const { allowed, resetAt } = await limiter.consume(`host:${host}`);
+  if (allowed) return;
+  await sleep(Math.min(Math.max(0, resetAt - Date.now()), HOST_RATE_LIMIT_WAIT_CAP_MS), signal);
+}
 
 /** Proxy que resuelve la caché real (Redis con fallback) de forma perezosa. */
 class LazyPageCache implements EnginePageCache {
@@ -50,6 +96,7 @@ export function createProductionEngine(opts?: EngineOptions): ExecutionEngine {
   return new ExecutionEngine({
     browserInteract: (url, action, signal) => crawler.interact(url, action, { ...interactOpts, signal }),
     pageCache: sharedCache,
+    rateLimit: rateLimitHost,
     ...interactOpts,
     ...(opts?.signal ? { signal: opts.signal } : {}),
     ...(opts?.learnedSelectors && opts.learnedSelectors.length > 0

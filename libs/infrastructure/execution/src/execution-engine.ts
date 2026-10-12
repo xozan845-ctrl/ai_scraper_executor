@@ -215,6 +215,8 @@ export class ExecutionEngine {
       maxVisited?: number;
       /** Selectores aprendidos del dominio; fallback si el selector de la IA da 0 (C). */
       fallbackSelectors?: () => Promise<string[]>;
+      /** Cortesía por host antes de cada fetch real (H, bloque 4). No aplica en cache hit. */
+      rateLimit?: (host: string, signal?: AbortSignal) => Promise<void>;
     },
   ) {
     this.pageCache = deps?.pageCache ?? new PageCache();
@@ -270,6 +272,7 @@ export class ExecutionEngine {
       const cached = await this.pageCache.get(key);
       if (cached !== null && cached !== undefined) return { html: cached };
     } catch { /* cache miss/error → fetch */ }
+    await this.applyRateLimit(url);
     let html: string;
     let statusCode: number | undefined;
     if (this.deps?.fetcher) {
@@ -438,6 +441,18 @@ export class ExecutionEngine {
       commandType: 'EXTRACT_LIST',
       error: `0 elementos para selector "${selector}" → Recovery (§28): probar INSPECT_ELEMENTS`,
     };
+  }
+
+  /** Cortesía por host (H, bloque 4): se espera antes de un fetch real; si el limitador falla, no rompe. */
+  private async applyRateLimit(url: string): Promise<void> {
+    const limiter = this.deps?.rateLimit;
+    if (!limiter) return;
+    try {
+      await limiter(new URL(url).hostname.toLowerCase(), this.deps?.signal);
+    } catch (e) {
+      if (this.deps?.signal?.aborted) throw this.deps.signal.reason;
+      logger.warn('rate_limit_failed', { url, error: (e as Error).message });
+    }
   }
 
   async execute(command: ScrapingCommand): Promise<ExecutionResult> {
