@@ -11,6 +11,8 @@ guardan los secretos de una sesión. No depende de nada (shared kernel).
   - `assertSafeUrl(url)` — además resuelve DNS antes de conectar — `R-SE-3`.
   - `safeFetchText(url, opts)` — `fetch` con **revalidación de cada redirect**,
     `maxRedirects` y `maxBytes`; es el único camino HTTP a terceros — `R-SE-1`, `R-SE-4`.
+  - `HttpError` — error tipado (`status`, `retryAfterMs`) que `safeFetchText` lanza ante
+    respuestas no-2xx, para que el motor reintente solo lo transitorio — `R-SC-8`.
   - `isBlockedHost`, `isBlockedIp`, `isPrivateHostsAllowed` — el detalle del bloqueo y
     el bypass de desarrollo (`ALLOW_PRIVATE_HOSTS=1`, solo fuera de producción) — `R-SE-6`.
   - `createAllowlist(jobUrl)`, `isAllowedHost(host, allowed)`, `normalizeDomain(input)`
