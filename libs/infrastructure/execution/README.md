@@ -24,6 +24,8 @@ donde vive la trazabilidad de cada item extraído.
   - Fallback a **selectores aprendidos** (`deps.fallbackSelectors`, C): si `EXTRACT_LIST`
     con el selector de la IA da 0 elementos, prueba los selectores del perfil y el
     `_source.selector` refleja el que realmente extrajo — `R-SC-12`, `R-SC-14`.
+  - Cortesía por host (`deps.rateLimit`, H): se espera antes de cada fetch real (nunca en
+    un acierto de caché), con el host como identificador — `R-SC-7`.
 
 El motor vuelve a recortar los límites (`clampCommandLimits`) aunque el DTO se evite
 — `R-SC-2` — y comprueba `maxRuntimeSec` en cada paso del bucle — `R-SC-3`. El
