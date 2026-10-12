@@ -15,7 +15,7 @@
 import { AIOrchestrator, type AIProviderCallOpts } from '@ai-scraper/application-ai';
 import { CommandValidator, normalizeRawCommand, clampCommandLimits } from '@ai-scraper/domain-ai';
 import { normalizeJobLimits } from '@ai-scraper/domain-execution';
-import { ExecutionEngine } from '@ai-scraper/infrastructure-execution';
+import { ExecutionEngine, itemKey } from '@ai-scraper/infrastructure-execution';
 import { generatePlan, type PlanJobInput, type PlanAction } from './planner';
 import { getLearnedProfile, mongoRepo } from '@ai-scraper/infrastructure-mongodb';
 
@@ -212,6 +212,7 @@ export class AgentRunner {
 
     const steps: AgentStep[] = [];
     const items: unknown[] = [];
+    const seenItemKeys = new Set<string>();
     let recoveryCount = 0;
     let browserEscalationSuggested = false;
 
@@ -373,6 +374,10 @@ export class AgentRunner {
       if (!resItems || !DATA_COMMANDS.has(commandType)) return;
       for (const it of resItems) {
         if (items.length >= limits.maxItems) break;
+        // J (bloque 2): dedupe entre páginas/comandos, conservando el primer item visto.
+        const key = itemKey(it);
+        if (seenItemKeys.has(key)) continue;
+        seenItemKeys.add(key);
         items.push(it);
       }
     };
