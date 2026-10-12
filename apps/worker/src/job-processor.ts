@@ -97,11 +97,12 @@ export async function processJob(jobId: string, deps: ProcessJobDeps): Promise<A
     : null;
   const createEngine = deps.createEngine
     ? (hint: { signal: AbortSignal }) => deps.createEngine!(hint)
-    : (hint: { allowedDomain: string; credentialOrigin: string; signal: AbortSignal }) => createProductionEngine({
+    : (hint: { allowedDomain: string; credentialOrigin: string; signal: AbortSignal; learnedSelectors: string[] }) => createProductionEngine({
         ...(credentials?.headers ? { headers: credentials.headers } : {}),
         allowedDomain: hint.allowedDomain,
         credentialOrigin: hint.credentialOrigin,
         signal: hint.signal,
+        learnedSelectors: hint.learnedSelectors,
       });
   const runner = new AgentRunner({
     orchestrator,

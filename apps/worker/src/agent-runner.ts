@@ -73,7 +73,7 @@ export interface RunnerDeps {
    * aprendido (FASE 12) para que el llamador decida si arma browser; la decisión de
    * capacidades vive en la factory, no mutando instancias.
    */
-  createEngine?: (hint: { needsBrowser: boolean; allowedDomain: string; credentialOrigin: string; signal: AbortSignal }) => ExecutionEngine;
+  createEngine?: (hint: { needsBrowser: boolean; allowedDomain: string; credentialOrigin: string; signal: AbortSignal; learnedSelectors: string[] }) => ExecutionEngine;
   maxSteps?: number;
   maxRecoveryAttempts?: number;
   /** Callback para abortar si el job fue cancelado (chequeo entre pasos). */
@@ -205,6 +205,7 @@ export class AgentRunner {
           allowedDomain: domain,
           credentialOrigin: new URL(job.url).origin,
           signal: deadlineSignal,
+          learnedSelectors: learnedProfile?.recommendedSelectors?.list ?? [],
         })
       : new ExecutionEngine({ allowedDomain: domain, credentialOrigin: new URL(job.url).origin, signal: deadlineSignal });
     let planActions: PlanAction[];

@@ -21,6 +21,9 @@ donde vive la trazabilidad de cada item extraído.
     para no repetir tarjetas entre páginas.
   - `FOLLOW_LINKS` hace fetch en paralelo acotado (concurrencia 3) y la memoria de URLs
     visitadas está topada (`maxVisited`, FIFO) para no crecer sin límite.
+  - Fallback a **selectores aprendidos** (`deps.fallbackSelectors`, C): si `EXTRACT_LIST`
+    con el selector de la IA da 0 elementos, prueba los selectores del perfil y el
+    `_source.selector` refleja el que realmente extrajo — `R-SC-12`, `R-SC-14`.
 
 El motor vuelve a recortar los límites (`clampCommandLimits`) aunque el DTO se evite
 — `R-SC-2` — y comprueba `maxRuntimeSec` en cada paso del bucle — `R-SC-3`. El
