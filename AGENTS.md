@@ -139,6 +139,9 @@ libs/application/ai               AIOrchestrator, prompts, context-builder; F8 a
   proveedor LLM falso y `MONGODB_MOCK=1`.
 - El smoke de Prisma corre **solo** si `DATABASE_URL` responde; sin Docker se salta (esperado).
 - Tests por área en `tests/*.test.mjs`; el E2E real es `tests/e2e-sevasa.test.mjs` (no está en `npm test`).
+- **Gobernanza SOLID** en `scripts/rules/*.test.mjs` (SRP/OCP/LSP/ISP/DIP por análisis
+  estático). Corren dentro de `npm test` y con `npm run test:rules`; la deuda aceptada
+  se documenta en `scripts/rules/baseline.json` (ver `scripts/rules/README.md`).
 - Funciones puras (DSL, límites, dominios) deben traer su propiedad en `tests/property.test.mjs`.
 - **Mutation testing** (ADR-31): `npm run test:mutation` (Stryker + runner de Vitest, muta el `dist` crítico). No es gate de PR; se corre pre-release.
 

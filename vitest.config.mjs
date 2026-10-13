@@ -16,7 +16,7 @@ if (existsSync(envPath)) {
 
 export default defineConfig({
   test: {
-    include: ['tests/**/*.test.mjs'],
+    include: ['tests/**/*.test.mjs', 'scripts/rules/**/*.test.mjs'],
     exclude: ['**/node_modules/**', '**/dist/**'],
     // Serial a propósito: Crawlee usa almacenamiento local en disco (ADR-04, R-FL-5).
     fileParallelism: false,
@@ -34,7 +34,7 @@ export default defineConfig({
       provider: 'v8',
       // Vitest/Vite mapea la cobertura a los fuentes TS (por los sourcemaps del
       // `dist`); la base cambia de JS compilado a TS → umbrales re-medidos (ADR-29).
-      exclude: ['**/node_modules/**', '**/*.module.ts', '**/*.module.js', '**/main.ts', '**/main.js', '**/dto/**'],
+      exclude: ['**/node_modules/**', '**/*.module.ts', '**/*.module.js', '**/main.ts', '**/main.js', '**/dto/**', 'scripts/**'],
       reporter: ['text', 'text-summary'],
       thresholds: { lines: 65, branches: 54, functions: 56 },
     },
