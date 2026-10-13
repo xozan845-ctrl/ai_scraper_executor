@@ -1,0 +1,5 @@
+{
+  "$comment": "Deuda de gobernanza SOLID aceptada temporalmente (ratchet). Las suites solo fallan con violaciones NUEVAS; cada entrada aquí debe justificarse y salir cuando se refactorice (ver docs/rules/_meta/AUDIT.md). Actualmente SIN deuda.",
+  "SRP": [],
+  "OCP": []
+}

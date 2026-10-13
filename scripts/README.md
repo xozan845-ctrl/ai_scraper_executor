@@ -73,6 +73,7 @@ scripts/
   harness.mjs       # helpers: t.step/ok/assert/expectFail + waitFor
   run-all.mjs       # ejecuta todos los escenarios y resume
   flows/*.mjs       # un archivo por flujo
+  rules/            # suites de gobernanza SOLID (ver scripts/rules/README.md)
   README.md
 ```
 
@@ -99,3 +100,9 @@ export default {
 - Los escenarios `01`, `03` y `05` hacen scraping real y pueden tardar varios minutos.
 - `01` falla si el job termina `FAILED` o si no devuelve items (usa `TEST_REQUIRE_ITEMS=0` solo para sitios sin listados).
 - Nunca pongas tokens reales directamente en un script; pásalos por variables de entorno y rota cualquier token expuesto.
+
+## Gobernanza SOLID (`scripts/rules/`)
+
+Suites que auditan por análisis estático (sin ejecutar código) la arquitectura NestJS
+buscando violaciones **reales** de SOLID. Corren dentro de `npm test` (y con
+`npm run test:rules`). Detalle y limitaciones en [`rules/README.md`](./rules/README.md).
