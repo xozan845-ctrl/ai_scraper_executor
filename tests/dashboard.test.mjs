@@ -58,6 +58,7 @@ describe('Stats con RECOVERED + endpoints de API (FASE 9)', async () => {
   const { InMemoryJobQueue } = await import('../libs/infrastructure/queue/dist/memory-queue.js');
   const { JobsService } = await import('../apps/api/dist/jobs/jobs.service.js');
   const { MetricsController } = await import('../apps/api/dist/jobs/metrics.controller.js');
+  const { MetricsService } = await import('../apps/api/dist/jobs/metrics.service.js');
 
   it('getStats cuenta RECOVERED y service calcula aiRecoveryRate', async () => {
     const store = new InMemoryJobStore();
@@ -91,7 +92,7 @@ describe('Stats con RECOVERED + endpoints de API (FASE 9)', async () => {
 
   it('MetricsController delega overview y prometheus', async () => {
     const service = new JobsService(new InMemoryJobStore(), new InMemoryJobQueue());
-    const ctrl = new MetricsController(service);
+    const ctrl = new MetricsController(new MetricsService(service));
     const overview = await ctrl.overview();
     assert.ok(typeof overview.aiRecoveryRate === 'number');
     assert.ok(overview.stats);

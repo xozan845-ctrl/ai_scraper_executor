@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
  */
 describe('first-user + API key de BD (seguridad)', async () => {
   const { FirstUserController } = await import('../apps/api/dist/jobs/first-user.controller.js');
+  const { FirstRunGuard } = await import('../apps/api/dist/jobs/first-run.guard.js');
   const { ApiKeyGuard } = await import('../apps/api/dist/jobs/api-key.guard.js');
   const { hashApiKey } = await import('../apps/api/dist/jobs/user.service.js');
 
@@ -48,12 +49,12 @@ describe('first-user + API key de BD (seguridad)', async () => {
     };
   }
 
-  const req = (headers = {}) => ({ headers });
+  const guardCtx = (req) => ({ switchToHttp: () => ({ getRequest: () => req }) });
 
   it('registro con BD vacía: crea superadmin, guarda hash (no la clave en claro)', async () => {
     const svc = fakeUserService();
     const ctrl = new FirstUserController(svc);
-    const res = await ctrl.registerFirst({ email: 'Admin@X.com', password: 'clave-segura' }, req());
+    const res = await ctrl.registerFirst({ email: 'Admin@X.com', password: 'clave-segura' });
 
     assert.equal(res.role, 'superadmin');
     assert.equal(res.email, 'admin@x.com');
@@ -67,9 +68,9 @@ describe('first-user + API key de BD (seguridad)', async () => {
   it('segundo registro → 409 (sin force)', async () => {
     const svc = fakeUserService();
     const ctrl = new FirstUserController(svc);
-    await ctrl.registerFirst({ email: 'a@x.com', password: 'clave-segura' }, req());
+    await ctrl.registerFirst({ email: 'a@x.com', password: 'clave-segura' });
     await assert.rejects(
-      () => ctrl.registerFirst({ email: 'b@x.com', password: 'clave-segura' }, req()),
+      () => ctrl.registerFirst({ email: 'b@x.com', password: 'clave-segura' }),
       (e) => e.getStatus() === 409,
     );
   });
@@ -78,34 +79,39 @@ describe('first-user + API key de BD (seguridad)', async () => {
     const svc = fakeUserService();
     const ctrl = new FirstUserController(svc);
     const outcomes = await Promise.allSettled([
-      ctrl.registerFirst({ email: 'a@x.com', password: 'clave-segura' }, req()),
-      ctrl.registerFirst({ email: 'b@x.com', password: 'clave-segura' }, req()),
+      ctrl.registerFirst({ email: 'a@x.com', password: 'clave-segura' }),
+      ctrl.registerFirst({ email: 'b@x.com', password: 'clave-segura' }),
     ]);
     assert.equal(outcomes.filter((result) => result.status === 'fulfilled').length, 1);
     assert.equal(outcomes.filter((result) => result.status === 'rejected').length, 1);
     assert.equal(svc.users.length, 1);
   });
 
-  it('producción sin FIRST_RUN_TOKEN → 403 (fail-closed)', async () => {
+  it('FirstRunGuard: en dev/test no bloquea; en producción sin token → 403 (fail-closed)', () => {
+    const guard = new FirstRunGuard();
+    process.env.NODE_ENV = 'development';
+    assert.equal(guard.canActivate(guardCtx({ headers: {} })), true);
+
     process.env.NODE_ENV = 'production';
-    const ctrl = new FirstUserController(fakeUserService());
-    await assert.rejects(
-      () => ctrl.registerFirst({ email: 'a@x.com', password: 'clave-segura' }, req({ 'x-first-run': 'x' })),
+    assert.throws(
+      () => guard.canActivate(guardCtx({ headers: { 'x-first-run': 'x' } })),
       (e) => e.getStatus() === 403,
     );
   });
 
-  it('producción con token: header incorrecto → 401, correcto → 201', async () => {
+  it('FirstRunGuard: producción con token (header incorrecto/ausente → 401, correcto → true)', () => {
     process.env.NODE_ENV = 'production';
     process.env.FIRST_RUN_TOKEN = 'bootstrap-token';
-    const svc = fakeUserService();
-    const ctrl = new FirstUserController(svc);
-    await assert.rejects(
-      () => ctrl.registerFirst({ email: 'a@x.com', password: 'clave-segura' }, req({ 'x-first-run': 'malo' })),
+    const guard = new FirstRunGuard();
+    assert.throws(
+      () => guard.canActivate(guardCtx({ headers: { 'x-first-run': 'malo' } })),
       (e) => e.getStatus() === 401,
     );
-    const ok = await ctrl.registerFirst({ email: 'a@x.com', password: 'clave-segura' }, req({ 'x-first-run': 'bootstrap-token' }));
-    assert.equal(ok.role, 'superadmin');
+    assert.throws(
+      () => guard.canActivate(guardCtx({ headers: {} })),
+      (e) => e.getStatus() === 401,
+    );
+    assert.equal(guard.canActivate(guardCtx({ headers: { 'x-first-run': 'bootstrap-token' } })), true);
   });
 
   it('ApiKeyGuard acepta la API key de BD en producción sin API_KEYS', async () => {
