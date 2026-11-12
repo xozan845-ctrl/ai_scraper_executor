@@ -25,6 +25,7 @@ const toRecord = (j: {
   aiModel: string | null;
   webhookUrl?: string | null;
   renderOptions?: unknown;
+  outputSchema?: unknown;
   sessionId?: string | null;
   ownerScope: string;
   createdAt: Date;
@@ -39,6 +40,7 @@ const toRecord = (j: {
   aiModel: j.aiModel ?? undefined,
   webhookUrl: j.webhookUrl ?? undefined,
   render: (j.renderOptions as JobRecord['render']) ?? undefined,
+  outputSchema: (j.outputSchema as JobRecord['outputSchema']) ?? undefined,
   sessionId: j.sessionId ?? undefined,
   ownerScope: j.ownerScope,
   createdAt: j.createdAt.toISOString(),
@@ -62,6 +64,7 @@ export class PrismaJobStore implements JobStore {
         aiModel: input.aiModel,
         webhookUrl: input.webhookUrl ?? null,
         renderOptions: (input.render ?? undefined) as never,
+        outputSchema: (input.outputSchema ?? undefined) as never,
         sessionId: input.sessionId ?? null,
         ownerScope: input.ownerScope ?? 'anon',
       },
@@ -83,6 +86,7 @@ export class PrismaJobStore implements JobStore {
           aiModel: input.aiModel,
           webhookUrl: input.webhookUrl ?? null,
           renderOptions: (input.render ?? undefined) as never,
+          outputSchema: (input.outputSchema ?? undefined) as never,
           sessionId: input.sessionId ?? null,
           ownerScope: input.ownerScope ?? 'anon',
           idempotencyKey,

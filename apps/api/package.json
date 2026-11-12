@@ -10,6 +10,7 @@
     "@ai-scraper/application-execution": "^0.1.0",
     "@ai-scraper/application-scraper": "^0.1.0",
     "@ai-scraper/domain-execution": "^0.1.0",
+    "@ai-scraper/domain-scraper": "^0.1.0",
     "@ai-scraper/infrastructure-crawler": "^0.1.0",
     "@ai-scraper/infrastructure-execution": "^0.1.0",
     "@ai-scraper/infrastructure-mongodb": "^0.1.0",

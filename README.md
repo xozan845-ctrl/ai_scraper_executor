@@ -184,6 +184,11 @@ POST   /api/v1/jobs/:id/retry          # Reintentar (limpia artefactos, idempote
 > y eventos `progress` (`observe`, `decision`, `step`, `recovery`, `job.finished`).
 > Requiere `x-api-key` y respeta el ownership del job.
 >
+> **Calidad de datos**: `POST /jobs` acepta `outputSchema` (`strict` + `fields`) para
+> validar `price/number/url/date/email/boolean/string`, `required`, `pattern`, `min/max`
+> y `enum`. Cada item recibe `_source.confidence` compuesta y `_source.validation`;
+> con `strict:true` los items inválidos se descartan y queda un error registrado.
+>
 > **Extracción multi-fuente**: `EXTRACT_STRUCTURED` lee JSON-LD, OpenGraph y microdata;
 > `EXTRACT_NETWORK` lee respuestas XHR/fetch/GraphQL capturadas al renderizar (filtra
 > por `urlContains` y `path`). En `EXTRACT`/`EXTRACT_LIST`, un campo puede declarar

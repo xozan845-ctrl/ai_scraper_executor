@@ -54,6 +54,7 @@ export class JobsService {
         priority: dto.priority,
         webhookUrl: dto.webhookUrl,
         render: dto.render,
+        outputSchema: dto.outputSchema,
         idempotencyKey,
         sessionId,
         scope,

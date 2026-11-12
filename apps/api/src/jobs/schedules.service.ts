@@ -21,6 +21,7 @@ export class SchedulesService {
         ai: dto.ai,
         webhookUrl: dto.webhookUrl,
         render: dto.render,
+        outputSchema: dto.outputSchema,
         intervalSec: dto.intervalSec,
         ...(dto.maxRuns !== undefined ? { maxRuns: dto.maxRuns } : {}),
         scope,

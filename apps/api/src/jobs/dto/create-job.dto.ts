@@ -2,6 +2,7 @@ import { IsUrl, IsString, MinLength, IsOptional, IsObject, IsInt, IsIn, Min, Max
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { HARD_LIMITS } from '@ai-scraper/domain-execution';
+import type { OutputSchema } from '@ai-scraper/domain-scraper';
 
 /**
  * Límites del job §35 con topes duros de servidor (HARD_LIMITS).
@@ -143,6 +144,14 @@ export class CreateJobDto {
   @ValidateNested()
   @Type(() => RenderOptionsDto)
   render?: RenderOptionsDto;
+
+  @ApiPropertyOptional({
+    description: 'Esquema de salida por campo: { strict, fields: { campo: { type, required, pattern, min, max, enum } } }',
+    type: 'object', additionalProperties: true,
+  })
+  @IsOptional()
+  @IsObject()
+  outputSchema?: OutputSchema;
 
   @ApiPropertyOptional({ description: 'FASE 11: 1 = máxima, 10 = mínima, 5 = defecto', minimum: 1, maximum: 10 })
   @IsOptional()

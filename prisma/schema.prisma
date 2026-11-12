@@ -32,6 +32,7 @@ model Job {
   aiModel     String?
   webhookUrl  String?
   renderOptions Json?
+  outputSchema Json?
   idempotencyKey String? @unique
   ownerScope  String    @default("anon")
   createdAt   DateTime  @default(now())
@@ -78,6 +79,7 @@ model JobSchedule {
   aiModel      String?
   webhookUrl   String?
   renderOptions Json?
+  outputSchema Json?
   ownerScope   String    @default("anon")
   intervalSec  Int
   maxRuns      Int?

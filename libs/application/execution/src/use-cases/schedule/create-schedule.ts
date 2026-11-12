@@ -1,5 +1,5 @@
 import type { JobLimits } from '@ai-scraper/domain-execution';
-import type { RenderOptions } from '@ai-scraper/domain-scraper';
+import type { OutputSchema, RenderOptions } from '@ai-scraper/domain-scraper';
 import type { ScheduleView } from '../../dtos/schedule';
 import type { ScheduleStore } from '../../ports/schedule-store';
 import { assertJobUrlAllowed, assertWebhookUrlAllowed, type JobUrlPolicy } from '../job/job-url-policy';
@@ -16,6 +16,7 @@ export interface CreateScheduleCommand {
   ai?: { provider?: string; model?: string };
   webhookUrl?: string;
   render?: RenderOptions;
+  outputSchema?: OutputSchema;
   intervalSec: number;
   maxRuns?: number;
   scope?: string;
@@ -55,6 +56,7 @@ export class CreateScheduleUseCase {
       ...(command.ai?.model ? { aiModel: command.ai.model } : {}),
       ...(command.webhookUrl ? { webhookUrl: command.webhookUrl } : {}),
       ...(command.render ? { render: command.render } : {}),
+      ...(command.outputSchema ? { outputSchema: command.outputSchema } : {}),
       ownerScope: command.scope ?? 'anon',
       intervalSec,
       ...(command.maxRuns !== undefined ? { maxRuns: command.maxRuns } : {}),

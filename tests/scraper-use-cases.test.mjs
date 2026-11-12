@@ -106,6 +106,29 @@ describe('F8 — workflow de scraping con dobles de puertos', () => {
     assert.equal(metrics.counts.items_extracted_total, 1);
   });
 
+  it('processJob aplica outputSchema.strict y descarta items inválidos', async () => {
+    const store = new InMemoryJobStore();
+    const job = await store.createJob({
+      url: 'https://shop.com/',
+      instruction: 'productos',
+      outputSchema: {
+        strict: true,
+        fields: { name: { type: 'string', required: true }, price: { type: 'price', required: true } },
+      },
+    });
+    const result = await processJob(job.id, {
+      store,
+      createOrchestrator: () => makeOrchestrator(),
+      createEngine: () => makeEngine(),
+      allowPrivateHosts: false,
+    });
+
+    assert.equal(result.status, 'COMPLETED');
+    assert.equal(result.items.length, 0);
+    assert.equal((await store.getResults(job.id)).length, 0);
+    assert.ok((await store.getErrors(job.id)).some((row) => /outputSchema.strict/.test(row.message)));
+  });
+
   it('performRadiography coordina crawler, motor y repositorio sin acoplarse a Mongo', async () => {
     const page = {
       url: 'https://shop.com/',
