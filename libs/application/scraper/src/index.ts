@@ -3,6 +3,7 @@ export * from './ports/site-memory';
 export * from './ports/scraper-metrics';
 export * from './ports/radiography';
 export * from './ports/webhook-notifier';
+export * from './ports/progress';
 export * from './use-cases/plan-job';
 export * from './use-cases/run-agent';
 export * from './use-cases/process-job';

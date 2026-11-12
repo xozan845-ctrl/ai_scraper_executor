@@ -1,4 +1,4 @@
-import type { EngineMemory } from '@ai-scraper/domain-scraper';
+import type { EngineMemory, RenderOptions } from '@ai-scraper/domain-scraper';
 
 /** Resultado de un comando del motor; refleja la forma pública del ExecutionEngine. */
 export interface ExecutionStepResult {
@@ -29,6 +29,8 @@ export interface EngineFactoryHint {
   learnedSelectors: string[];
   /** Cabeceras de sesión ya descifradas en el borde. */
   headers?: Record<string, string>;
+  /** Configuración de render para SPAs. */
+  render?: RenderOptions;
 }
 
 export type CreateScraperEngine = (hint: EngineFactoryHint) => ScraperEngine;

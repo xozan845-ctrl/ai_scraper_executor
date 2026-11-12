@@ -31,6 +31,7 @@ model Job {
   aiProvider  String    @default("openrouter")
   aiModel     String?
   webhookUrl  String?
+  renderOptions Json?
   idempotencyKey String? @unique
   ownerScope  String    @default("anon")
   createdAt   DateTime  @default(now())
@@ -76,6 +77,7 @@ model JobSchedule {
   aiProvider   String    @default("openrouter")
   aiModel      String?
   webhookUrl   String?
+  renderOptions Json?
   ownerScope   String    @default("anon")
   intervalSec  Int
   maxRuns      Int?

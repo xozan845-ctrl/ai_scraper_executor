@@ -11,6 +11,7 @@
 import { AIOrchestrator } from '@ai-scraper/application-ai';
 import { CommandValidator, normalizeRawPlan, clampCommandLimits } from '@ai-scraper/domain-ai';
 import { normalizeJobLimits, type JobLimits } from '@ai-scraper/domain-execution';
+import type { RenderOptions } from '@ai-scraper/domain-scraper';
 import type { AIProviderCallOpts, PlanningContext } from '@ai-scraper/application-ai';
 import type { LearnedSiteSnapshot, SiteMemory } from '../ports/site-memory';
 
@@ -21,6 +22,7 @@ export interface PlanJobInput {
   ai?: { provider?: string; model?: string };
   /** FASE 12: usar memoria aprendida (default true) */
   useMemory?: boolean;
+  render?: RenderOptions;
 }
 
 export type PlanAction = Record<string, unknown>;

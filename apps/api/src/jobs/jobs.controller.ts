@@ -1,6 +1,8 @@
-import { Controller, Post, Get, Body, Param, Query, Headers, NotFoundException, Req, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, Query, Headers, NotFoundException, Req, Res, UseGuards } from '@nestjs/common';
+import type { Response } from 'express';
 import { ApiTags, ApiOperation, ApiHeader } from '@nestjs/swagger';
 import { JobsService } from './jobs.service';
+import { JobEventsService } from './job-events.service';
 import { CreateJobDto } from './dto/create-job.dto';
 import { ApiKeyGuard, type AuthScopedRequest } from './api-key.guard';
 import { CreateRateLimitGuard } from './rate-limit.guard';
@@ -10,7 +12,10 @@ import { CreateRateLimitGuard } from './rate-limit.guard';
 @UseGuards(ApiKeyGuard)
 @Controller('jobs')
 export class JobsController {
-  constructor(private readonly jobs: JobsService) {}
+  constructor(
+    private readonly jobs: JobsService,
+    private readonly jobEvents: JobEventsService,
+  ) {}
 
   @ApiOperation({ summary: 'Crea un job de scraping (idempotente con Idempotency-Key)' })
   @ApiHeader({ name: 'Idempotency-Key', required: false, description: 'Reutiliza el job si se repite la clave' })
@@ -47,6 +52,42 @@ export class JobsController {
     const r = await this.jobs.results(id, req?.authScope ?? 'anon');
     if (!r) throw new NotFoundException(`Job ${id} no encontrado`);
     return r;
+  }
+
+  @Get(':id/events')
+  async events(
+    @Param('id') id: string,
+    @Res() res: Response,
+    @Req() req?: AuthScopedRequest,
+  ) {
+    const job = await this.jobs.findOne(id, req?.authScope ?? 'anon');
+    if (!job) throw new NotFoundException(`Job ${id} no encontrado`);
+
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders?.();
+    const send = (event: string, data: unknown) => {
+      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    };
+    res.write('retry: 3000\n\n');
+    send('snapshot', { jobId: id, status: job.status, url: job.url, updatedAt: job.updatedAt });
+
+    if (['COMPLETED', 'FAILED', 'CANCELLED', 'TIMEOUT'].includes(job.status)) {
+      res.end();
+      return;
+    }
+
+    const unsubscribe = await this.jobEvents.subscribe(id, (event) => {
+      send('progress', event);
+      if (event.type === 'job.finished') setTimeout(() => res.end(), 50);
+    });
+    const heartbeat = setInterval(() => res.write(': ping\n\n'), 15000);
+    res.on('close', () => {
+      clearInterval(heartbeat);
+      unsubscribe();
+    });
   }
 
   @Get(':id/execution')

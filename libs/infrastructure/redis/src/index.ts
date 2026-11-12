@@ -4,3 +4,4 @@ export { RedisRateLimiter, MemoryRateLimiter, getRateLimiter } from './ratelimit
 export { RedisMetricsAggregator, MemoryMetricsAggregator, getMetricsAggregator } from './metrics';
 export { RedisJsonCache, MemoryJsonCache, getJsonCache, __resetJsonCache } from './kv';
 export { getScheduleLock, __resetScheduleLock } from './schedule-lock';
+export { publishProgress, subscribeProgress, __resetProgressBus } from './progress-bus';

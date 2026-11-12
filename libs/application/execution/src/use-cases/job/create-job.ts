@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { JobLimits } from '@ai-scraper/domain-execution';
+import type { RenderOptions } from '@ai-scraper/domain-scraper';
 import type { CreateJobInput, JobRecord } from '../../dtos/job';
 import type { ScrapingJobPayload } from '../../dtos/scraping-job';
 import type { JobQueue } from '../../ports/job-queue';
@@ -20,6 +21,7 @@ export interface CreateJobCommand {
   scope?: string;
   correlationId?: string;
   webhookUrl?: string;
+  render?: RenderOptions;
 }
 
 export interface CreateJobDeps {
@@ -53,6 +55,7 @@ export class CreateJobUseCase {
       sessionId: command.sessionId,
       ownerScope: scope,
       ...(command.webhookUrl ? { webhookUrl: command.webhookUrl } : {}),
+      ...(command.render ? { render: command.render } : {}),
     };
     const created = idempotencyKey
       ? await this.deps.store.getOrCreateJob(input, idempotencyKey)

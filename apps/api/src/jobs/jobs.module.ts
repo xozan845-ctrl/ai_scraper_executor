@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { JobsController } from './jobs.controller';
 import { JobsService } from './jobs.service';
+import { JobEventsService } from './job-events.service';
 import { MetricsController } from './metrics.controller';
 import { MetricsService } from './metrics.service';
 import { DashboardController } from './dashboard.controller';
@@ -35,6 +36,7 @@ import { storeProvider, queueProvider, sessionStoreProvider, userRepositoryProvi
   ],
   providers: [
     JobsService,
+    JobEventsService,
     MetricsService,
     RadiographyService,
     SessionsService,

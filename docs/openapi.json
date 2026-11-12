@@ -44,6 +44,14 @@
             "minimum": 1,
             "type": "number"
           },
+          "render": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RenderOptionsDto"
+              }
+            ],
+            "description": "Render con navegador para SPAs"
+          },
           "url": {
             "description": "URL inicial (http/https)",
             "example": "https://www.sevasaonline.com/",
@@ -84,6 +92,14 @@
             "description": "Número máximo de ejecuciones; al alcanzarlo queda COMPLETED",
             "minimum": 1,
             "type": "number"
+          },
+          "render": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RenderOptionsDto"
+              }
+            ],
+            "description": "Render con navegador para SPAs"
           },
           "url": {
             "example": "https://www.sevasaonline.com/",
@@ -203,6 +219,45 @@
           "email",
           "password"
         ],
+        "type": "object"
+      },
+      "RenderOptionsDto": {
+        "properties": {
+          "mode": {
+            "description": "auto = heurística del motor",
+            "enum": [
+              "auto",
+              "always",
+              "never"
+            ],
+            "type": "string"
+          },
+          "timeoutMs": {
+            "description": "Timeout de render (ms)",
+            "maximum": 60000,
+            "minimum": 1000,
+            "type": "number"
+          },
+          "waitForSelector": {
+            "description": "Selector que debe existir antes de capturar",
+            "example": "app-root",
+            "type": "string"
+          },
+          "waitMs": {
+            "description": "Espera mínima extra (ms)",
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "number"
+          },
+          "waitUntil": {
+            "enum": [
+              "domcontentloaded",
+              "load",
+              "networkidle"
+            ],
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "SendMessageDto": {
@@ -552,6 +607,29 @@
         ],
         "responses": {
           "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/api/v1/jobs/{id}/events": {
+      "get": {
+        "operationId": "JobsController_events",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
             "description": ""
           }
         },

@@ -8,6 +8,8 @@
  * - Seguridad §37: bloquea hosts privados / metadata endpoints antes de encolar.
  */
 import { CheerioCrawler, PlaywrightCrawler, RequestQueue } from 'crawlee';
+import type { Page } from 'playwright';
+import type { RenderOptions } from '@ai-scraper/domain-scraper';
 import { hashHtml } from '@ai-scraper/shared-core';
 import { assertSafeUrl, createAllowlist, isAllowedHost, isBlockedHost, isPrivateHostsAllowed, safeDnsLookup } from '@ai-scraper/shared-security';
 import { BrowserPool, Semaphore } from './pool';
@@ -18,6 +20,25 @@ export { hashHtml };
 export interface BrowserAction {
   kind: 'click' | 'scroll' | 'render';
   selector?: string;
+  render?: RenderOptions;
+}
+
+/** Espera a que el DOM se estabilice (hidratación de SPAs) sin depender del framework. */
+async function settlePage(page: Page, minWaitMs: number, totalBudgetMs = 2500): Promise<void> {
+  await page.waitForTimeout(Math.max(0, minWaitMs)).catch(() => undefined);
+  let previous = '';
+  let stable = 0;
+  const deadline = Date.now() + totalBudgetMs;
+  while (Date.now() < deadline && stable < 2) {
+    const signal = await page.evaluate(() => ({
+      nodes: document.querySelectorAll('*').length,
+      text: (document.body?.innerText ?? '').length,
+    })).catch(() => null);
+    const current = signal ? `${signal.nodes}:${signal.text}` : '';
+    if (current && current === previous) stable += 1;
+    else { stable = 0; previous = current; }
+    if (stable < 2) await page.waitForTimeout(150).catch(() => undefined);
+  }
 }
 
 export interface BrowserResult {
@@ -325,20 +346,31 @@ export class CrawlerService {
       opts?.signal?.addEventListener('abort', onAbort, { once: true });
       const page = await context.newPage();
       await installNavigationGuard(page, opts);
-      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      const render = action.render;
+      const timeout = render?.timeoutMs ?? 30000;
+      await page.goto(url, { waitUntil: render?.waitUntil ?? 'domcontentloaded', timeout });
+      if (render?.waitUntil === 'networkidle') {
+        await page.waitForLoadState('networkidle', { timeout: Math.min(timeout, 5000) }).catch(() => undefined);
+      }
+      if (render?.waitForSelector) {
+        await page.waitForSelector(render.waitForSelector, { timeout: Math.min(timeout, 15000) }).catch(() => undefined);
+      }
       if (action.kind === 'click' && action.selector) {
         await page.click(action.selector, { timeout: 10000 });
         await page.waitForLoadState('domcontentloaded', { timeout: 15000 }).catch(() => undefined);
-        await page.waitForTimeout(800).catch(() => undefined);
       } else if (action.kind === 'scroll') {
         // scroll: disparar lazy-load / infinite-scroll inicial (§59)
         await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)).catch(() => undefined);
-        await page.waitForTimeout(1200).catch(() => undefined);
       } else {
         // render: esperar a que el framework hidrate el DOM sin interactuar.
         await page.waitForLoadState('domcontentloaded', { timeout: 15000 }).catch(() => undefined);
-        await page.waitForTimeout(500).catch(() => undefined);
       }
+      const minWait = action.kind === 'scroll'
+        ? Math.max(render?.waitMs ?? 0, 1200)
+        : action.kind === 'click'
+          ? Math.max(render?.waitMs ?? 0, 800)
+          : (render?.waitMs ?? 500);
+      await settlePage(page, minWait);
       const html = await page.content().catch(() => '');
       const title = (await page.title().catch(() => ''))?.slice(0, 200) ?? '';
       opts?.signal?.removeEventListener('abort', onAbort);

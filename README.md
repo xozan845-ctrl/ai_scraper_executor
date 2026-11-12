@@ -162,9 +162,19 @@ GET    /api/v1/jobs/:id                # Detalle job
 GET    /api/v1/jobs/:id/results        # Items extraídos (con _source tracing)
 GET    /api/v1/jobs/:id/execution      # Comandos + páginas + errores
 GET    /api/v1/jobs/:id/ai?limit=50    # Interacciones LLM (paginado)
+GET    /api/v1/jobs/:id/events         # SSE: snapshot + progreso en vivo (observe/decision/step/finish)
 POST   /api/v1/jobs/:id/cancel         # Cancelar (terminal seguro)
 POST   /api/v1/jobs/:id/retry          # Reintentar (limpia artefactos, idempotente)
 ```
+
+> **Render para SPAs**: `POST /jobs` acepta `render` (`mode: auto|always|never`,
+> `waitUntil: domcontentloaded|load|networkidle`, `waitForSelector`, `waitMs`,
+> `timeoutMs`). Tras cargar, el motor espera a que el DOM se estabilice (hidratación
+> Angular/React/Vue) antes de analizarlo. `always` fuerza Chromium; `never` lo desactiva.
+>
+> **Progreso en vivo**: `GET /jobs/:id/events` es un stream SSE con `snapshot` inicial
+> y eventos `progress` (`observe`, `decision`, `step`, `recovery`, `job.finished`).
+> Requiere `x-api-key` y respeta el ownership del job.
 
 > **Webhooks**: `webhookUrl` recibe un `POST` JSON al terminar el job
 > (`job.completed|failed|timeout|cancelled`). La URL pasa SSRF y no se permiten

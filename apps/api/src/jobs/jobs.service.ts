@@ -53,6 +53,7 @@ export class JobsService {
         ai: dto.ai,
         priority: dto.priority,
         webhookUrl: dto.webhookUrl,
+        render: dto.render,
         idempotencyKey,
         sessionId,
         scope,

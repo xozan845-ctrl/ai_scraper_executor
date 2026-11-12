@@ -139,6 +139,32 @@ describe('Contrato de la API (R-C-*)', () => {
     assert.equal(after.status, 401);
   });
 
+  it('SSE: /jobs/:id/events abre stream y envía snapshot', async () => {
+    const created = await postJson('/api/v1/jobs', {
+      url: 'https://example.com/',
+      instruction: 'Eventos en vivo',
+    });
+    const job = await created.json();
+    const controller = new AbortController();
+    const response = await fetch(`${api.baseUrl}/api/v1/jobs/${job.id}/events`, {
+      headers: { 'x-api-key': KEY },
+      signal: controller.signal,
+    });
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get('content-type') ?? '', /text\/event-stream/);
+    const reader = response.body.getReader();
+    let text = '';
+    while (!text.includes('event: snapshot')) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      text += new TextDecoder().decode(value);
+    }
+    assert.match(text, /event: snapshot/);
+    assert.match(text, new RegExp(job.id));
+    controller.abort();
+    await reader.cancel().catch(() => undefined);
+  });
+
   it('R-C-2: la spec OpenAPI declara los endpoints bajo el prefijo', async () => {
     const spec = await (await req('/api/v1/docs-json')).json();
     assert.ok(spec.openapi, 'sin campo openapi');

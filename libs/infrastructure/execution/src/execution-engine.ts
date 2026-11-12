@@ -11,7 +11,7 @@
 import * as cheerio from 'cheerio';
 import { createHash } from 'node:crypto';
 import type { ScrapingCommand as StrictCommand } from '@ai-scraper/domain-ai';
-import type { EngineMemory } from '@ai-scraper/domain-scraper';
+import type { EngineMemory, RenderOptions } from '@ai-scraper/domain-scraper';
 import type { EnginePageCache } from '@ai-scraper/application-execution';
 import { logger } from '@ai-scraper/shared-observability';
 import { assertPublicUrl, isAllowedHost, safeFetchText } from '@ai-scraper/shared-security';
@@ -63,6 +63,7 @@ export interface ExecutionResult {
 export interface BrowserAction {
   kind: 'click' | 'scroll' | 'render';
   selector?: string;
+  render?: RenderOptions;
 }
 
 export interface BrowserResult {
@@ -196,6 +197,8 @@ export class ExecutionEngine {
       maxVisited?: number;
       /** Selectores aprendidos del dominio; fallback si el selector de la IA da 0 (C). */
       fallbackSelectors?: () => Promise<string[]>;
+      /** Configuración de render para SPAs. */
+      render?: RenderOptions;
       /** Cortesía por host antes de cada fetch real (H, bloque 4). No aplica en cache hit. */
       rateLimit?: (host: string, signal?: AbortSignal) => Promise<void>;
     },
@@ -314,14 +317,21 @@ export class ExecutionEngine {
    * renderizó ya en este job, la carga en Chromium y sustituye el DOM. Devuelve
    * true si el render se aplicó; false si no hay browser, ya se hizo, o falló.
    */
-  private async maybeRender(): Promise<boolean> {
+  private async maybeRender(force = false): Promise<boolean> {
     const interact = this.deps?.browserInteract;
     const url = this.currentUrl;
     if (!interact || !url) return false;
+    const render = this.deps?.render;
+    if (render?.mode === 'never') return false;
+    if (!force && render?.mode !== 'always') {
+      const challenge = detectChallenge(this.currentHtml ?? '');
+      const thin = needsBrowserRender(this.currentHtml ?? '');
+      if (!challenge && !thin) return false;
+    }
     const key = normalizeUrlForDedupe(url);
     if (this.renderedUrls.has(key)) return false;
     try {
-      const out = await interact(url, { kind: 'render' }, this.deps?.signal);
+      const out = await interact(url, { kind: 'render', ...(render ? { render } : {}) }, this.deps?.signal);
       this.renderedUrls.add(key);
       this.loadHtml(out.url, out.html);
       return true;
@@ -524,9 +534,10 @@ export class ExecutionEngine {
           let usedBrowser = false;
           let challenge = detectChallenge(this.currentHtml ?? '');
           const thin = needsBrowserRender(this.currentHtml ?? '');
-          // Render-on-demand (A) y escape de anti-bot (E) comparten el mismo delegado.
-          if (this.deps?.browserInteract && (challenge === 'cloudflare' || thin)) {
-            if (await this.maybeRender()) {
+          const renderMode = this.deps?.render?.mode ?? 'auto';
+          // Render-on-demand (A), escape de anti-bot (E) y modo `always` para SPAs.
+          if (this.deps?.browserInteract && (renderMode === 'always' || ((challenge === 'cloudflare' || thin) && renderMode !== 'never'))) {
+            if (await this.maybeRender(renderMode === 'always')) {
               usedBrowser = true;
               challenge = detectChallenge(this.currentHtml ?? '');
             }
