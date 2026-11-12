@@ -248,6 +248,15 @@ describe('F8 — casos de uso de jobs con dobles de puertos', () => {
     assert.equal(await useCases.retry.execute(job.id, 'otro'), null);
   });
 
+  it('Retry reencola también un job NEEDS_HUMAN', async () => {
+    const { store, queue, useCases } = setup();
+    const job = await useCases.create.execute(command());
+    await store.updateStatus(job.id, 'NEEDS_HUMAN');
+    const retried = await useCases.retry.execute(job.id, 'scope-a');
+    assert.equal(retried.status, 'QUEUED');
+    assert.equal(queue.payloads.length, 2);
+  });
+
   it('Retry: un fallo de cola deja FAILED y lanza JobEnqueueError', async () => {
     const { store, queue, useCases } = setup();
     const job = await useCases.create.execute(command());

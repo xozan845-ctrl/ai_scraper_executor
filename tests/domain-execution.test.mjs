@@ -10,7 +10,7 @@ describe('domain/execution: contrato literal (R-MT-3)', async () => {
   it('los valores del enum JobStatus coinciden con su clave', () => {
     const expected = [
       'CREATED', 'QUEUED', 'PLANNING', 'EXPLORING', 'EXECUTING', 'RECOVERING',
-      'INTERPRETING', 'COMPLETED', 'FAILED', 'CANCELLED', 'TIMEOUT',
+      'INTERPRETING', 'COMPLETED', 'FAILED', 'CANCELLED', 'TIMEOUT', 'NEEDS_HUMAN',
     ];
     assert.deepEqual(Object.keys(JobStatus), expected);
     for (const key of expected) assert.equal(JobStatus[key], key);

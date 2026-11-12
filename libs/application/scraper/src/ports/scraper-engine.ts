@@ -12,6 +12,8 @@ export interface ExecutionStepResult {
   needsBrowser?: boolean;
   usedBrowser?: boolean;
   statusCode?: number;
+  needsHuman?: boolean;
+  challenge?: string;
 }
 
 /** Puerto del motor de scraping; el adaptador vive en `infrastructure/execution`. */

@@ -53,6 +53,31 @@ describe('Progreso en vivo (SSE) y render configurable', () => {
     assert.equal(received.length, 2);
   });
 
+  it('AgentRunner se detiene en NEEDS_HUMAN sin entrar en recovery', async () => {
+    const engine = {
+      async execute() {
+        return { ok: false, commandType: 'NAVIGATE', needsHuman: true, challenge: 'recaptcha', error: 'captcha' };
+      },
+      getMemory: () => ({ visited: [], lastUrl: null, lastItems: 0, discoveredSelectors: [] }),
+      getCurrentUrl: () => 'https://shop.com/',
+    };
+    const runner = new AgentRunner({
+      orchestrator: makeOrchestrator(),
+      createEngine: () => engine,
+      maxSteps: 5,
+    });
+    const result = await runner.run({
+      id: 'job_human',
+      url: 'https://shop.com/',
+      instruction: 'x',
+      useMemory: false,
+    });
+    assert.equal(result.status, 'NEEDS_HUMAN');
+    assert.equal(result.steps.length, 1);
+    assert.equal(result.steps[0].needsHuman, true);
+    assert.equal(result.steps[0].challenge, 'recaptcha');
+  });
+
   it('AgentRunner emite started/observe/decision/step/finished', async () => {
     const events = [];
     const runner = new AgentRunner({

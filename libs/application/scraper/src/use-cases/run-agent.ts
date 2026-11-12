@@ -42,10 +42,13 @@ export interface AgentStep {
   needsBrowser?: boolean;
   /** true cuando el paso se resolvió en Chromium real (ETAPA 3). */
   usedBrowser?: boolean;
+  /** Reto anti-bot que requiere intervención humana (P5). */
+  needsHuman?: boolean;
+  challenge?: string;
 }
 
 export interface AgentResult {
-  status: 'COMPLETED' | 'FAILED' | 'TIMEOUT' | 'CANCELLED';
+  status: 'COMPLETED' | 'FAILED' | 'TIMEOUT' | 'CANCELLED' | 'NEEDS_HUMAN';
   items: unknown[];
   steps: AgentStep[];
   recoveryCount: number;
@@ -436,6 +439,9 @@ export class AgentRunner {
       }
       this.debugLog('ENGINE EXEC RESULT', { step: n, command: command.type, ok: res.ok, count: res.count, error: res.error, needsBrowser: res.needsBrowser, usedBrowser: res.usedBrowser });
       if (res.needsBrowser || res.usedBrowser) browserEscalationSuggested = true;
+      if (res.needsHuman) {
+        return { n, command, ok: false, needsHuman: true, ...(res.challenge ? { challenge: res.challenge } : {}), error: res.error };
+      }
       if (res.ok) {
         this.debugLog('STEP SUCCESS', { step: n, command: command.type, count: res.count });
         return { n, command, ok: true, count: res.count, needsBrowser: res.needsBrowser, usedBrowser: res.usedBrowser, resItems: res.items };
@@ -527,6 +533,14 @@ export class AgentRunner {
         itemsCount: items.length,
         ...(step.error ? { error: step.error } : {}),
       });
+      if (step.needsHuman) {
+        await recordResult(false, items.length);
+        return {
+          ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(),
+          status: 'NEEDS_HUMAN',
+          error: step.error ?? `anti-bot challenge (${step.challenge ?? 'unknown'}): requiere intervención humana`,
+        };
+      }
       trajectorySteps.push(buildStepRecord(step.command, step.ok, step.count, step.error));
       const stepUrl = engine.getCurrentUrl();
       if (stepUrl) visitedUrls.push(stepUrl);
@@ -674,6 +688,14 @@ export class AgentRunner {
         itemsCount: items.length,
         ...(step.error ? { error: step.error } : {}),
       });
+      if (step.needsHuman) {
+        await recordResult(false, items.length);
+        return {
+          ...base, items, steps, recoveryCount, browserEscalationSuggested, planActions, visitedUrls: visited(),
+          status: 'NEEDS_HUMAN',
+          error: step.error ?? `anti-bot challenge (${step.challenge ?? 'unknown'}): requiere intervención humana`,
+        };
+      }
       trajectorySteps.push(buildStepRecord(step.command, step.ok, step.count, step.error));
       const currentUrl = engine.getCurrentUrl();
       if (currentUrl) visitedUrls.push(currentUrl);

@@ -266,6 +266,17 @@ describe('ExecutionEngine FASE 2 (HTTP/Cheerio con fetcher mock)', async () => {
     assert.equal(c.needsBrowser, true);
   });
 
+  it('detecta captcha/anti-bot y pide intervención humana (P5)', async () => {
+    const engine = new ExecutionEngine({
+      fetcher: async () => '<html><head><title>Attention Required! | Cloudflare</title></head><body>Just a moment...</body></html>',
+    });
+    const result = await engine.execute({ type: 'NAVIGATE', url: 'https://protegido.com/' });
+    assert.equal(result.ok, false);
+    assert.equal(result.needsHuman, true);
+    assert.equal(result.challenge, 'cloudflare');
+    assert.match(result.error, /intervención humana/);
+  });
+
   it('bloquea SSRF en NAVIGATE', async () => {
     const engine = new ExecutionEngine({ fetcher });
     const r = await engine.execute({ type: 'NAVIGATE', url: 'http://127.0.0.1/admin' });
