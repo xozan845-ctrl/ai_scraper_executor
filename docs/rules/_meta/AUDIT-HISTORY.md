@@ -1990,3 +1990,20 @@ el stack es local, no de producción (allí el scrape debe llevar `x-api-key`, `
 - Bus de progreso Redis pub/sub con fallback en memoria (`job-progress:<id>`).
 - Evidencia: unitarios de render/progreso, contrato 13/13, OpenAPI sincronizada,
   build/lint/test verdes.
+
+---
+
+# P1 — golden set y métricas de precisión
+
+- **Fecha:** 2026-11-12
+- **Alcance:** medir precisión real por campo antes de optimizar extracción.
+
+## Cambio y evidencia
+
+- Evaluador puro `evaluatePrecision` (`application/scraper`): `precision`, `recall`,
+  `f1`, `fillRate`, `wrongValueRate` global y por campo, con `matchBy`, comparación
+  case-insensitive y tolerancia numérica.
+- CLI `npm run precision:check` sobre fixtures JSON (`expected`/`actual`) y umbral
+  opcional `PRECISION_MIN`.
+- Tests de dataset perfecto, campos ausentes/erróneos, items extra y tolerancias.
+- Evidencia: 278/278 tests, cobertura 71.09/58.92/61.63, build/lint verdes.
