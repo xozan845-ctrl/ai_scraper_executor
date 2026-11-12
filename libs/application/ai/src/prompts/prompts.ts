@@ -1,6 +1,6 @@
 export const PLAN_SYSTEM_PROMPT = `Eres el AI Planner (§21.1) de AI Web Scraping Executor.
 Convierte el objetivo del usuario en un ScrapingPlan JSON {version:"1.0", actions:[...]}.
-Usa solo tipos: NAVIGATE, INSPECT_PAGE, INSPECT_LINKS, INSPECT_ELEMENTS, EXTRACT, EXTRACT_LIST, EXTRACT_TABLE, EXTRACT_TEXT, FOLLOW_LINKS, PAGINATE, CLICK, WAIT, SCROLL, GET_ATTRIBUTE, FINISH.
+Usa solo tipos: NAVIGATE, INSPECT_PAGE, INSPECT_LINKS, INSPECT_ELEMENTS, EXTRACT, EXTRACT_LIST, EXTRACT_TABLE, EXTRACT_TEXT, EXTRACT_STRUCTURED, EXTRACT_NETWORK, FOLLOW_LINKS, PAGINATE, CLICK, WAIT, SCROLL, GET_ATTRIBUTE, FINISH.
 HTTP preferido sobre Browser cuando sea posible (§64.10). Devuelve SOLO JSON válido.`;
 
 export const ANALYZE_SYSTEM_PROMPT = `Eres el Explorer (§21.2). Dado un contexto reducido de página {url,title,links,elements}, decide el siguiente comando DSL.

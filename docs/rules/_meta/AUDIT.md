@@ -17,18 +17,18 @@
 
 | Métrica | Valor | Cómo se midió |
 |---|---|---|
-| Tests unitarios | **278 / 278 en verde, 49 ficheros** (44 `tests/*` + 5 reglas SOLID/arquitectura) | `MONGODB_MOCK=1 npm test` |
+| Tests unitarios | **281 / 281 en verde, 49 ficheros** (44 `tests/*` + 5 reglas SOLID/arquitectura) | `MONGODB_MOCK=1 npm test` |
 | Ficheros de test | **47 en `tests/`**; 49 en `npm test` (excluye contrato, integración y E2E) | `ls tests/*.test.mjs` |
 | Tests de contrato / integración | **13 / 7** (contrato re-ejecutado; integración histórica) | `npm run test:contract`, CI |
 | Runner | **Vitest** (`vitest run --coverage`) | script `test` |
 | Lint / fronteras | **0 errores, 0 warnings** · **123 imports + 19 manifests** | `npm run lint` |
 | Build | **exit 0**, 17 libs + 2 apps | `npm run build` |
-| Cobertura | **71.09 / 58.92 / 61.63** (líneas/ramas/funciones); umbral **65/54/56** | `npm test` (Vitest v8) |
+| Cobertura | **71.33 / 59.38 / 61.67** (líneas/ramas/funciones); umbral **65/54/56** | `npm test` (Vitest v8) |
 | Puerta de seguridad | 🟡 **0 high / 12 moderate** (upstream `crawlee→minimatch`) | `npm audit --audit-level=high` ✅ |
 | OpenAPI | `docs/openapi.json` sincronizada | `G-8` |
-| Libs | **17** en `libs/*/*` + 2 apps | `ls -d libs/*/*` |
+| Libs | **19** en `libs/*/*` + 2 apps | `ls -d libs/*/*` |
 | Modelos Prisma | **12**; migraciones **9** | `prisma/schema.prisma` |
-| Comandos del DSL | **17** literales Zod | `libs/domain/ai/src/value-objects/schemas.ts` |
+| Comandos del DSL | **19** literales Zod | `libs/domain/ai/src/value-objects/schemas.ts` |
 | Git | rama `refactor/hx-f7-puertos-dominio`; **133 commits, 0 merges** | `git rev-list` |
 | Workflows | **4** (`ci.yml`, `e2e.yml`, `release.yml`, `promote.yml`) | `.github/workflows/` |
 
@@ -36,13 +36,13 @@
 
 | Capa | Estado | Evidencia |
 |---|---|---|
-| Unit / integración con dobles | 🟢 | **278 tests / 49 ficheros**, sin red externa ni Docker (`MONGODB_MOCK=1`) |
+| Unit / integración con dobles | 🟢 | **281 tests / 49 ficheros**, sin red externa ni Docker (`MONGODB_MOCK=1`) |
 | Frontend | **N/A** | No hay `frontend/`; `G-2`/`R-COV-5` reservados |
 | Integración con almacén real | 🟡 histórico | 7/7 en CI; no re-ejecutado en Android sin Docker |
 | Contrato de API | 🟢 | `tests/contract.test.mjs` (13/13) |
 | E2E real | 🟡 histórico | workflow `e2e.yml` en release; requiere Chromium + LLM |
 | OpenAPI | 🟢 | `docs/openapi.json` + `openapi:check` |
-| Cobertura | 🟢 | 71.09/58.92/61.63 sobre umbrales 65/54/56 |
+| Cobertura | 🟢 | 71.33/59.38/61.67 sobre umbrales 65/54/56 |
 | Property-based | 🟢 | `fast-check` + `tests/property.test.mjs` |
 | Mutation testing | 🟢 provisionado | Stryker command runner; no es gate de PR |
 | Lint / Build (`G-7`) | 🟢 | 0 errores / 0 warnings; build exit 0 |
@@ -80,9 +80,9 @@ delgado; **F10** enforcement y cierre. Plan completo en
 
 | Gate | Estado | Evidencia |
 |---|---|---|
-| `G-1` suite unitaria | ✅ | ejecución local 2026-11-11: 278/278 |
+| `G-1` suite unitaria | ✅ | ejecución local 2026-11-11: 281/281 |
 | `G-2` unit frontend | **N/A** | sin frontend (ID reservado) |
-| `G-3` cobertura | ✅ | `vitest run --coverage`; 71.09/58.92/61.63 |
+| `G-3` cobertura | ✅ | `vitest run --coverage`; 71.33/59.38/61.67 |
 | `G-4` integración | 🟡 histórico | 7/7 en CI; no re-ejecutado sin Docker |
 | `G-5` contrato | ✅ | 13/13 local |
 | `G-6` E2E | 🟡 histórico | `e2e.yml` (release), no re-ejecutado |
@@ -134,8 +134,8 @@ API (`npm run test:api`) y smoke de Prisma que se autoexcluye sin `DATABASE_URL`
 - **F10 — enforcement**: `check-boundaries.mjs` valida imports **y** manifests,
   prohíbe adaptador→adaptador y protege 18 puertos; `tests/architecture.test.mjs`
   añade 5 verificaciones de cierre (`R-HX-14`).
-- **Cobertura**: de 66.61/55.02/57.06 (auditoría anterior) a **71.09/58.92/61.63**.
-- **Tests**: de 174 a **278** (+104), con suites de casos de uso, arquitectura, webhooks y schedules.
+- **Cobertura**: de 66.61/55.02/57.06 (auditoría anterior) a **71.33/59.38/61.67**.
+- **Tests**: de 174 a **281** (+107), con suites de casos de uso, arquitectura, webhooks y schedules.
 
 ## Historial heredado (procedencia)
 

@@ -31,6 +31,18 @@ describe('DSL + CommandValidator (FASE 0-2)', async () => {
     assert.throws(() => v.validateCommand({ type: 'EXTRACT_TABLE', selector: 'table', limit: 2000 }));
   });
 
+  it('acepta EXTRACT_STRUCTURED y selectores candidatos múltiples', () => {
+    const v = new CommandValidator({ allowedDomain: 'example.com', maxDepth: 5, maxPages: 100 });
+    assert.equal(v.validateCommand({ type: 'EXTRACT_STRUCTURED', source: 'jsonld', limit: 10 }).type, 'EXTRACT_STRUCTURED');
+    assert.equal(v.validateCommand({ type: 'EXTRACT_STRUCTURED' }).type, 'EXTRACT_STRUCTURED');
+    assert.throws(() => v.validateCommand({ type: 'EXTRACT_STRUCTURED', source: 'rss' }));
+    assert.equal(
+      v.validateCommand({ type: 'EXTRACT_LIST', selector: '.card', fields: { name: ['.name', 'h2'] } }).type,
+      'EXTRACT_LIST',
+    );
+    assert.throws(() => v.validateCommand({ type: 'EXTRACT_LIST', selector: '.card', fields: { name: [] } }));
+  });
+
   it('bloquea SSRF a hosts privados', () => {
     const v = new CommandValidator({ allowedDomain: 'example.com', maxDepth: 5, maxPages: 100 });
     assert.throws(() => v.validateCommand({ type: 'NAVIGATE', url: 'http://169.254.169.254/latest' }));

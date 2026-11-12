@@ -18,6 +18,8 @@ export const CommandType = {
   EXTRACT_LIST: 'EXTRACT_LIST',
   EXTRACT_TABLE: 'EXTRACT_TABLE',
   EXTRACT_TEXT: 'EXTRACT_TEXT',
+  EXTRACT_STRUCTURED: 'EXTRACT_STRUCTURED',
+  EXTRACT_NETWORK: 'EXTRACT_NETWORK',
   GET_ATTRIBUTE: 'GET_ATTRIBUTE',
   FOLLOW_LINKS: 'FOLLOW_LINKS',
   PAGINATE: 'PAGINATE',
@@ -58,9 +60,15 @@ const AuthenticateCommand = BaseCommand.extend({
   mfaSelector: z.string().min(1).max(500).optional(),
 });
 
+const ExtractSelector = z.union([
+  z.string().min(1).max(500),
+  z.array(z.string().min(1).max(500)).min(1).max(10),
+]);
+
 const ExtractField = z.union([
-  z.string(),
-  z.object({ selector: z.string(), attribute: z.string().optional() }).strict(),
+  z.string().min(1).max(500),
+  z.array(z.string().min(1).max(500)).min(1).max(10),
+  z.object({ selector: ExtractSelector, attribute: z.string().max(200).optional() }).strict(),
 ]);
 
 const ExtractListCommand = BaseCommand.extend({
@@ -85,6 +93,19 @@ const ExtractTextCommand = BaseCommand.extend({
   type: z.literal(CommandType.EXTRACT_TEXT),
   selector: z.string().min(1).max(500).optional(),
   maxLength: z.number().int().positive().max(10000).optional(),
+});
+
+const ExtractStructuredCommand = BaseCommand.extend({
+  type: z.literal(CommandType.EXTRACT_STRUCTURED),
+  source: z.enum(['auto', 'jsonld', 'opengraph', 'microdata']).optional(),
+  limit: z.number().int().positive().max(1000).optional(),
+});
+
+const ExtractNetworkCommand = BaseCommand.extend({
+  type: z.literal(CommandType.EXTRACT_NETWORK),
+  urlContains: z.string().min(1).max(300).optional(),
+  path: z.string().min(1).max(300).optional(),
+  limit: z.number().int().positive().max(1000).optional(),
 });
 
 const PaginateCommand = BaseCommand.extend({
@@ -128,6 +149,8 @@ export const ScrapingCommandSchema = z.discriminatedUnion('type', [
   ExtractCommand,
   ExtractTableCommand,
   ExtractTextCommand,
+  ExtractStructuredCommand,
+  ExtractNetworkCommand,
   PaginateCommand,
   FollowLinksCommand,
   InspectPageCommand,

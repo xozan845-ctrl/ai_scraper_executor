@@ -24,7 +24,7 @@ export function clampCommandLimits<T>(cmd: T, caps: JobLimitCaps): T {
     c.maxPages = clampInt(c.maxPages, maxPages, maxPages);
   } else if (type === 'FOLLOW_LINKS') {
     c.maxLinks = clampInt(c.maxLinks, maxPages, 10);
-  } else if (type === 'EXTRACT_LIST' || type === 'EXTRACT_TABLE') {
+  } else if (type === 'EXTRACT_LIST' || type === 'EXTRACT_TABLE' || type === 'EXTRACT_STRUCTURED' || type === 'EXTRACT_NETWORK') {
     c.limit = clampInt(c.limit, maxItems, 100);
   } else if (type === 'EXTRACT_TEXT') {
     c.maxLength = clampInt(c.maxLength, 10000, 5000);

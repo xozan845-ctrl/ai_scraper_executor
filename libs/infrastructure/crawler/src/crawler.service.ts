@@ -9,7 +9,7 @@
  */
 import { CheerioCrawler, PlaywrightCrawler, RequestQueue } from 'crawlee';
 import type { Page } from 'playwright';
-import type { RenderOptions } from '@ai-scraper/domain-scraper';
+import type { CapturedNetworkResponse, RenderOptions } from '@ai-scraper/domain-scraper';
 import { hashHtml } from '@ai-scraper/shared-core';
 import { assertSafeUrl, createAllowlist, isAllowedHost, isBlockedHost, isPrivateHostsAllowed, safeDnsLookup } from '@ai-scraper/shared-security';
 import { BrowserPool, Semaphore } from './pool';
@@ -45,6 +45,8 @@ export interface BrowserResult {
   html: string;
   url: string;
   title: string;
+  /** Respuestas JSON capturadas durante el render (XHR/fetch/GraphQL). */
+  network?: CapturedNetworkResponse[];
 }
 
 let queueSeq = 0;
@@ -346,6 +348,24 @@ export class CrawlerService {
       opts?.signal?.addEventListener('abort', onAbort, { once: true });
       const page = await context.newPage();
       await installNavigationGuard(page, opts);
+      const captured: CapturedNetworkResponse[] = [];
+      const bodyReads: Promise<void>[] = [];
+      page.on('response', (response) => {
+        if (captured.length >= 30) return;
+        const contentType = response.headers()['content-type'] ?? '';
+        if (!contentType.includes('json') && !response.url().endsWith('.json')) return;
+        if (response.status() < 200 || response.status() >= 300) return;
+        const entry: CapturedNetworkResponse = {
+          url: response.url(),
+          status: response.status(),
+          contentType,
+          body: '',
+        };
+        captured.push(entry);
+        bodyReads.push(response.text()
+          .then((text) => { if (text.length <= 512_000) entry.body = text; })
+          .catch(() => undefined));
+      });
       const render = action.render;
       const timeout = render?.timeoutMs ?? 30000;
       await page.goto(url, { waitUntil: render?.waitUntil ?? 'domcontentloaded', timeout });
@@ -371,10 +391,11 @@ export class CrawlerService {
           ? Math.max(render?.waitMs ?? 0, 800)
           : (render?.waitMs ?? 500);
       await settlePage(page, minWait);
+      await Promise.allSettled(bodyReads);
       const html = await page.content().catch(() => '');
       const title = (await page.title().catch(() => ''))?.slice(0, 200) ?? '';
       opts?.signal?.removeEventListener('abort', onAbort);
-      return { html, url: page.url(), title };
+      return { html, url: page.url(), title, network: captured };
     } finally {
       if (context) await context.close().catch(() => undefined);
       release();

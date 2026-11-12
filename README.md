@@ -143,7 +143,7 @@ libs/
   shared/observability/  # Logger JSON + MetricsCollector (Prometheus, instance labels)
   domain/execution/      # JobStatus/JobLimits/DEFAULT_LIMITS/normalizeJobLimits
   domain/scraper/        # TracedValue/StructuredItem (trazabilidad)
-  domain/ai/             # DSL Zod (17 comandos) + CommandValidator + normalize
+  domain/ai/             # DSL Zod (19 comandos) + CommandValidator + normalize
   application/ai/        # AIOrchestrator + prompts + context-builder
   application/execution/ # Puertos/DTOs de jobs, sesiones y cola
   infrastructure/crawler/       # CrawlerService (CheerioCrawler + PlaywrightCrawler, hybrid, SessionPool)
@@ -183,6 +183,11 @@ POST   /api/v1/jobs/:id/retry          # Reintentar (limpia artefactos, idempote
 > **Progreso en vivo**: `GET /jobs/:id/events` es un stream SSE con `snapshot` inicial
 > y eventos `progress` (`observe`, `decision`, `step`, `recovery`, `job.finished`).
 > Requiere `x-api-key` y respeta el ownership del job.
+>
+> **Extracción multi-fuente**: `EXTRACT_STRUCTURED` lee JSON-LD, OpenGraph y microdata;
+> `EXTRACT_NETWORK` lee respuestas XHR/fetch/GraphQL capturadas al renderizar (filtra
+> por `urlContains` y `path`). En `EXTRACT`/`EXTRACT_LIST`, un campo puede declarar
+> varios selectores candidatos y el motor elige el valor con consenso.
 
 > **Webhooks**: `webhookUrl` recibe un `POST` JSON al terminar el job
 > (`job.completed|failed|timeout|cancelled`). La URL pasa SSRF y no se permiten
@@ -367,8 +372,10 @@ RATE_LIMIT_CREATE_PER_MIN=60
 - **Límites anti-escalada (§35)**: `PAGINATE/FOLLOW_LINKS/EXTRACT_LIST/EXTRACT_TABLE` se recortan en planner **y** en
   cada decisión dinámica (Fase B/recovery); `maxRuntimeSec` actúa como deadline del job.
 - **Auth fail-closed**: `API_KEYS` por header `x-api-key`; en `NODE_ENV=production` sin claves, todo responde 401.
-- **DSL tipado**: 17 comandos Zod — la IA **nunca** ejecuta código arbitrario.
-  `EXTRACT_TABLE` devuelve filas con cabeceras y `EXTRACT_TEXT` texto limpio acotado.
+- **DSL tipado**: 19 comandos Zod — la IA **nunca** ejecuta código arbitrario.
+  `EXTRACT_TABLE` devuelve filas con cabeceras, `EXTRACT_TEXT` texto limpio acotado,
+  `EXTRACT_STRUCTURED` lee JSON-LD/OpenGraph/microdata y `EXTRACT_NETWORK` lee XHR/JSON.
+  Los campos admiten varios selectores candidatos y el motor consensúa el valor.
 - **Rate limits**: API (Redis sliding-window, fallback memoria) + Crawlee (`CRAWLEE_MAX_REQUESTS_PER_MINUTE`).
 - **Sanitización**: HTML >2MB rechazado, timeout 20s, UA propio.
 - **Idempotencia**: reintentos BullMQ limpian artefactos previos (`clearJobArtifacts`); cancelación
@@ -420,7 +427,7 @@ OPENROUTER_FALLBACK_MODELS=qwen/qwen3.8-27b:free,nvidia/nemotron-3-super-120b-a1
 
 ### 2. Prompts reforzados con el esquema DSL
 
-Los prompts del planner/explorer/recovery incluyen el **esquema DSL completo** (17 comandos) y un
+Los prompts del planner/explorer/recovery incluyen el **esquema DSL completo** (19 comandos) y un
 ejemplo, exigiendo el campo `"type"` en MAYÚSCULAS y prohibiendo comandos inventados
 (`loop`, `waitForSelector`, etc.). Ver `libs/infrastructure/ai-providers/src/prompts.ts`.
 
