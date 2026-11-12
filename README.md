@@ -189,6 +189,11 @@ POST   /api/v1/jobs/:id/retry          # Reintentar (limpia artefactos, idempote
 > y `enum`. Cada item recibe `_source.confidence` compuesta y `_source.validation`;
 > con `strict:true` los items inválidos se descartan y queda un error registrado.
 >
+> **Captchas / anti-bot (intervención humana)**: si NAVIGATE detecta Cloudflare,
+> reCAPTCHA o hCaptcha, el job pasa a `NEEDS_HUMAN` (sin recovery infinito), emite
+> `job.needs_human` por SSE/webhook y se puede reencolar con `POST /jobs/:id/retry`
+> tras resolverlo. No hay bypass automático de captchas.
+>
 > **Paginación e infinite scroll**: `SCROLL` acepta `maxSteps` (1–50) y `settleMs`;
 > el navegador corta al no crecer el DOM. `PAGINATE` detecta URLs repetidas para evitar
 > bucles. Si un selector de lista falla y uno aprendido funciona, el motor lo recuerda

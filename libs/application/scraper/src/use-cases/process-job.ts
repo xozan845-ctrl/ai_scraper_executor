@@ -270,6 +270,11 @@ export async function processJob(jobId: string, deps: ProcessJobDeps): Promise<A
     await store.updateStatus(jobId, 'CANCELLED');
     emit({ type: 'job.status', status: 'CANCELLED' });
     inc('jobs_cancelled_total');
+  } else if (result.status === 'NEEDS_HUMAN') {
+    await store.saveError(jobId, result.error ?? 'Intervención humana requerida', { steps: result.steps.length });
+    await store.updateStatus(jobId, 'NEEDS_HUMAN');
+    emit({ type: 'job.status', status: 'NEEDS_HUMAN', error: result.error });
+    inc('jobs_needs_human_total');
   } else {
     await store.saveError(jobId, result.error ?? 'Fallo desconocido', { steps: result.steps.length });
     await store.updateStatus(jobId, 'FAILED');

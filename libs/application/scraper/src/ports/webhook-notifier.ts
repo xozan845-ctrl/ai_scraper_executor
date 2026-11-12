@@ -1,4 +1,4 @@
-export type WebhookEventName = 'job.completed' | 'job.failed' | 'job.timeout' | 'job.cancelled';
+export type WebhookEventName = 'job.completed' | 'job.failed' | 'job.timeout' | 'job.cancelled' | 'job.needs_human';
 
 export interface WebhookEvent {
   event: WebhookEventName;

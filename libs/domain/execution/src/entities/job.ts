@@ -12,6 +12,7 @@ export enum JobStatus {
   FAILED = 'FAILED',
   CANCELLED = 'CANCELLED',
   TIMEOUT = 'TIMEOUT',
+  NEEDS_HUMAN = 'NEEDS_HUMAN',
 }
 
 export interface CreateJobInput {

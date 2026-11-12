@@ -5,7 +5,7 @@ import type { JobMetrics } from '../../ports/job-metrics';
 import { JobEnqueueError } from './errors';
 import { toJobView, type JobView } from './job-view';
 
-const RETRYABLE_STATUSES = ['FAILED', 'TIMEOUT'];
+const RETRYABLE_STATUSES = ['FAILED', 'TIMEOUT', 'NEEDS_HUMAN'];
 
 export interface RetryJobDeps {
   store: JobStore;

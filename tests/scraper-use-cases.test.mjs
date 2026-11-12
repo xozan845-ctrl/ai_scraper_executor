@@ -106,6 +106,34 @@ describe('F8 — workflow de scraping con dobles de puertos', () => {
     assert.equal(metrics.counts.items_extracted_total, 1);
   });
 
+  it('processJob marca NEEDS_HUMAN y notifica sin fallar el job', async () => {
+    const store = new InMemoryJobStore();
+    const job = await store.createJob({
+      url: 'https://shop.com/',
+      instruction: 'productos',
+      webhookUrl: 'https://hooks.example.com/x',
+    });
+    const notifications = [];
+    const captureEngine = {
+      async execute() {
+        return { ok: false, commandType: 'NAVIGATE', needsHuman: true, challenge: 'hcaptcha', error: 'captcha' };
+      },
+      getMemory: () => ({ visited: [], lastUrl: null, lastItems: 0, discoveredSelectors: [] }),
+      getCurrentUrl: () => 'https://shop.com/',
+    };
+    const result = await processJob(job.id, {
+      store,
+      createOrchestrator: () => makeOrchestrator(),
+      createEngine: () => captureEngine,
+      allowPrivateHosts: false,
+      webhookNotifier: { notify: async (url, event) => { notifications.push({ url, event }); } },
+    });
+    assert.equal(result.status, 'NEEDS_HUMAN');
+    assert.equal((await store.getJob(job.id)).status, 'NEEDS_HUMAN');
+    assert.equal(notifications[0].event.event, 'job.needs_human');
+    assert.equal(notifications[0].event.status, 'NEEDS_HUMAN');
+  });
+
   it('processJob aplica outputSchema.strict y descarta items inválidos', async () => {
     const store = new InMemoryJobStore();
     const job = await store.createJob({

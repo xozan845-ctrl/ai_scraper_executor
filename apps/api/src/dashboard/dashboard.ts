@@ -26,7 +26,7 @@ th { color: #8b93a7; font-weight: 600; }
 .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 700; }
 .QUEUED { background: #3a3f1a; color: #e3d76a; } .PLANNING, .EXECUTING, .EXPLORING { background: #173a5e; color: #6ab8e3; }
 .COMPLETED { background: #17452e; color: #6ae3a1; } .FAILED { background: #5e1a1a; color: #e36a6a; }
-.CANCELLED { background: #3a3a3a; color: #aaa; } .OK { background: #17452e; color: #6ae3a1; }
+.CANCELLED { background: #3a3a3a; color: #aaa; } .NEEDS_HUMAN { background: #4a2f5e; color: #d29cff; } .OK { background: #17452e; color: #6ae3a1; }
 .RECOVERED { background: #4a3a17; color: #e3b86a; }
 button { background: #2f6fed; color: #fff; border: 0; border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 13px; }
 button.ghost { background: transparent; border: 1px solid #2a3450; }

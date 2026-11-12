@@ -2059,3 +2059,21 @@ el stack es local, no de producción (allí el scrape debe llevar `x-api-key`, `
 - Auto-reparación: si un selector falla y uno aprendido funciona, el engine lo recuerda
   durante el job y notifica el resultado (`onSelectorResult`) para reforzar el perfil.
 - Evidencia: 289/289 tests, cobertura 71.85/60.37/61.55, contrato 13/13, build/lint verdes.
+
+---
+
+# P5 — captchas y anti-bot con intervención humana
+
+- **Fecha:** 2026-11-12
+- **Alcance:** pausa controlada ante retos anti-bot, sin bypass automático.
+
+## Cambio y evidencia
+
+- Nuevo estado `JobStatus.NEEDS_HUMAN` (persistido como string; sin migración).
+- NAVIGATE detecta Cloudflare/reCAPTCHA/hCaptcha y devuelve `needsHuman` + `challenge`
+  en lugar de entrar en recovery infinito.
+- AgentRunner corta el bucle con `NEEDS_HUMAN`; processJob persiste el estado, emite
+  `job.status` por SSE y webhook `job.needs_human`, y cuenta `jobs_needs_human_total`.
+- `POST /jobs/:id/retry` acepta `NEEDS_HUMAN` para reintento controlado tras resolverlo;
+  el worker no trata el estado como fallo de BullMQ.
+- Evidencia: 293/293 tests, cobertura 71.93/60.34/61.55, contrato 13/13, build/lint verdes.

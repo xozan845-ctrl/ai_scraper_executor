@@ -152,6 +152,10 @@ async function main() {
               }),
             });
             console.log(`[WORKER] ${jobId} ${result.status} (${result.items.length} items)`);
+            if (result.status === 'NEEDS_HUMAN') {
+              console.warn(`[WORKER] ${jobId} requiere intervención humana: ${result.error ?? 'reto anti-bot'}`);
+              return;
+            }
             if (result.status !== 'COMPLETED') throw new Error(result.error ?? `job ${result.status.toLowerCase()}`);
           } catch (e) {
             console.error(`[WORKER] ${jobId} error: ${(e as Error).message}`);

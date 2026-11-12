@@ -62,6 +62,9 @@ export interface ExecutionResult {
   usedBrowser?: boolean;
   /** Código HTTP de la página cuando hubo fetch real (D, bloque 1). */
   statusCode?: number;
+  /** Reto anti-bot que exige intervención humana (P5). */
+  needsHuman?: boolean;
+  challenge?: string;
 }
 
 /** Acción browser delegada al CrawlerService (ETAPA 3, §34). */
@@ -740,17 +743,18 @@ export class ExecutionEngine {
               challenge = detectChallenge(this.currentHtml ?? '');
             }
           }
-          if (challenge === 'cloudflare') {
+          if (challenge) {
             logger.warn('antibot_challenge', { url: cmd.url, kind: challenge, usedBrowser });
             return {
               ok: false,
               commandType: 'NAVIGATE',
               usedBrowser,
+              needsHuman: true,
+              challenge,
               statusCode: this.lastStatusCode,
-              error: `anti-bot challenge detectado (${challenge})`,
+              error: `anti-bot challenge (${challenge}): requiere intervención humana`,
             };
           }
-          if (challenge) logger.debug('antibot_marker', { url: cmd.url, kind: challenge });
           const title = this.$!('title').first().text().trim().slice(0, 200);
           logger.debug('navigate', { url: cmd.url, title, htmlLength: this.currentHtmlLength, usedBrowser });
           return { ok: true, commandType: 'NAVIGATE', count: this.currentHtmlLength, statusCode: this.lastStatusCode, usedBrowser, nextHint: title || cmd.url };
