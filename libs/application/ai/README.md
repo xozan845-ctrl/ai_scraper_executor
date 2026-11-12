@@ -7,6 +7,8 @@ proveedor: eso es `@ai-scraper/infrastructure-ai-providers` (`R-AR-7`).
 - **Capa**: aplicación (`libs/application/ai`).
 - **Dependencias exclusivas**: `zod` (valida la salida del modelo antes de darla por buena).
 - **Superficie pública**:
+  - Puertos del consumidor (`src/ports/`): `AIProvider`/`AIProviderCallOpts`/`AIProviderStats`
+    y `AICache` — las implementaciones viven en infraestructura (`R-HX-11`).
   - `AIOrchestrator` — ejecuta las fases con el `AIProvider` inyectado.
   - `buildMinimalContext` — construye el contexto del planner con el perfil aprendido,
     la página actual y los límites del job (`R-AI-15`); el perfil es una **pista**, no

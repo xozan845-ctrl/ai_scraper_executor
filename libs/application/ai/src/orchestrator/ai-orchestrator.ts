@@ -6,13 +6,8 @@ import type {
   ResultContext,
   AIProviderCallOpts,
   AIProviderStats,
-} from '../interfaces/ai-provider.interface';
-
-/** Caché mínima de respuestas IA (la implementa @ai-scraper/infrastructure-redis JsonCache). */
-export interface AICache {
-  get<T = unknown>(key: string): Promise<T | null>;
-  set(key: string, value: unknown, ttlMs?: number): Promise<void>;
-}
+} from '../ports/ai-provider';
+import type { AICache } from '../ports/ai-cache';
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
 

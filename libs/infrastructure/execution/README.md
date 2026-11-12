@@ -4,14 +4,17 @@ El **intérprete del DSL**: ejecuta, comando a comando, lo que la IA planificó.
 donde vive la trazabilidad de cada item extraído.
 
 - **Capa**: ejecución.
-- **Dependencias exclusivas**: `@ai-scraper/domain-ai` (los comandos), `@ai-scraper/shared-security`
-  (revalidación de URLs), `@ai-scraper/shared-observability` (spans) y `cheerio`.
+- **Dependencias exclusivas**: `@ai-scraper/domain-ai` (los comandos), `@ai-scraper/domain-scraper`
+  (`EngineMemory`), `@ai-scraper/application-execution` (puerto `EnginePageCache`),
+  `@ai-scraper/shared-security` (revalidación de URLs), `@ai-scraper/shared-observability`
+  (spans) y `cheerio`.
 - **Superficie pública**:
   - `ExecutionEngine` — ejecuta cada comando del plan respetando el transporte
     (HTTP/Cheerio o browser) y **inyecta `_source { url, selector, scrapedAt }`** en
     cada item en el mismo punto donde se produce — `R-SC-10`, `R-SC-11`, `R-SC-12`.
   - `PageCache` — caché de páginas con TTL y tope de entradas; un acierto es una
-    optimización, no una verdad — `R-SC-5`, `R-DI-5`.
+    optimización, no una verdad — `R-SC-5`, `R-DI-5`. El puerto `EnginePageCache` que
+    acepta el motor pertenece a `@ai-scraper/application-execution` (`R-HX-11`).
   - `normalizeUrlForDedupe` — clave de deduplicación de URLs dentro de un job — `R-SC-4`.
   - `fetchWithRetry`, `isRetryableError` — reintento acotado con backoff que solo toca
     errores transitorios (red, 5xx, 429); un 4xx determinista no se reintenta — `R-SC-8`.

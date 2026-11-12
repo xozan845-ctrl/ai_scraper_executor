@@ -2,7 +2,7 @@ import { describe, it } from 'vitest';
 import assert from 'node:assert/strict';
 
 describe('Interpretación de resultados (Etapa 2)', async () => {
-  const { enrichItem, enrichItems } = await import('../apps/worker/dist/interpret.js');
+  const { enrichItem, enrichItems } = await import('../libs/application/scraper/dist/index.js');
 
   const item = (name, price, url = 'https://x.com/p') => ({
     name: { value: name, source: { url, selector: '.name' } },

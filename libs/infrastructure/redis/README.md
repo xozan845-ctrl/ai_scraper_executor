@@ -5,7 +5,8 @@ limit y agregación de métricas. Todo lo que hay aquí puede desaparecer sin pe
 datos de negocio (`R-RD-3`).
 
 - **Capa**: datos.
-- **Dependencias exclusivas**: `ioredis`.
+- **Dependencias exclusivas**: `ioredis` y `@ai-scraper/application-ai` (implementa el
+  puerto `AICache`; el contrato no se declara en infraestructura, `R-HX-11`).
 - **Superficie pública** (cada familia con su prefijo de clave y TTL explícito — `R-RD-2`):
   - Cliente: `getRedisClient`, `getRedisSubscriber`, `connectRedis`, `disconnectRedis`,
     `isRedisHealthy`, `Redis`.

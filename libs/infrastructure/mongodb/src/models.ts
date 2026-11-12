@@ -1,26 +1,7 @@
 import { Schema, model, models, Document, Types } from 'mongoose';
+import type { DiscoveredSelector, PaginationPattern } from '@ai-scraper/domain-scraper';
 
-/** Selector descubierto con metadata de confianza y uso */
-export interface DiscoveredSelector {
-  selector: string;
-  type: 'product' | 'list' | 'pagination' | 'detail' | 'navigation' | 'other';
-  confidence: number;           // 0-1, qué tan fiable es
-  sampleText?: string;          // texto de ejemplo
-  attributes?: string[];        // attrs útiles (href, src, etc.)
-  pageUrls: string[];           // URLs donde se encontró
-  timesUsed: number;            // cuántas veces el scraper lo usó con éxito
-  lastUsedAt?: Date;
-  successRate: number;          // 0-1, éxito histórico
-}
-
-/** Patrón de paginación detectado */
-export interface PaginationPattern {
-  type: 'query' | 'path' | 'next-link' | 'infinite-scroll';
-  pattern?: string;             // ej: "?page={n}", "/page/{n}"
-  selector?: string;            // si es next-link
-  maxPagesDetected?: number;
-  confidence: number;
-}
+export type { DiscoveredSelector, PaginationPattern } from '@ai-scraper/domain-scraper';
 
 /** Perfil de un sitio/dominio aprendido con el tiempo */
 export interface ISiteProfile extends Document {

@@ -1,22 +1,23 @@
 # worker
 
 El **adaptador de entrada de la cola**: arranca el proceso, compone dependencias y
-consume jobs. El bucle Observe→Think→Act es lógica de aplicación y su destino es
-`libs/application/*` (`R-HX-10`).
+consume jobs. El workflow Observe→Think→Act vive en `application/scraper` (`R-HX-10`).
 
 - **Dependencias exclusivas**: las libs `application-ai`, `application-execution`,
-  `domain-*`, los adaptadores de infraestructura y `shared-observability` declarados
-  en `package.json`. No usa NestJS.
+  `application-scraper`, `domain-*`, los adaptadores de infraestructura y
+  `shared-observability` declarados en `package.json`. No usa NestJS.
 - **Superficie (interna, no HTTP)**:
-  - `AgentRunner` (`agent-runner.ts`) — el bucle del agente con recovery acotado
-    (2 intentos), presupuestos (`R-SC-3`, `R-SC-9`), dedupe de items entre páginas
-    (`itemKey`), paso de selectores aprendidos al motor como fallback de extracción (C)
-    y memoria de trayectoria en Fase B (anti-oscilación determinista, ADR-35).
-  - `planner.ts` — convierte la intención en un plan del DSL y lo valida (`R-AI-3`).
-  - `browser-engine.ts` / `job-processor.ts` — motor de producción y consumo de la cola
-    BullMQ, con reintentos hacia `scraping-jobs-dead` (`R-SC-8`) y rate limit por host
-    en el motor HTTP (`ENGINE_HOST_MAX_RPM`, `R-SC-7`).
-  - `interpret.js` — interpretación opcional del resultado (`AI_INTERPRET=1`).
+  - `main.ts` — bootstrap, consumer BullMQ, DLQ, apagado graceful y wiring de los
+    casos de uso (`processJob`, `AgentRunner`) con sus puertos.
+  - `browser-engine.ts` — composición del motor de producción (Cheerio con escalado a
+    Chromium, caché Redis y rate limit por host, `R-SC-7`).
+  - `site-memory.ts` — adaptador MongoDB del puerto `SiteMemory`.
+  - `metrics-bridge.ts` — métricas locales + agregador Redis (fire-and-forget).
+- El loop heurístico sin IA para `DEMO_URL` (`runHeuristicAgentLoop`) también vive
+  en `application/scraper` y recibe el motor inyectado.
+
+El bucle del agente, el planner, el procesador de jobs y la interpretación de
+resultados viven en [`libs/application/scraper`](../../libs/application/scraper/README.md).
 
 > Todo comando que ejecuta pasó por `CommandValidator` y respeta `clampCommandLimits`
 > (`R-AR-1`, `R-SC-2`). El worker necesita **Chromium** en su imagen
@@ -33,7 +34,6 @@ npm run start -w worker   # node dist/main.js
 > Requiere Redis (cola) y Postgres/Mongo; puede escalarse con
 > `docker compose up --scale worker=3` (ver [`docs/rules/cd/`](../../docs/rules/cd/README.md)).
 
-> **Deuda F8–F9 (ADR-33):** `AgentRunner`, planner, browser engine e implementación de
-> `job-processor` todavía viven en la app. `job-processor` ya depende de los puertos de
-> `application-execution`, pero la coordinación debe quedar como casos de uso en
-> `libs/application/{execution,scraper}`; aquí quedarán bootstrap, consumer y wiring.
+> **Deuda F9 (ADR-33):** queda concentrar/adelgazar la composición restante
+> (`main.ts`, `browser-engine.ts`, `site-memory.ts`) y cerrar el enforcement de
+> `R-HX-14`; los casos de uso ya están fuera de la app.

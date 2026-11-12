@@ -33,7 +33,7 @@ curl -fsS http://localhost:3000/api/v1/health
 > Requiere Postgres/Redis/Mongo (o sus fallbacks en memoria). Ver [`AGENTS.md`](../../AGENTS.md)
 > y [`docs/rules/architecture/`](../../docs/rules/architecture/README.md).
 
-> **Deuda F8–F9 (ADR-33):** `JobsService`, `SessionsService`, `UserService` y la
-> radiografía todavía coordinan reglas y adaptadores dentro de esta app. Sus
-> dependencias de storage/queue ya se tipan con puertos de `application-execution`;
-> falta mover la coordinación a casos de uso. Controllers/guards y wiring permanecen aquí.
+> **Deuda F8–F9 (ADR-33):** los servicios HTTP de jobs, sesiones, usuarios y
+> radiografía ya son adaptadores delgados de casos de uso en `application-execution`;
+> el wiring de adaptadores vive en `providers.ts`/módulos. Falta el workflow del
+> agente en `apps/worker` (F8.3) y la composición/observabilidad de borde (F9).

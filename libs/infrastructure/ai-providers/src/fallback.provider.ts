@@ -3,7 +3,7 @@
  * Intenta cada proveedor en orden; si uno falla (caída, 429 persistente,
  * timeout), pasa al siguiente. Solo falla el job si fallan todos.
  */
-import type { ProviderCallOpts, ProviderStats } from './types';
+import type { AIProviderCallOpts as ProviderCallOpts, AIProviderStats as ProviderStats } from '@ai-scraper/application-ai';
 
 interface DelegateProvider {
   readonly name: string;

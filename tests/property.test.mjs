@@ -13,11 +13,12 @@ const core = await import('../libs/domain/execution/dist/index.js');
 const { normalizeRawCommand, normalizeRawPlan } = await import('../libs/domain/ai/dist/index.js');
 const { normalizeDomain, isAllowedHost, HttpError } = await import('../libs/shared/security/dist/index.js');
 const exec = await import('../libs/infrastructure/execution/dist/index.js');
+const scraperDomain = await import('../libs/domain/scraper/dist/index.js');
 const appAi = await import('../libs/application/ai/dist/index.js');
 
 const KEYS = Object.keys(core.DEFAULT_LIMITS);
 const DSL_TYPES = [
-  'NAVIGATE', 'EXTRACT', 'EXTRACT_LIST', 'FOLLOW_LINKS', 'PAGINATE', 'SCROLL',
+  'NAVIGATE', 'EXTRACT', 'EXTRACT_LIST', 'EXTRACT_TABLE', 'EXTRACT_TEXT', 'FOLLOW_LINKS', 'PAGINATE', 'SCROLL',
   'CLICK', 'TYPE', 'WAIT', 'FINISH', 'AUTHENTICATE', 'GET_ATTRIBUTE',
   'INSPECT_PAGE', 'INSPECT_LINKS', 'INSPECT_ELEMENTS',
 ];
@@ -146,7 +147,7 @@ describe('Property-based (R-PB)', () => {
     const itemArb = fc.record({ a: fc.string(), b: fc.integer() });
     fc.assert(
       fc.property(fc.array(itemArb), (items) => {
-        const out = exec.dedupeItems(items);
+        const out = scraperDomain.dedupeItems(items);
         assert.ok(out.length <= items.length);
         let from = 0;
         for (const o of out) {
@@ -154,9 +155,9 @@ describe('Property-based (R-PB)', () => {
           assert.ok(at >= 0, 'la salida no conserva el orden de la entrada');
           from = at + 1;
         }
-        const keys = out.map((o) => exec.itemKey(o));
+        const keys = out.map((o) => scraperDomain.itemKey(o));
         assert.equal(new Set(keys).size, keys.length, 'quedaron duplicados');
-        assert.equal(exec.dedupeItems(out).length, out.length, 'no es idempotente');
+        assert.equal(scraperDomain.dedupeItems(out).length, out.length, 'no es idempotente');
       }),
       { numRuns: 200 },
     );

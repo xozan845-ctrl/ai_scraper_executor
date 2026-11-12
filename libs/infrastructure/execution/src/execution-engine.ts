@@ -11,6 +11,8 @@
 import * as cheerio from 'cheerio';
 import { createHash } from 'node:crypto';
 import type { ScrapingCommand as StrictCommand } from '@ai-scraper/domain-ai';
+import type { EngineMemory } from '@ai-scraper/domain-scraper';
+import type { EnginePageCache } from '@ai-scraper/application-execution';
 import { logger } from '@ai-scraper/shared-observability';
 import { assertPublicUrl, isAllowedHost, safeFetchText } from '@ai-scraper/shared-security';
 import { PageCache, normalizeUrlForDedupe } from './page-cache';
@@ -30,6 +32,7 @@ export interface LooseCommand {
   attribute?: string;
   fields?: Record<string, string | { selector: string; attribute?: string }>;
   limit?: number;
+  maxLength?: number;
   maxLinks?: number;
   maxPages?: number;
   pattern?: string;
@@ -69,13 +72,6 @@ export interface BrowserResult {
 }
 
 export type BrowserInteract = (url: string, action: BrowserAction, signal?: AbortSignal) => Promise<BrowserResult>;
-
-export interface EngineMemory {
-  visited: string[];
-  lastUrl: string | null;
-  lastItems: number;
-  discoveredSelectors: string[];
-}
 
 type Fetcher = (url: string, signal?: AbortSignal) => Promise<string>;
 
@@ -151,21 +147,6 @@ function extractFieldValue(
   if (!attr || attr === 'text') return el.text().replace(/\s+/g, ' ').trim().slice(0, 500) || null;
   if (attr === 'html') return el.html()?.slice(0, 1000) ?? null;
   return el.attr(attr)?.slice(0, 1000) ?? null;
-}
-
-/**
- * Caché de páginas aceptada por el engine: sync (memoria) o async (Redis).
- * La clave la deriva el engine (ver `ExecutionEngine.cacheKey`): incluye el
- * scope de credenciales, de modo que el HTML autenticado de un contexto nunca
- * se sirve a otro (fuga cross-session). Implementaciones de memoria/Redis tratan
- * la clave como opaca y la normalizan cuando es una URL válida.
- */
-export interface EnginePageCache {
-  get(key: string): string | null | Promise<string | null>;
-  set(key: string, html: string): void | Promise<void>;
-  hits?: number;
-  misses?: number;
-  size?: number;
 }
 
 /**
@@ -443,6 +424,82 @@ export class ExecutionEngine {
     };
   }
 
+  private extractTable(cmd: LooseCommand): ExecutionResult {
+    const $ = this.requirePage();
+    if (!cmd.selector) return { ok: false, commandType: 'EXTRACT_TABLE', error: 'selector requerido' };
+    const limit = Math.min(Math.max(Math.floor(cmd.limit ?? 100), 1), 1000);
+    const scrapedAt = new Date().toISOString();
+    const items: Record<string, unknown>[] = [];
+
+    $(cmd.selector).each((_tableIndex, table) => {
+      if (items.length >= limit) return false;
+      const tableEl = $(table);
+      const headRow = tableEl.find('thead tr').first();
+      const firstRow = tableEl.find('tr').first();
+      const headerCells = headRow.length > 0
+        ? headRow.find('th,td')
+        : (firstRow.find('th').length > 0 ? firstRow.find('th,td') : null);
+      const names: string[] = [];
+      if (headerCells) {
+        headerCells.each((_index, cell) => {
+          names.push($(cell).text().replace(/\s+/g, ' ').trim().slice(0, 200));
+        });
+      }
+
+      let bodyRows = headRow.length > 0
+        ? tableEl.find('tbody tr')
+        : tableEl.find('tr');
+      if (!headRow.length && headerCells) bodyRows = bodyRows.slice(1);
+
+      bodyRows.each((rowIndex, row) => {
+        if (items.length >= limit) return false;
+        const cells: string[] = [];
+        $(row).find('td,th').each((_index, cell) => {
+          cells.push($(cell).text().replace(/\s+/g, ' ').trim().slice(0, 2000));
+        });
+        if (cells.length === 0) return;
+        const record: Record<string, unknown> = {};
+        cells.forEach((value, index) => {
+          record[names[index] || `column${index + 1}`] = value;
+        });
+        record._source = {
+          url: this.currentUrl,
+          selector: `${cmd.selector} tr:nth-child(${rowIndex + 1})`,
+          scrapedAt,
+        };
+        items.push(record);
+      });
+    });
+
+    if (items.length === 0) {
+      return { ok: false, commandType: 'EXTRACT_TABLE', error: `0 filas para selector "${cmd.selector}"` };
+    }
+    this.memory.lastItems = items.length;
+    logger.debug('extract_table.done', { rows: items.length, url: this.currentUrl });
+    return { ok: true, commandType: 'EXTRACT_TABLE', items, count: items.length };
+  }
+
+  private extractText(cmd: LooseCommand): ExecutionResult {
+    const $ = this.requirePage();
+    const selector = cmd.selector ?? 'body';
+    const maxLength = Math.min(Math.max(Math.floor(cmd.maxLength ?? 5000), 1), 10000);
+    const element = $(selector).first();
+    if (element.length === 0) {
+      return { ok: false, commandType: 'EXTRACT_TEXT', error: `selector no encontrado: ${selector}` };
+    }
+    const text = element.text().replace(/\s+/g, ' ').trim().slice(0, maxLength);
+    if (!text) {
+      return { ok: false, commandType: 'EXTRACT_TEXT', error: `texto vacío en selector "${selector}"` };
+    }
+    const item = {
+      text,
+      _source: { url: this.currentUrl, selector, scrapedAt: new Date().toISOString() },
+    };
+    this.memory.lastItems = 1;
+    logger.debug('extract_text.done', { length: text.length, url: this.currentUrl });
+    return { ok: true, commandType: 'EXTRACT_TEXT', items: [item], count: 1, data: { text, length: text.length } };
+  }
+
   /** Cortesía por host (H, bloque 4): se espera antes de un fetch real; si el limitador falla, no rompe. */
   private async applyRateLimit(url: string): Promise<void> {
     const limiter = this.deps?.rateLimit;
@@ -574,6 +631,12 @@ export class ExecutionEngine {
 
         case 'EXTRACT_LIST':
           return await this.extractList(cmd);
+
+        case 'EXTRACT_TABLE':
+          return this.extractTable(cmd);
+
+        case 'EXTRACT_TEXT':
+          return this.extractText(cmd);
 
         case 'GET_ATTRIBUTE': {
           const $ = this.requirePage();

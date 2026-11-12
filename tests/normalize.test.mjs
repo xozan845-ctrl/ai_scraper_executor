@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 describe('Normalizador DSL (robustez LLM)', async () => {
   const { normalizeRawCommand, normalizeRawPlan } = await import('../libs/domain/ai/dist/index.js');
-  const { CommandValidator } = await import('../libs/domain/ai/dist/validator.js');
+  const { CommandValidator } = await import('../libs/domain/ai/dist/index.js');
 
   const validator = new CommandValidator({ allowedDomain: 'tienda.com', maxDepth: 3, maxPages: 5 });
 

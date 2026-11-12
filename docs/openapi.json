@@ -34,11 +34,56 @@
             "description": "URL inicial (http/https)",
             "example": "https://www.sevasaonline.com/",
             "type": "string"
+          },
+          "webhookUrl": {
+            "description": "URL que recibirá un POST firmado cuando el job termine",
+            "example": "https://example.com/hooks/scraping",
+            "type": "string"
           }
         },
         "required": [
           "url",
           "instruction"
+        ],
+        "type": "object"
+      },
+      "CreateScheduleDto": {
+        "properties": {
+          "ai": {
+            "$ref": "#/components/schemas/JobAiDto"
+          },
+          "instruction": {
+            "example": "Obtén todos los productos",
+            "minLength": 3,
+            "type": "string"
+          },
+          "intervalSec": {
+            "description": "Intervalo entre ejecuciones (segundos)",
+            "example": 3600,
+            "minimum": 10,
+            "type": "number"
+          },
+          "limits": {
+            "$ref": "#/components/schemas/JobLimitsDto"
+          },
+          "maxRuns": {
+            "description": "Número máximo de ejecuciones; al alcanzarlo queda COMPLETED",
+            "minimum": 1,
+            "type": "number"
+          },
+          "url": {
+            "example": "https://www.sevasaonline.com/",
+            "type": "string"
+          },
+          "webhookUrl": {
+            "example": "https://example.com/hooks/scraping",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "instruction",
+          "intervalSec"
         ],
         "type": "object"
       },
@@ -610,6 +655,138 @@
         },
         "tags": [
           "Radiography"
+        ]
+      }
+    },
+    "/api/v1/schedules": {
+      "get": {
+        "operationId": "SchedulesController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Lista schedules del usuario",
+        "tags": [
+          "schedules"
+        ]
+      },
+      "post": {
+        "operationId": "SchedulesController_create",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateScheduleDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Crea un job recurrente (intervalo fijo en segundos)",
+        "tags": [
+          "schedules"
+        ]
+      }
+    },
+    "/api/v1/schedules/{id}": {
+      "delete": {
+        "operationId": "SchedulesController_remove",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Elimina un schedule",
+        "tags": [
+          "schedules"
+        ]
+      },
+      "get": {
+        "operationId": "SchedulesController_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Detalle de un schedule",
+        "tags": [
+          "schedules"
+        ]
+      }
+    },
+    "/api/v1/schedules/{id}/pause": {
+      "post": {
+        "operationId": "SchedulesController_pause",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Pausa un schedule",
+        "tags": [
+          "schedules"
+        ]
+      }
+    },
+    "/api/v1/schedules/{id}/resume": {
+      "post": {
+        "operationId": "SchedulesController_resume",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Reanuda un schedule y recalcula nextRunAt",
+        "tags": [
+          "schedules"
         ]
       }
     },

@@ -80,10 +80,45 @@ describe('Contrato de la API (R-C-*)', () => {
     assert.ok(body.nextCursor === null || typeof body.nextCursor === 'string');
   });
 
+  it('N2: POST /schedules crea, lista, pausa y elimina', async () => {
+    const create = await postJson('/api/v1/schedules', {
+      url: 'https://example.com/',
+      instruction: 'Revisa la portada',
+      intervalSec: 60,
+    });
+    assert.equal(create.status, 201);
+    const schedule = await create.json();
+    assert.equal(typeof schedule.id, 'string');
+    assert.equal(schedule.status, 'ACTIVE');
+    assert.match(schedule.nextRunAt, ISO_Z);
+
+    const list = await authed('/api/v1/schedules');
+    assert.equal(list.status, 200);
+    assert.ok((await list.json()).some((row) => row.id === schedule.id));
+
+    const paused = await postJson(`/api/v1/schedules/${schedule.id}/pause`, {});
+    assert.equal(paused.status, 201);
+    assert.equal((await paused.json()).status, 'PAUSED');
+
+    const removed = await authed(`/api/v1/schedules/${schedule.id}`, { method: 'DELETE' });
+    assert.equal(removed.status, 200);
+    assert.equal((await removed.json()).deleted, true);
+  });
+
+  it('N2: intervalSec fuera de rango devuelve 400', async () => {
+    const r = await postJson('/api/v1/schedules', {
+      url: 'https://example.com/',
+      instruction: 'x',
+      intervalSec: 1,
+    });
+    assert.equal(r.status, 400);
+  });
+
   it('R-C-2: la spec OpenAPI declara los endpoints bajo el prefijo', async () => {
     const spec = await (await req('/api/v1/docs-json')).json();
     assert.ok(spec.openapi, 'sin campo openapi');
     assert.ok(spec.paths['/api/v1/jobs'], 'falta /api/v1/jobs en la spec');
+    assert.ok(spec.paths['/api/v1/schedules'], 'falta /api/v1/schedules en la spec');
   });
 
   it('R-TM-4: las peticiones HTTP se instrumentan (métricas RED)', async () => {

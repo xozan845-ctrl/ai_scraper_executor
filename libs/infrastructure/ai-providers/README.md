@@ -4,7 +4,8 @@ Los **adaptadores de LLM**: el único sitio donde se habla con el proveedor. El 
 del sistema habla con la interfaz `AIProvider` (`R-AR-7`, `R-AI-9`).
 
 - **Capa**: inteligencia.
-- **Dependencias exclusivas**: ninguna en runtime (solo `typescript` en desarrollo).
+- **Dependencias exclusivas**: `@ai-scraper/application-ai` (contratos `AIProvider*`;
+  no se redeclaran tipos del puerto en el adaptador, `R-HX-11`).
 - **Superficie pública**:
   - `createAIProvider` / `createAIProviderForJob` / `resolveProviderKind` — eligen el
     proveedor a partir de `AI_PROVIDER` (`openrouter` por defecto, `custom` para

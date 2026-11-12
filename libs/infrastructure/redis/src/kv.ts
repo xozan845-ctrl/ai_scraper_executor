@@ -2,18 +2,13 @@
  * Caché JSON genérica (Redis con fallback a memoria) para respuestas LLM
  * y otros valores serializables. Clave → valor con TTL.
  */
+import type { AICache } from '@ai-scraper/application-ai';
 import { getRedisClient, probeRedis, ensureConnected, isMemoryFallbackAllowed, Redis } from './connection';
-
-export interface JsonCache {
-  get<T = unknown>(key: string): Promise<T | null>;
-  set(key: string, value: unknown, ttlMs?: number): Promise<void>;
-  del(key: string): Promise<void>;
-}
 
 const PREFIX = 'jsoncache:';
 const DEFAULT_TTL_MS = 10 * 60 * 1000;
 
-export class RedisJsonCache implements JsonCache {
+export class RedisJsonCache implements AICache {
   private readonly client: Redis;
   constructor(private readonly ttlMs = DEFAULT_TTL_MS) {
     this.client = getRedisClient();
@@ -30,7 +25,7 @@ export class RedisJsonCache implements JsonCache {
   }
 }
 
-export class MemoryJsonCache implements JsonCache {
+export class MemoryJsonCache implements AICache {
   private readonly map = new Map<string, { value: unknown; expiresAt: number }>();
   constructor(private readonly ttlMs = DEFAULT_TTL_MS) {}
   async get<T = unknown>(key: string): Promise<T | null> {
@@ -45,11 +40,11 @@ export class MemoryJsonCache implements JsonCache {
   async del(key: string): Promise<void> { this.map.delete(key); }
 }
 
-let instance: JsonCache | null = null;
-let initializing: Promise<JsonCache> | null = null;
+let instance: AICache | null = null;
+let initializing: Promise<AICache> | null = null;
 
 /** Redis si disponible, si no memoria. Cachea el singleton. */
-export async function getJsonCache(ttlMs?: number): Promise<JsonCache> {
+export async function getJsonCache(ttlMs?: number): Promise<AICache> {
   if (instance) return instance;
   if (initializing) return initializing;
   initializing = (async () => {

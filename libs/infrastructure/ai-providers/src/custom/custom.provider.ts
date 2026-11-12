@@ -3,7 +3,7 @@
  * con API compatible OpenAI /chat/completions.
  */
 import { postChatCompletions, parseJsonResponse } from '../http';
-import type { ProviderCallOpts, ProviderStats } from '../types';
+import type { AIProviderCallOpts as ProviderCallOpts, AIProviderStats as ProviderStats } from '@ai-scraper/application-ai';
 import {
   PLAN_SYSTEM_PROMPT,
   ANALYZE_SYSTEM_PROMPT,

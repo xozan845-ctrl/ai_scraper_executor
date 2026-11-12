@@ -114,8 +114,17 @@ export const safeDnsLookup: NonNullable<http.RequestOptions['lookup']> = (hostna
   }).catch((error: NodeJS.ErrnoException) => callback(error, '', 0));
 };
 
-/** Valida protocolo + SSRF por string (síncrono). Devuelve URL parseada o lanza. */
-export function assertPublicUrl(raw: string): URL {
+export interface PublicUrlPolicyOptions {
+  /** Política explícita de hosts privados; si se omite se consulta el entorno. */
+  allowPrivateHosts?: boolean;
+}
+
+/**
+ * Valida protocolo + SSRF por string (síncrono). Devuelve URL parseada o lanza.
+ * La política de hosts privados se puede inyectar para que capas puras
+ * (dominio) no dependan de `process.env` (`R-HX-13`).
+ */
+export function assertPublicUrl(raw: string, options?: PublicUrlPolicyOptions): URL {
   let u: URL;
   try {
     u = new URL(raw);
@@ -125,7 +134,8 @@ export function assertPublicUrl(raw: string): URL {
   if (!['http:', 'https:'].includes(u.protocol)) {
     throw new Error(`Protocolo no permitido: ${u.protocol}`);
   }
-  if (isPrivateHostsAllowed()) return u;
+  const allowPrivateHosts = options?.allowPrivateHosts ?? isPrivateHostsAllowed();
+  if (allowPrivateHosts) return u;
   if (isBlockedHost(u.hostname)) {
     throw new Error(`SSRF bloqueado (§37): host no permitido ${u.hostname}`);
   }
@@ -176,7 +186,7 @@ export interface SafeFetchOptions {
   signal?: AbortSignal;
 }
 
-async function resolvePinnedAddress(u: URL): Promise<{ address: string; family: 4 | 6 }> {
+async function resolvePinnedAddress(u: URL, allowPrivateHosts = isPrivateHostsAllowed()): Promise<{ address: string; family: 4 | 6 }> {
   const host = normalizeHost(u.hostname);
   const literal = isIP(host);
   if (literal === 4 || literal === 6) return { address: host, family: literal };
@@ -187,7 +197,7 @@ async function resolvePinnedAddress(u: URL): Promise<{ address: string; family: 
     throw new Error(`DNS no resoluble: ${host}`);
   }
   if (!addrs.length) throw new Error(`DNS sin registros: ${host}`);
-  if (!isPrivateHostsAllowed()) {
+  if (!allowPrivateHosts) {
     for (const addr of addrs) {
       if (isBlockedIp(addr.address)) {
         throw new Error(`SSRF bloqueado (§37): ${host} resuelve a ${addr.address}`);
@@ -206,6 +216,7 @@ function requestPinned(
   timeoutMs: number,
   maxBytes: number,
   signal?: AbortSignal,
+  request?: { method: 'GET' | 'POST'; body?: string },
 ): Promise<{ status: number; location?: string; body: string }> {
   return new Promise((resolve, reject) => {
     const transport = u.protocol === 'https:' ? https : http;
@@ -215,7 +226,7 @@ function requestPinned(
       family: target.family,
       port: u.port || undefined,
       path: `${u.pathname}${u.search}`,
-      method: 'GET',
+      method: request?.method ?? 'GET',
       headers: { Accept: 'text/html,application/xhtml+xml', 'Accept-Encoding': 'identity', ...headers, Host: u.host },
       ...(u.protocol === 'https:' ? { servername: u.hostname } : {}),
     }, (res) => {
@@ -263,7 +274,7 @@ function requestPinned(
     else signal?.addEventListener('abort', onAbort, { once: true });
     req.on('error', reject);
     req.on('close', () => signal?.removeEventListener('abort', onAbort));
-    req.end();
+    req.end(request?.body);
   });
 }
 
@@ -304,4 +315,46 @@ export async function safeFetchText(
     return { finalUrl: current, status: res.status, html: res.body };
   }
   throw new Error(`Demasiados redirects (>${maxRedirects})`);
+}
+
+export interface SafePostJsonOptions {
+  headers?: Record<string, string>;
+  timeoutMs?: number;
+  maxBytes?: number;
+  signal?: AbortSignal;
+  /** Política inyectable para dev/tests; por defecto se lee el entorno. */
+  allowPrivateHosts?: boolean;
+}
+
+/**
+ * POST JSON con guardas SSRF: valida host, fija la IP resuelta y **no sigue
+ * redirects** (un 3xx se rechaza para evitar saltos a hosts privados).
+ */
+export async function safePostJson(
+  rawUrl: string,
+  body: unknown,
+  opts?: SafePostJsonOptions,
+): Promise<{ status: number; body: string; finalUrl: string }> {
+  const allowPrivateHosts = opts?.allowPrivateHosts ?? isPrivateHostsAllowed();
+  const u = assertPublicUrl(rawUrl, { allowPrivateHosts });
+  const target = await resolvePinnedAddress(u, allowPrivateHosts);
+  const serialized = JSON.stringify(body);
+  const res = await requestPinned(
+    u,
+    target,
+    {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'Content-Length': String(Buffer.byteLength(serialized)),
+      ...(opts?.headers ?? {}),
+    },
+    opts?.timeoutMs ?? 10000,
+    opts?.maxBytes ?? 64_000,
+    opts?.signal,
+    { method: 'POST', body: serialized },
+  );
+  if (res.status >= 300 && res.status < 400) {
+    throw new Error(`Redirect no permitido en webhook (${res.status})`);
+  }
+  return { status: res.status, body: res.body, finalUrl: u.toString() };
 }

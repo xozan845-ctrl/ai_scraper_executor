@@ -4,7 +4,7 @@
  * Todo el core usa la interfaz AIProvider; este adaptador es intercambiable.
  */
 import { postChatCompletions, parseJsonResponse } from '../http';
-import type { ProviderCallOpts, ProviderStats } from '../types';
+import type { AIProviderCallOpts as ProviderCallOpts, AIProviderStats as ProviderStats } from '@ai-scraper/application-ai';
 import {
   PLAN_SYSTEM_PROMPT,
   ANALYZE_SYSTEM_PROMPT,

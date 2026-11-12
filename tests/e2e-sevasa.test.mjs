@@ -78,7 +78,7 @@ describe('E2E Real — SevasaOnline (memoria + scraping real)', async () => {
     const { mongoRepo } = await import('../libs/infrastructure/mongodb/dist/index.js');
     const { AIOrchestrator } = await import('../libs/application/ai/dist/orchestrator/ai-orchestrator.js');
     const { createFallbackProvider } = await import('../libs/infrastructure/ai-providers/dist/index.js');
-    const { AgentRunner } = await import('../apps/worker/dist/agent-runner.js');
+    const { AgentRunner } = await import('../libs/application/scraper/dist/index.js');
 
     // Verificar que el perfil existe
     const learned = await getLearnedProfile(SEVASA_URL);
