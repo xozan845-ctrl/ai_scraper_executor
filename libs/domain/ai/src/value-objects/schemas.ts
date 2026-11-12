@@ -128,6 +128,8 @@ const InspectElementsCommand = BaseCommand.extend({ type: z.literal(CommandType.
 const ScrollCommand = BaseCommand.extend({
   type: z.literal(CommandType.SCROLL),
   selector: z.string().min(1).max(500).optional(),
+  maxSteps: z.number().int().positive().max(50).optional(),
+  settleMs: z.number().int().min(0).max(5000).optional(),
 });
 const WaitCommand = BaseCommand.extend({
   type: z.literal(CommandType.WAIT),

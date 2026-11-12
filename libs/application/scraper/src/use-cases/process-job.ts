@@ -138,9 +138,16 @@ export async function processJob(jobId: string, deps: ProcessJobDeps): Promise<A
   const credentials = record.sessionId && deps.getCredentials
     ? await deps.getCredentials(record.sessionId).catch(() => null)
     : null;
+  const domain = new URL(record.url).hostname;
+  const recordSelector = deps.siteMemory?.recordSelectorResult?.bind(deps.siteMemory);
   const createEngine: CreateScraperEngine = (hint) => deps.createEngine({
     ...hint,
     ...(credentials?.headers ? { headers: credentials.headers } : {}),
+    ...(recordSelector
+      ? { onSelectorResult: (selector, success, count) => {
+          void recordSelector(domain, selector, success, count).catch(() => undefined);
+        } }
+      : {}),
   });
   const runner = new AgentRunner({
     orchestrator,

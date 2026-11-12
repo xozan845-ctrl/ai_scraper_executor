@@ -28,6 +28,9 @@ export function clampCommandLimits<T>(cmd: T, caps: JobLimitCaps): T {
     c.limit = clampInt(c.limit, maxItems, 100);
   } else if (type === 'EXTRACT_TEXT') {
     c.maxLength = clampInt(c.maxLength, 10000, 5000);
+  } else if (type === 'SCROLL') {
+    c.maxSteps = clampInt(c.maxSteps, 50, 1);
+    c.settleMs = clampInt(c.settleMs, 5000, 1200);
   }
   return cmd;
 }

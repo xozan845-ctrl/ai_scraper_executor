@@ -21,6 +21,9 @@ export interface BrowserAction {
   kind: 'click' | 'scroll' | 'render';
   selector?: string;
   render?: RenderOptions;
+  /** Scroll iterativo (infinite scroll); default 1. */
+  maxSteps?: number;
+  settleMs?: number;
 }
 
 /** Espera a que el DOM se estabilice (hidratación de SPAs) sin depender del framework. */
@@ -47,6 +50,8 @@ export interface BrowserResult {
   title: string;
   /** Respuestas JSON capturadas durante el render (XHR/fetch/GraphQL). */
   network?: CapturedNetworkResponse[];
+  /** Pasos de scroll ejecutados realmente. */
+  scrollSteps?: number;
 }
 
 let queueSeq = 0;
@@ -367,6 +372,7 @@ export class CrawlerService {
           .catch(() => undefined));
       });
       const render = action.render;
+      let scrollSteps = 0;
       const timeout = render?.timeoutMs ?? 30000;
       await page.goto(url, { waitUntil: render?.waitUntil ?? 'domcontentloaded', timeout });
       if (render?.waitUntil === 'networkidle') {
@@ -379,8 +385,19 @@ export class CrawlerService {
         await page.click(action.selector, { timeout: 10000 });
         await page.waitForLoadState('domcontentloaded', { timeout: 15000 }).catch(() => undefined);
       } else if (action.kind === 'scroll') {
-        // scroll: disparar lazy-load / infinite-scroll inicial (§59)
-        await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)).catch(() => undefined);
+        // scroll iterativo: dispara lazy-load / infinite-scroll y corta al no crecer.
+        const maxSteps = Math.min(Math.max(action.maxSteps ?? 1, 1), 50);
+        let stable = 0;
+        for (let step = 0; step < maxSteps; step += 1) {
+          scrollSteps = step + 1;
+          const before = await page.evaluate(() => document.body.scrollHeight).catch(() => 0);
+          await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)).catch(() => undefined);
+          await settlePage(page, action.settleMs ?? render?.waitMs ?? 1200, 1500);
+          const after = await page.evaluate(() => document.body.scrollHeight).catch(() => 0);
+          if (after <= before) stable += 1;
+          else stable = 0;
+          if (stable >= 2) break;
+        }
       } else {
         // render: esperar a que el framework hidrate el DOM sin interactuar.
         await page.waitForLoadState('domcontentloaded', { timeout: 15000 }).catch(() => undefined);
@@ -395,7 +412,7 @@ export class CrawlerService {
       const html = await page.content().catch(() => '');
       const title = (await page.title().catch(() => ''))?.slice(0, 200) ?? '';
       opts?.signal?.removeEventListener('abort', onAbort);
-      return { html, url: page.url(), title, network: captured };
+      return { html, url: page.url(), title, network: captured, scrollSteps };
     } finally {
       if (context) await context.close().catch(() => undefined);
       release();
