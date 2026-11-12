@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 describe('Seguridad centralizada ETAPA 2 (@ai-scraper/shared-security)', async () => {
   const sec = await import('../libs/shared/security/dist/index.js');
-  const { CommandValidator } = await import('../libs/domain/ai/dist/validator.js');
+  const { CommandValidator } = await import('../libs/domain/ai/dist/index.js');
 
   it('bloquea hosts privados, metadata y protocolos no http', () => {
     for (const u of [
@@ -81,6 +81,32 @@ describe('Seguridad centralizada ETAPA 2 (@ai-scraper/shared-security)', async (
     else process.env.NODE_ENV = prevEnv;
     if (prevAllow === undefined) delete process.env.ALLOW_PRIVATE_HOSTS;
     else process.env.ALLOW_PRIVATE_HOSTS = prevAllow;
+  });
+
+  it('la política SSRF se puede inyectar sin leer el entorno (R-HX-13)', () => {
+    const prev = process.env.ALLOW_PRIVATE_HOSTS;
+    delete process.env.ALLOW_PRIVATE_HOSTS;
+    assert.throws(() => sec.assertPublicUrl('http://127.0.0.1/x', { allowPrivateHosts: false }), /SSRF/);
+    process.env.ALLOW_PRIVATE_HOSTS = '1';
+    assert.throws(() => sec.assertPublicUrl('http://127.0.0.1/x', { allowPrivateHosts: false }), /SSRF/);
+    assert.equal(
+      sec.assertPublicUrl('http://127.0.0.1/x', { allowPrivateHosts: true }).hostname,
+      '127.0.0.1',
+    );
+    if (prev === undefined) delete process.env.ALLOW_PRIVATE_HOSTS;
+    else process.env.ALLOW_PRIVATE_HOSTS = prev;
+  });
+
+  it('CommandValidator recibe la política de hosts privados del borde', () => {
+    const blocked = new CommandValidator({ allowedDomain: 'localhost', maxDepth: 5, maxPages: 100 });
+    assert.throws(() => blocked.validateCommand({ type: 'NAVIGATE', url: 'http://localhost/x' }), /SSRF/);
+    const allowed = new CommandValidator({
+      allowedDomain: 'localhost',
+      maxDepth: 5,
+      maxPages: 100,
+      allowPrivateHosts: true,
+    });
+    assert.equal(allowed.validateCommand({ type: 'NAVIGATE', url: 'http://localhost/x' }).type, 'NAVIGATE');
   });
 
   it('assertSafeUrl resuelve DNS y bloquea hosts que apuntan a IP privada', async () => {

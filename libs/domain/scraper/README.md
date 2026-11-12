@@ -6,6 +6,8 @@ extraído (`_source` con url/selector/fecha). Dominio **puro** (`R-HX-1`, `R-HX-
 - **Capa**: `libs/domain/scraper`.
 - **Dependencias**: ninguna (solo `typescript` en desarrollo).
 - **Superficie pública**:
+  - `EngineMemory` — memoria de trayectoria del job (URLs visitadas, último paso,
+    selectores aprendidos) — ADR-35.
   - `TracedValue<T>` — un valor extraído con su `source { url, selector?, scrapedAt, confidence? }` (trazabilidad §33, `R-SC-10..16`).
   - `StructuredItem` — un item compuesto de `TracedValue`s.
 

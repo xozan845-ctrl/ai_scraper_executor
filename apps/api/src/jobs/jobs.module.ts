@@ -9,12 +9,14 @@ import { RadiographyService } from './radiography.service';
 import { SessionsController } from './sessions.controller';
 import { SessionsService } from './sessions.service';
 import { FirstUserController } from './first-user.controller';
+import { SchedulesController } from './schedules.controller';
+import { SchedulesService } from './schedules.service';
 import { UserService } from './user.service';
 import { HealthController } from '../health/health.controller';
 import { ApiKeyGuard } from './api-key.guard';
 import { CreateRateLimitGuard } from './rate-limit.guard';
 import { FirstRunGuard } from './first-run.guard';
-import { storeProvider, queueProvider, sessionStoreProvider, radiographerProvider } from './providers';
+import { storeProvider, queueProvider, sessionStoreProvider, userRepositoryProvider, scheduleStoreProvider, scheduleUseCasesProvider, radiographerProvider } from './providers';
 
 @Module({
   controllers: [
@@ -24,6 +26,7 @@ import { storeProvider, queueProvider, sessionStoreProvider, radiographerProvide
     RadiographyController,
     SessionsController,
     FirstUserController,
+    SchedulesController,
     HealthController,
   ],
   providers: [
@@ -32,12 +35,16 @@ import { storeProvider, queueProvider, sessionStoreProvider, radiographerProvide
     RadiographyService,
     SessionsService,
     UserService,
+    SchedulesService,
     ApiKeyGuard,
     CreateRateLimitGuard,
     FirstRunGuard,
     storeProvider,
     queueProvider,
     sessionStoreProvider,
+    userRepositoryProvider,
+    scheduleStoreProvider,
+    scheduleUseCasesProvider,
     radiographerProvider,
   ],
 })

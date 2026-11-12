@@ -39,6 +39,32 @@ describe('ExecutionEngine FASE 2 (HTTP/Cheerio con fetcher mock)', async () => {
     assert.equal(r.items[0]._source.url, 'https://tienda.com/productos');
   });
 
+  it('EXTRACT_TABLE extrae filas con cabeceras y EXTRACT_TEXT texto limpio', async () => {
+    const HTML = `<!doctype html><html><body>
+      <table id="precios"><thead><tr><th>Nombre</th><th>Precio</th></tr></thead>
+      <tbody><tr><td>Portátil</td><td>999</td></tr><tr><td>Ratón</td><td>20</td></tr></tbody></table>
+      <div id="desc">Hola   <b>mundo</b>   scraping</div>
+    </body></html>`;
+    const engine = new ExecutionEngine({ fetcher: async () => HTML });
+    await engine.execute({ type: 'NAVIGATE', url: 'https://tienda.com/tabla' });
+
+    const table = await engine.execute({ type: 'EXTRACT_TABLE', selector: '#precios' });
+    assert.equal(table.ok, true);
+    assert.equal(table.count, 2);
+    assert.equal(table.items[0].Nombre, 'Portátil');
+    assert.equal(table.items[1].Precio, '20');
+    assert.equal(table.items[0]._source.selector, '#precios tr:nth-child(1)');
+    assert.equal(table.items[0]._source.url, 'https://tienda.com/tabla');
+
+    const text = await engine.execute({ type: 'EXTRACT_TEXT', selector: '#desc', maxLength: 20 });
+    assert.equal(text.ok, true);
+    assert.equal(text.items[0].text, 'Hola mundo scraping');
+    assert.equal(text.items[0]._source.selector, '#desc');
+
+    const missing = await engine.execute({ type: 'EXTRACT_TEXT', selector: '#no-existe' });
+    assert.equal(missing.ok, false);
+  });
+
   it('EXTRACT_LIST con selector inexistente devuelve error recuperable', async () => {
     const engine = new ExecutionEngine({ fetcher });
     await engine.execute({ type: 'NAVIGATE', url: 'https://tienda.com/productos' });

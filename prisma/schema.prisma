@@ -30,6 +30,7 @@ model Job {
   limits      Json?
   aiProvider  String    @default("openrouter")
   aiModel     String?
+  webhookUrl  String?
   idempotencyKey String? @unique
   ownerScope  String    @default("anon")
   createdAt   DateTime  @default(now())
@@ -53,6 +54,30 @@ model Job {
 }
 
 // Sesión tipo "chat": una URL a analizar con su contexto (radiografía) e historial.
+model JobSchedule {
+  id           String    @id @default(cuid())
+  url          String
+  instruction  String
+  limits       Json?
+  aiProvider   String    @default("openrouter")
+  aiModel      String?
+  webhookUrl   String?
+  ownerScope   String    @default("anon")
+  intervalSec  Int
+  maxRuns      Int?
+  runCount     Int       @default(0)
+  status       String    @default("ACTIVE")
+  nextRunAt    DateTime
+  lastRunAt    DateTime?
+  lastJobId    String?
+  lastError    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([status, nextRunAt])
+  @@index([ownerScope, createdAt])
+}
+
 model Session {
   id          String   @id @default(cuid())
   url         String

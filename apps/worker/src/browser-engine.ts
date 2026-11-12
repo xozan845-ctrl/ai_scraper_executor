@@ -6,7 +6,8 @@
  * de caché, así que un Redis caído no rompe el scraping.
  */
 import { CrawlerService } from '@ai-scraper/infrastructure-crawler';
-import { ExecutionEngine, type EnginePageCache } from '@ai-scraper/infrastructure-execution';
+import type { EnginePageCache } from '@ai-scraper/application-execution';
+import { ExecutionEngine } from '@ai-scraper/infrastructure-execution';
 import { getPageCache, getRateLimiter } from '@ai-scraper/infrastructure-redis';
 
 const crawler = new CrawlerService();

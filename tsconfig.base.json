@@ -19,6 +19,7 @@
       "@ai-scraper/infrastructure-crawler": ["libs/infrastructure/crawler/dist"],
       "@ai-scraper/infrastructure-execution": ["libs/infrastructure/execution/dist"],
       "@ai-scraper/application-ai": ["libs/application/ai/dist"],
+      "@ai-scraper/application-scraper": ["libs/application/scraper/dist"],
       "@ai-scraper/application-execution": ["libs/application/execution/dist"],
       "@ai-scraper/infrastructure-ai-providers": ["libs/infrastructure/ai-providers/dist"],
       "@ai-scraper/infrastructure-storage": ["libs/infrastructure/storage/dist"],
@@ -26,7 +27,8 @@
       "@ai-scraper/shared-security": ["libs/shared/security/dist"],
       "@ai-scraper/shared-observability": ["libs/shared/observability/dist"],
       "@ai-scraper/infrastructure-mongodb": ["libs/infrastructure/mongodb/dist"],
-      "@ai-scraper/infrastructure-redis": ["libs/infrastructure/redis/dist"]
+      "@ai-scraper/infrastructure-redis": ["libs/infrastructure/redis/dist"],
+      "@ai-scraper/infrastructure-webhooks": ["libs/infrastructure/webhooks/dist"]
     }
   },
   "exclude": ["node_modules", "dist"]

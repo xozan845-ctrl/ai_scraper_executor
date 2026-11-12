@@ -143,7 +143,7 @@ describe('Rate-limit §36 aceptado por Crawlee + métricas del worker', async ()
   it('processJob incrementa el collector del worker', async () => {
     const { __resetMetrics, metrics } = await import('../libs/shared/observability/dist/index.js');
     __resetMetrics();
-    const { processJob } = await import('../apps/worker/dist/job-processor.js');
+    const { processJob } = await import('../libs/application/scraper/dist/index.js');
     const { AIOrchestrator } = await import('../libs/application/ai/dist/orchestrator/ai-orchestrator.js');
     const { ExecutionEngine } = await import('../libs/infrastructure/execution/dist/execution-engine.js');
     const { InMemoryJobStore } = await import('../libs/infrastructure/storage/dist/memory-store.js');
@@ -161,6 +161,7 @@ describe('Rate-limit §36 aceptado por Crawlee + métricas del worker', async ()
       store,
       createOrchestrator: () => new AIOrchestrator(fake),
       createEngine: () => new ExecutionEngine({ fetcher: async () => '<html><head><title>t</title></head><body></body></html>' }),
+      allowPrivateHosts: true,
     });
     assert.equal(res.status, 'COMPLETED');
     const snap = metrics().snapshot();

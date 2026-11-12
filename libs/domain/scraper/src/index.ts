@@ -4,16 +4,7 @@
  * sin frameworks, sin I/O y sin dependencias de infraestructura (`R-HX-3`).
  */
 
-export interface TracedValue<T = unknown> {
-  value: T;
-  source: {
-    url: string;
-    selector?: string;
-    scrapedAt: string;
-    confidence?: number;
-  };
-}
-
-export interface StructuredItem {
-  [key: string]: TracedValue | unknown;
-}
+export * from './entities/engine-memory';
+export * from './services/dedupe';
+export * from './value-objects/site-structure';
+export * from './value-objects/traced-value';

@@ -1,135 +1,60 @@
-import { ConflictException, Injectable, Logger } from '@nestjs/common';
-import { createHash, randomUUID } from 'node:crypto';
-import { getPrismaClient } from '@ai-scraper/infrastructure-storage';
-import { generateApiKey } from './password.util';
+import { ConflictException, Inject, Injectable } from '@nestjs/common';
+import {
+  createUserUseCases,
+  hashApiKey,
+  UserAlreadyExistsError,
+  type CreateFirstUserData,
+  type CreateUserData,
+  type CreatedUserRecord,
+  type UserRepository,
+  type UserRole,
+  type UserUseCases,
+} from '@ai-scraper/application-execution';
+import { USER_REPOSITORY } from './providers';
 
-export type UserRole = 'superadmin' | 'user';
+export { hashApiKey };
+export type { UserRole };
+export type CreatedUser = CreatedUserRecord;
 
-export interface CreatedUser {
-  email: string;
-  role: UserRole;
-  createdAt: Date;
-}
-
-interface MemoryUser {
-  id: string;
-  email: string;
-  passwordHash: string;
-  role: UserRole;
-  apiKeyHash: string | null;
-  createdAt: Date;
-}
-
-export function hashApiKey(key: string): string {
-  return createHash('sha256').update(key).digest('hex');
-}
-
-/** Usuarios y claves API. PostgreSQL es la fuente única en producción. */
+/** Adaptador Nest de los casos de uso de usuarios; Prisma/memoria viven en infraestructura. */
 @Injectable()
 export class UserService {
-  private readonly logger = new Logger(UserService.name);
-  private readonly memory = new Map<string, MemoryUser>();
-  private readonly prisma = getPrismaClient();
+  private readonly useCases: UserUseCases;
 
-  private useMemory(): boolean {
-    return !process.env.DATABASE_URL && process.env.NODE_ENV !== 'production';
+  constructor(@Inject(USER_REPOSITORY) repository: UserRepository) {
+    this.useCases = createUserUseCases({ repository });
   }
 
-  private ensureReady(): void {
-    if (!this.useMemory() && !process.env.DATABASE_URL) {
-      throw new Error('DATABASE_URL requerido para usuarios en producción');
-    }
+  countUsers(): Promise<number> {
+    return this.useCases.countUsers();
   }
 
-  async countUsers(): Promise<number> {
-    this.ensureReady();
-    return this.useMemory() ? this.memory.size : this.prisma.user.count();
+  createUser(data: CreateUserData): Promise<CreatedUserRecord> {
+    return this.useCases.createUser(data);
   }
 
-  async createUser(data: {
-    email: string;
-    passwordHash: string;
-    role: UserRole;
-    apiKeyHash: string | null;
-  }): Promise<CreatedUser> {
-    this.ensureReady();
-    const email = data.email.trim().toLowerCase();
-    if (this.useMemory()) {
-      const user: MemoryUser = {
-        id: randomUUID(), email, passwordHash: data.passwordHash,
-        role: data.role, apiKeyHash: data.apiKeyHash, createdAt: new Date(),
-      };
-      this.memory.set(user.id, user);
-      return { email: user.email, role: user.role, createdAt: user.createdAt };
-    }
-    const created = await this.prisma.user.create({ data: {
-      email, passwordHash: data.passwordHash, role: data.role, apiKeyHash: data.apiKeyHash,
-    } });
-    return { email: created.email, role: created.role as UserRole, createdAt: created.createdAt };
-  }
-
-  async createFirstUser(data: {
-    email: string;
-    passwordHash: string;
-    apiKeyHash: string;
-  }): Promise<CreatedUser> {
-    this.ensureReady();
-    const email = data.email.trim().toLowerCase();
-    if (this.useMemory()) {
-      if (this.memory.size > 0) throw new ConflictException('Ya existe un usuario; el registro inicial está cerrado.');
-      const user: MemoryUser = {
-        id: randomUUID(), email, passwordHash: data.passwordHash,
-        role: 'superadmin', apiKeyHash: data.apiKeyHash, createdAt: new Date(),
-      };
-      this.memory.set(user.id, user);
-      return { email: user.email, role: user.role, createdAt: user.createdAt };
-    }
-    if ((await this.prisma.user.count()) > 0) {
-      throw new ConflictException('Ya existe un usuario; el registro inicial está cerrado.');
-    }
+  async createFirstUser(data: CreateFirstUserData): Promise<CreatedUserRecord> {
     try {
-      const created = await this.prisma.user.create({ data: {
-        email, passwordHash: data.passwordHash, role: 'superadmin',
-        apiKeyHash: data.apiKeyHash, bootstrap: true,
-      } });
-      return { email: created.email, role: 'superadmin', createdAt: created.createdAt };
+      return await this.useCases.createFirstUser(data);
     } catch (error) {
-      if ((error as { code?: string }).code === 'P2002') {
-        throw new ConflictException('Ya existe un usuario; el registro inicial está cerrado.');
-      }
+      if (error instanceof UserAlreadyExistsError) throw new ConflictException(error.message);
       throw error;
     }
   }
 
-  async findByEmail(email: string): Promise<{ email: string; role: UserRole } | null> {
-    this.ensureReady();
-    const normalized = email.trim().toLowerCase();
-    if (this.useMemory()) {
-      const found = [...this.memory.values()].find((user) => user.email === normalized);
-      return found ? { email: found.email, role: found.role } : null;
-    }
-    const user = await this.prisma.user.findUnique({ where: { email: normalized } });
-    return user ? { email: user.email, role: user.role as UserRole } : null;
+  findByEmail(email: string): Promise<{ email: string; role: UserRole } | null> {
+    return this.useCases.findByEmail(email);
   }
 
-  async verifyApiKey(presented: string): Promise<boolean> {
-    if (!presented) return false;
-    this.ensureReady();
-    const hash = hashApiKey(presented);
-    if (this.useMemory()) return [...this.memory.values()].some((user) => user.apiKeyHash === hash);
-    return Boolean(await this.prisma.user.findUnique({ where: { apiKeyHash: hash }, select: { id: true } }));
+  verifyApiKey(presented: string): Promise<boolean> {
+    return this.useCases.verifyApiKey(presented);
   }
 
   generateApiKey(): string {
-    return generateApiKey();
+    return this.useCases.generateApiKey();
   }
 
-  async recordLogin(email: string): Promise<void> {
-    this.logger.debug(`User login recorded: ${email}`);
-    this.ensureReady();
-    if (this.useMemory()) return;
-    await this.prisma.user.update({
-      where: { email: email.trim().toLowerCase() }, data: { lastLoginAt: new Date() },
-    }).catch(() => undefined);
+  recordLogin(email: string): Promise<void> {
+    return this.useCases.recordLogin(email);
   }
 }

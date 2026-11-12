@@ -1,5 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { mongoRepo, normalizeDomain, performRadiography, getLearnedProfile } from '@ai-scraper/infrastructure-mongodb';
+import {
+  createSiteRadiographyUseCases,
+  SiteProfileNotFoundError,
+  SiteRadiographyNotFoundError,
+  type SiteKnowledge,
+  type SiteRadiographyUseCases,
+} from '@ai-scraper/application-execution';
 
 export interface RadiographyCreateInput {
   url: string;
@@ -9,42 +15,71 @@ export interface RadiographyCreateInput {
 }
 
 /**
- * Radiografía y memoria de sitios (FASE 12). Encapsula el acceso a la memoria
- * (Mongo) para que el controller solo orqueste HTTP — SRP, R-HX-2.
+ * Radiografía y memoria de sitios (FASE 12). Adaptador Nest del caso de uso;
+ * el acceso a Mongo se inyecta como puerto `SiteKnowledge` (`R-HX-10`).
  */
 @Injectable()
 export class RadiographyService {
-  async create(input: RadiographyCreateInput) {
-    const result = await performRadiography(input.url, {
-      maxDepth: input.maxDepth,
-      maxPages: input.maxPages,
-      forceBrowser: input.forceBrowser,
-    });
-    return {
-      domain: normalizeDomain(input.url),
-      profileId: result.profile.id,
-      discovered: result.discovered,
-      radiography: result.radiography,
+  private readonly useCases: SiteRadiographyUseCases;
+
+  constructor() {
+    const knowledge: SiteKnowledge = {
+      perform: async (url, options) => {
+        const { runRadiography } = await import('./radiography-adapter');
+        return runRadiography(url, options);
+      },
+      findProfile: async (domain) => {
+        const { mongoRepo } = await import('@ai-scraper/infrastructure-mongodb');
+        return mongoRepo.findProfile(domain);
+      },
+      getLearnedProfile: async (url) => {
+        const { getLearnedProfile } = await import('@ai-scraper/infrastructure-mongodb');
+        return getLearnedProfile(url);
+      },
+      findFreshRadiography: async (target, maxAgeHours) => {
+        const { mongoRepo } = await import('@ai-scraper/infrastructure-mongodb');
+        return mongoRepo.findFreshRadiography(target, maxAgeHours);
+      },
+      getDomainStats: async (domain) => {
+        const { mongoRepo } = await import('@ai-scraper/infrastructure-mongodb');
+        return mongoRepo.getDomainStats(domain);
+      },
     };
+    this.useCases = createSiteRadiographyUseCases({ knowledge });
+  }
+
+  async create(input: RadiographyCreateInput) {
+    return this.useCases.create(input);
   }
 
   async getProfile(domain: string) {
-    const profile = await mongoRepo.findProfile(domain);
-    if (!profile) throw new NotFoundException(`Perfil no encontrado para ${domain}`);
-    return profile;
+    try {
+      return await this.useCases.getProfile(domain);
+    } catch (error) {
+      throw this.toHttpError(error);
+    }
   }
 
   getSelectors(domain: string) {
-    return getLearnedProfile(`https://${domain}`);
+    return this.useCases.getSelectors(domain);
   }
 
   async getPageRadiography(target: string, maxAgeHours: number) {
-    const radiography = await mongoRepo.findFreshRadiography(target, maxAgeHours);
-    if (!radiography) throw new NotFoundException(`Radiografía no encontrada o expirada para ${target}`);
-    return radiography;
+    try {
+      return await this.useCases.getPageRadiography(target, maxAgeHours);
+    } catch (error) {
+      throw this.toHttpError(error);
+    }
   }
 
   getDomainStats(domain: string) {
-    return mongoRepo.getDomainStats(domain);
+    return this.useCases.getDomainStats(domain);
+  }
+
+  private toHttpError(error: unknown): unknown {
+    if (error instanceof SiteProfileNotFoundError || error instanceof SiteRadiographyNotFoundError) {
+      return new NotFoundException(error.message);
+    }
+    return error;
   }
 }

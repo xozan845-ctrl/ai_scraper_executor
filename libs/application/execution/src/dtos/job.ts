@@ -14,6 +14,8 @@ export interface CreateJobInput {
   aiModel?: string;
   sessionId?: string;
   ownerScope?: string;
+  /** URL externa notificada al terminar el job (validada contra SSRF). */
+  webhookUrl?: string;
 }
 
 export interface JobRecord extends CreateJobInput {

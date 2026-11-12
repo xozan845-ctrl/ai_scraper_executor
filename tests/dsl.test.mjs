@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 describe('DSL + CommandValidator (FASE 0-2)', async () => {
   const { ScrapingPlanSchema } = await import('../libs/domain/ai/dist/index.js');
-  const { CommandValidator } = await import('../libs/domain/ai/dist/validator.js');
+  const { CommandValidator } = await import('../libs/domain/ai/dist/index.js');
 
   it('acepta plan NAVIGATE + EXTRACT_LIST válido', () => {
     const plan = ScrapingPlanSchema.parse({
@@ -19,6 +19,16 @@ describe('DSL + CommandValidator (FASE 0-2)', async () => {
       ],
     });
     assert.equal(plan.actions.length, 3);
+  });
+
+  it('acepta EXTRACT_TABLE/EXTRACT_TEXT y valida sus límites', () => {
+    const v = new CommandValidator({ allowedDomain: 'example.com', maxDepth: 5, maxPages: 100 });
+    assert.equal(v.validateCommand({ type: 'EXTRACT_TABLE', selector: '#tabla', limit: 10 }).type, 'EXTRACT_TABLE');
+    assert.equal(v.validateCommand({ type: 'EXTRACT_TEXT', selector: '#texto', maxLength: 500 }).type, 'EXTRACT_TEXT');
+    assert.equal(v.validateCommand({ type: 'EXTRACT_TEXT' }).type, 'EXTRACT_TEXT');
+    assert.throws(() => v.validateCommand({ type: 'EXTRACT_TABLE' }));
+    assert.throws(() => v.validateCommand({ type: 'EXTRACT_TEXT', maxLength: 0 }));
+    assert.throws(() => v.validateCommand({ type: 'EXTRACT_TABLE', selector: 'table', limit: 2000 }));
   });
 
   it('bloquea SSRF a hosts privados', () => {

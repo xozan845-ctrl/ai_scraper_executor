@@ -9,7 +9,7 @@
   ],
   "scripts": {
     "build": "npm run build:core && npm run build -w api && npm run build -w worker",
-    "build:core": "npm run build -w @ai-scraper/shared-core && npm run build -w @ai-scraper/domain-execution && npm run build -w @ai-scraper/domain-scraper && npm run build -w @ai-scraper/shared-security && npm run build -w @ai-scraper/shared-observability && npm run build -w @ai-scraper/domain-ai && npm run build -w @ai-scraper/application-execution && npm run build -w @ai-scraper/infrastructure-crawler && npm run build -w @ai-scraper/infrastructure-execution && npm run build -w @ai-scraper/application-ai && npm run build -w @ai-scraper/infrastructure-ai-providers && npm run build -w @ai-scraper/infrastructure-mongodb && npm run build -w @ai-scraper/infrastructure-redis && npm run build -w @ai-scraper/infrastructure-storage && npm run build -w @ai-scraper/infrastructure-queue",
+    "build:core": "npm run build -w @ai-scraper/shared-core && npm run build -w @ai-scraper/domain-execution && npm run build -w @ai-scraper/domain-scraper && npm run build -w @ai-scraper/shared-security && npm run build -w @ai-scraper/shared-observability && npm run build -w @ai-scraper/domain-ai && npm run build -w @ai-scraper/application-execution && npm run build -w @ai-scraper/infrastructure-crawler && npm run build -w @ai-scraper/infrastructure-execution && npm run build -w @ai-scraper/application-ai && npm run build -w @ai-scraper/application-scraper && npm run build -w @ai-scraper/infrastructure-ai-providers && npm run build -w @ai-scraper/infrastructure-mongodb && npm run build -w @ai-scraper/infrastructure-redis && npm run build -w @ai-scraper/infrastructure-storage && npm run build -w @ai-scraper/infrastructure-webhooks && npm run build -w @ai-scraper/infrastructure-queue",
     "build:all": "npm run build:core && npm run build -w api && npm run build -w worker",
     "start:api": "npm run start -w api",
     "start:worker": "npm run start -w worker",
@@ -18,7 +18,7 @@
     "prisma:generate": "prisma generate --schema=prisma/schema.prisma",
     "prisma:migrate": "prisma migrate dev --schema=prisma/schema.prisma",
     "prisma:migrate:deploy": "prisma migrate deploy --schema=prisma/schema.prisma",
-    "test": "vitest run --coverage tests/dsl.test.mjs tests/dsl-completeness.test.mjs tests/engine.test.mjs tests/engine-learned.test.mjs tests/engine-ratelimit.test.mjs tests/engine-render.test.mjs tests/dedupe.test.mjs tests/crawler.test.mjs tests/ai-providers.test.mjs tests/agent.test.mjs tests/persistence.test.mjs tests/dashboard.test.mjs tests/security.test.mjs tests/browser.test.mjs tests/api-hardening.test.mjs tests/observability.test.mjs tests/scale.test.mjs tests/normalize.test.mjs tests/llm-cache.test.mjs tests/interpret.test.mjs tests/resilience.test.mjs tests/sessions.test.mjs tests/credentials.test.mjs tests/cache-isolation.test.mjs tests/limits.test.mjs tests/first-user.test.mjs tests/logging.test.mjs tests/util-unify.test.mjs tests/metrics-labels.test.mjs tests/retry-cleanup.test.mjs tests/browser-ssrf.test.mjs tests/property.test.mjs tests/domain-execution.test.mjs scripts/rules/solid-s-layers.test.mjs scripts/rules/solid-o-extensibility.test.mjs scripts/rules/solid-l-substitution.test.mjs scripts/rules/solid-i-segregation.test.mjs scripts/rules/solid-d-inversion.test.mjs",
+    "test": "vitest run --coverage tests/dsl.test.mjs tests/dsl-completeness.test.mjs tests/engine.test.mjs tests/engine-learned.test.mjs tests/engine-ratelimit.test.mjs tests/engine-render.test.mjs tests/dedupe.test.mjs tests/crawler.test.mjs tests/ai-providers.test.mjs tests/agent.test.mjs tests/persistence.test.mjs tests/dashboard.test.mjs tests/security.test.mjs tests/browser.test.mjs tests/api-hardening.test.mjs tests/observability.test.mjs tests/scale.test.mjs tests/normalize.test.mjs tests/llm-cache.test.mjs tests/interpret.test.mjs tests/resilience.test.mjs tests/sessions.test.mjs tests/credentials.test.mjs tests/cache-isolation.test.mjs tests/limits.test.mjs tests/first-user.test.mjs tests/logging.test.mjs tests/util-unify.test.mjs tests/metrics-labels.test.mjs tests/retry-cleanup.test.mjs tests/browser-ssrf.test.mjs tests/property.test.mjs tests/domain-execution.test.mjs tests/job-use-cases.test.mjs tests/session-use-cases.test.mjs tests/site-use-cases.test.mjs tests/user-use-cases.test.mjs tests/scraper-use-cases.test.mjs tests/architecture.test.mjs tests/webhooks.test.mjs tests/schedules.test.mjs scripts/rules/solid-s-layers.test.mjs scripts/rules/solid-o-extensibility.test.mjs scripts/rules/solid-l-substitution.test.mjs scripts/rules/solid-i-segregation.test.mjs scripts/rules/solid-d-inversion.test.mjs",
     "test:rules": "vitest run scripts/rules",
     "test:e2e": "vitest run tests/e2e-sevasa.test.mjs",
     "test:contract": "vitest run tests/contract.test.mjs",
@@ -60,6 +60,8 @@
   },
   "overrides": {
     "deepmerge-ts": "^8.0.0",
+    "@nestjs/platform-express": "12.4.2",
+    "minimatch": "11.0.8",
     "qs": "^6.16.0"
   }
 }

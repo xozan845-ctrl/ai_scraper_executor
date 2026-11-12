@@ -96,6 +96,14 @@ export class CreateJobDto {
   @Type(() => JobAiDto)
   ai?: JobAiDto;
 
+  @ApiPropertyOptional({
+    description: 'URL que recibirá un POST firmado cuando el job termine',
+    example: 'https://example.com/hooks/scraping',
+  })
+  @IsOptional()
+  @IsUrl({ require_protocol: true, protocols: ['http', 'https'] })
+  webhookUrl?: string;
+
   @ApiPropertyOptional({ description: 'FASE 11: 1 = máxima, 10 = mínima, 5 = defecto', minimum: 1, maximum: 10 })
   @IsOptional()
   @IsInt()

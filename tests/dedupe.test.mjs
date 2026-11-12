@@ -2,7 +2,7 @@ import { describe, it } from 'vitest';
 import assert from 'node:assert/strict';
 
 describe('J — dedupe de items (bloque 2)', async () => {
-  const { dedupeItems, itemKey } = await import('../libs/infrastructure/execution/dist/index.js');
+  const { dedupeItems, itemKey } = await import('../libs/domain/scraper/dist/index.js');
 
   const mk = (name, price, scrapedAt = '2026-01-01T00:00:00.000Z') => ({
     name: { value: name, source: { url: 'https://t.com', selector: '.name', scrapedAt } },
