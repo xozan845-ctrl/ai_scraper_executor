@@ -1,4 +1,5 @@
 import type { JobLimits } from '@ai-scraper/domain-execution';
+import type { RenderOptions } from '@ai-scraper/domain-scraper';
 
 export type ScheduleStatus = 'ACTIVE' | 'PAUSED' | 'COMPLETED';
 
@@ -9,6 +10,7 @@ export interface CreateScheduleInput {
   aiProvider?: string;
   aiModel?: string;
   webhookUrl?: string;
+  render?: RenderOptions;
   ownerScope?: string;
   intervalSec: number;
   maxRuns?: number;

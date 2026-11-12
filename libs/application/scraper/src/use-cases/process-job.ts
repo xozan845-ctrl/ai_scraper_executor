@@ -14,6 +14,7 @@ import type { CreateScraperEngine } from '../ports/scraper-engine';
 import type { SiteMemory } from '../ports/site-memory';
 import type { ScraperMetrics } from '../ports/scraper-metrics';
 import type { WebhookEvent, WebhookNotifier } from '../ports/webhook-notifier';
+import type { ProgressEvent, ProgressListener } from '../ports/progress';
 
 export interface ProcessJobDeps {
   store: JobStore;
@@ -28,6 +29,7 @@ export interface ProcessJobDeps {
   debug?: boolean;
   metrics?: ScraperMetrics;
   webhookNotifier?: WebhookNotifier;
+  onProgress?: ProgressListener;
   /** Credenciales de sesión (headers) por sessionId. */
   getCredentials?: (sessionId: string) => Promise<{ headers?: Record<string, string> } | null>;
   /** Activa la interpretación IA de resultados (configurada por el borde). */
@@ -74,6 +76,13 @@ export async function processJob(jobId: string, deps: ProcessJobDeps): Promise<A
     if (deps.metrics) deps.metrics.inc(name, by);
     else metrics().inc(name, by);
   };
+  const emit = (event: Omit<ProgressEvent, 'at' | 'jobId'>) => {
+    try {
+      deps.onProgress?.({ ...event, jobId, at: new Date().toISOString() });
+    } catch {
+      /* noop */
+    }
+  };
   const record = await store.getJob(jobId);
   if (!record) throw new Error(`Job ${jobId} no encontrado en storage`);
 
@@ -105,6 +114,7 @@ export async function processJob(jobId: string, deps: ProcessJobDeps): Promise<A
       browserEscalationSuggested: false, planActions: [], visitedUrls: [],
       error: 'Job cancelado antes de procesar',
     };
+    emit({ type: 'job.status', status: 'CANCELLED' });
     await notifyWebhook(result.status, 0, result.error);
     return result;
   }
@@ -142,23 +152,28 @@ export async function processJob(jobId: string, deps: ProcessJobDeps): Promise<A
     maxRecoveryAttempts: deps.maxRecoveryAttempts,
     isCancelled,
     signal: jobSignal,
+    ...(deps.onProgress ? { onProgress: deps.onProgress } : {}),
   });
 
   await store.updateStatus(jobId, 'PLANNING');
+  emit({ type: 'job.status', status: 'PLANNING' });
   let result: AgentResult;
   try {
     await store.updateStatus(jobId, 'EXECUTING');
+    emit({ type: 'job.status', status: 'EXECUTING' });
     result = await runner.run({
       id: record.id,
       url: record.url,
       instruction: record.instruction,
       limits: (record.limits as Record<string, number>) ?? undefined,
       ai: payload.ai,
+      ...(record.render ? { render: record.render } : {}),
     });
   } catch (e) {
     const message = (e as Error).message;
     await store.saveError(jobId, message);
     await store.updateStatus(jobId, 'FAILED');
+    emit({ type: 'job.status', status: 'FAILED', error: message });
     throw e;
   }
 
@@ -223,19 +238,23 @@ export async function processJob(jobId: string, deps: ProcessJobDeps): Promise<A
 
   if (result.status === 'COMPLETED') {
     await store.updateStatus(jobId, 'COMPLETED');
+    emit({ type: 'job.status', status: 'COMPLETED', itemsCount: result.items.length });
     inc('jobs_completed_total');
     inc('items_extracted_total', result.items.length);
     inc('recoveries_total', result.recoveryCount);
   } else if (result.status === 'TIMEOUT') {
     await store.saveError(jobId, result.error ?? 'Tiempo máximo agotado', { steps: result.steps.length });
     await store.updateStatus(jobId, 'TIMEOUT');
+    emit({ type: 'job.status', status: 'TIMEOUT', error: result.error });
     inc('jobs_timeout_total');
   } else if (result.status === 'CANCELLED') {
     await store.updateStatus(jobId, 'CANCELLED');
+    emit({ type: 'job.status', status: 'CANCELLED' });
     inc('jobs_cancelled_total');
   } else {
     await store.saveError(jobId, result.error ?? 'Fallo desconocido', { steps: result.steps.length });
     await store.updateStatus(jobId, 'FAILED');
+    emit({ type: 'job.status', status: 'FAILED', error: result.error });
     inc('jobs_failed_total');
   }
   await notifyWebhook(result.status, result.items.length, result.error);

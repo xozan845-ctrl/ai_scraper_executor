@@ -8,7 +8,7 @@ import { HttpWebhookNotifier } from '@ai-scraper/infrastructure-webhooks';
 import { createJobStore, closeJobStore, createScheduleStore, createSessionStore } from '@ai-scraper/infrastructure-storage';
 import { createJobQueue, createScrapingWorker, createRedisConnection, closeJobQueue, createDeadLetterQueue, queueRedisUrl } from '@ai-scraper/infrastructure-queue';
 import { createJobUseCases, createScheduleUseCases } from '@ai-scraper/application-execution';
-import { getScheduleLock } from '@ai-scraper/infrastructure-redis';
+import { getScheduleLock, publishProgress } from '@ai-scraper/infrastructure-redis';
 import { disconnectMongo } from '@ai-scraper/infrastructure-mongodb';
 import { getJsonCache } from '@ai-scraper/infrastructure-redis';
 import { runWithContext } from '@ai-scraper/shared-observability';
@@ -135,6 +135,7 @@ async function main() {
               allowPrivateHosts: isPrivateHostsAllowed(),
               metrics: { inc: (name, by) => incMetric(name, by) },
               webhookNotifier,
+              onProgress: (event) => { void publishProgress(event).catch(() => undefined); },
               interpret: process.env.AI_INTERPRET === '1',
               debug,
               createOrchestrator: async (payload) => {
@@ -147,6 +148,7 @@ async function main() {
                 credentialOrigin: hint.credentialOrigin,
                 signal: hint.signal,
                 learnedSelectors: hint.learnedSelectors,
+                ...(hint.render ? { render: hint.render } : {}),
               }),
             });
             console.log(`[WORKER] ${jobId} ${result.status} (${result.items.length} items)`);

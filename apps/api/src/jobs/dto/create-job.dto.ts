@@ -1,4 +1,4 @@
-import { IsUrl, IsString, MinLength, IsOptional, IsObject, IsInt, IsIn, Min, Max, ValidateNested } from 'class-validator';
+import { IsUrl, IsString, MinLength, IsOptional, IsObject, IsInt, IsIn, Min, Max, MaxLength, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { HARD_LIMITS } from '@ai-scraper/domain-execution';
@@ -71,6 +71,39 @@ export class JobAiDto {
   model?: string;
 }
 
+/** Render con navegador para SPAs (Angular/React/Vue/…). */
+export class RenderOptionsDto {
+  @ApiPropertyOptional({ enum: ['auto', 'always', 'never'], description: 'auto = heurística del motor' })
+  @IsOptional()
+  @IsIn(['auto', 'always', 'never'])
+  mode?: 'auto' | 'always' | 'never';
+
+  @ApiPropertyOptional({ enum: ['domcontentloaded', 'load', 'networkidle'] })
+  @IsOptional()
+  @IsIn(['domcontentloaded', 'load', 'networkidle'])
+  waitUntil?: 'domcontentloaded' | 'load' | 'networkidle';
+
+  @ApiPropertyOptional({ example: 'app-root', description: 'Selector que debe existir antes de capturar' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  waitForSelector?: string;
+
+  @ApiPropertyOptional({ minimum: 0, maximum: 10000, description: 'Espera mínima extra (ms)' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(10000)
+  waitMs?: number;
+
+  @ApiPropertyOptional({ minimum: 1000, maximum: 60000, description: 'Timeout de render (ms)' })
+  @IsOptional()
+  @IsInt()
+  @Min(1000)
+  @Max(60000)
+  timeoutMs?: number;
+}
+
 /** POST /api/v1/jobs §42 */
 export class CreateJobDto {
   @ApiProperty({ example: 'https://www.sevasaonline.com/', description: 'URL inicial (http/https)' })
@@ -103,6 +136,13 @@ export class CreateJobDto {
   @IsOptional()
   @IsUrl({ require_protocol: true, protocols: ['http', 'https'] })
   webhookUrl?: string;
+
+  @ApiPropertyOptional({ type: RenderOptionsDto, description: 'Render con navegador para SPAs' })
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => RenderOptionsDto)
+  render?: RenderOptionsDto;
 
   @ApiPropertyOptional({ description: 'FASE 11: 1 = máxima, 10 = mínima, 5 = defecto', minimum: 1, maximum: 10 })
   @IsOptional()

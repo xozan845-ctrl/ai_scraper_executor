@@ -1,7 +1,7 @@
 import { IsUrl, IsString, MinLength, IsOptional, IsObject, IsInt, Min, Max, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { JobAiDto, JobLimitsDto } from './create-job.dto';
+import { JobAiDto, JobLimitsDto, RenderOptionsDto } from './create-job.dto';
 
 /** POST /api/v1/schedules — job recurrente por intervalo fijo. */
 export class CreateScheduleDto {
@@ -44,4 +44,11 @@ export class CreateScheduleDto {
   @IsOptional()
   @IsUrl({ require_protocol: true, protocols: ['http', 'https'] })
   webhookUrl?: string;
+
+  @ApiPropertyOptional({ type: RenderOptionsDto, description: 'Render con navegador para SPAs' })
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => RenderOptionsDto)
+  render?: RenderOptionsDto;
 }

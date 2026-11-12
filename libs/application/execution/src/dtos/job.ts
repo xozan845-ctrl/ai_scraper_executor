@@ -1,5 +1,6 @@
 import { JobStatus as CoreStatus } from '@ai-scraper/domain-execution';
 import type { JobLimits } from '@ai-scraper/domain-execution';
+import type { RenderOptions } from '@ai-scraper/domain-scraper';
 
 export { JobStatus as CoreStatus, DEFAULT_LIMITS } from '@ai-scraper/domain-execution';
 export type { JobLimits } from '@ai-scraper/domain-execution';
@@ -16,6 +17,8 @@ export interface CreateJobInput {
   ownerScope?: string;
   /** URL externa notificada al terminar el job (validada contra SSRF). */
   webhookUrl?: string;
+  /** Render con navegador para SPAs; `auto` usa la heurística del motor. */
+  render?: RenderOptions;
 }
 
 export interface JobRecord extends CreateJobInput {

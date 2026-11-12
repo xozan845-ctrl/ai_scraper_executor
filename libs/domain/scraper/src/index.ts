@@ -6,5 +6,6 @@
 
 export * from './entities/engine-memory';
 export * from './services/dedupe';
+export * from './value-objects/render-options';
 export * from './value-objects/site-structure';
 export * from './value-objects/traced-value';

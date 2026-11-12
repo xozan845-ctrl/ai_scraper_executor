@@ -1971,3 +1971,22 @@ el stack es local, no de producción (allí el scrape debe llevar `x-api-key`, `
   mantiene aislamiento de jobs entre clientes.
 - Evidencia: unitarios de casos de uso/guards, contrato de API (12/12), OpenAPI sincronizada,
   build/lint/test verdes.
+
+---
+
+# Render configurable para SPAs y progreso SSE
+
+- **Fecha:** 2026-11-12
+- **Alcance:** soporte de apps Angular/React/Vue y comunicación en vivo con clientes.
+
+## Cambio y evidencia
+
+- `render` por job/schedule: `mode` (auto/always/never), `waitUntil`, `waitForSelector`,
+  `waitMs` y `timeoutMs`; persistido en `Job`/`JobSchedule` (JSONB).
+- El motor espera hidratación del DOM (estabilidad de nodos/texto) y aplica la
+  configuración al adaptador Playwright; `always` fuerza Chromium y `never` lo desactiva.
+- SSE `GET /api/v1/jobs/:id/events`: snapshot inicial + eventos `progress`
+  (observe/decision/step/recovery/status/finished), con ownership y `x-api-key`.
+- Bus de progreso Redis pub/sub con fallback en memoria (`job-progress:<id>`).
+- Evidencia: unitarios de render/progreso, contrato 13/13, OpenAPI sincronizada,
+  build/lint/test verdes.

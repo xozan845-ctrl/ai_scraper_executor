@@ -26,6 +26,7 @@ import { itemKey } from '@ai-scraper/domain-scraper';
 import { generatePlan, type PlanJobInput, type PlanAction } from './plan-job';
 import type { CreateScraperEngine, ScraperEngine } from '../ports/scraper-engine';
 import type { LearnedSiteSnapshot, SiteMemory } from '../ports/site-memory';
+import type { ProgressEvent, ProgressListener } from '../ports/progress';
 
 export interface AgentJob extends PlanJobInput {
   id: string;
@@ -78,6 +79,8 @@ export interface RunnerDeps {
   isCancelled?: () => Promise<boolean>;
   /** Señal externa que puede acortar todavía más el deadline del runner. */
   signal?: AbortSignal;
+  /** Progreso en vivo (SSE/webhooks); nunca debe romper el job. */
+  onProgress?: ProgressListener;
 }
 
 const DATA_COMMANDS = new Set(['EXTRACT', 'EXTRACT_LIST', 'FOLLOW_LINKS', 'GET_ATTRIBUTE']);
@@ -125,6 +128,14 @@ export class AgentRunner {
     if (this.debug) console.warn('[AGENT-RUNNER WARN]', new Date().toISOString(), ...args);
   }
 
+  private emit(event: Omit<ProgressEvent, 'at'>): void {
+    try {
+      this.deps.onProgress?.({ ...event, at: new Date().toISOString() });
+    } catch {
+      /* el progreso nunca debe tumbar el job */
+    }
+  }
+
   async run(job: AgentJob): Promise<AgentResult> {
     const limits = normalizeJobLimits(job.limits);
     const deadline = Date.now() + limits.maxRuntimeSec * 1000;
@@ -136,8 +147,26 @@ export class AgentRunner {
     const onExternalAbort = () => controller.abort(this.deps.signal?.reason);
     if (this.deps.signal?.aborted) onExternalAbort();
     else this.deps.signal?.addEventListener('abort', onExternalAbort, { once: true });
+    this.emit({ type: 'job.started', jobId: job.id, url: job.url, message: 'Job iniciado' });
     try {
-      return await this.runInternal(job, limits, deadline, controller.signal);
+      const result = await this.runInternal(job, limits, deadline, controller.signal);
+      this.emit({
+        type: 'job.finished',
+        jobId: job.id,
+        status: result.status,
+        itemsCount: result.items.length,
+        count: result.steps.length,
+        ...(result.error ? { error: result.error } : {}),
+      });
+      return result;
+    } catch (error) {
+      this.emit({
+        type: 'job.finished',
+        jobId: job.id,
+        status: 'FAILED',
+        error: (error as Error).message,
+      });
+      throw error;
     } finally {
       clearTimeout(timer);
       this.deps.signal?.removeEventListener('abort', onExternalAbort);
@@ -218,6 +247,7 @@ export class AgentRunner {
       credentialOrigin: new URL(job.url).origin,
       signal: deadlineSignal,
       learnedSelectors: learnedProfile?.recommendedSelectors?.list ?? [],
+      ...(job.render ? { render: job.render } : {}),
     });
     let planActions: PlanAction[];
     const visited = () => [...engine.getMemory().visited];
@@ -285,6 +315,16 @@ export class AgentRunner {
           MAX_CONTEXT_ELEMENTS,
         );
         this.debugLog('OBSERVE RESULT', { url, title: data.title, linksCount: links.length, elementsCount: elements.length, depth });
+        this.emit({
+          type: 'observe',
+          jobId: job.id,
+          step: steps.length + 1,
+          url,
+          depth,
+          links: links.length,
+          elements: elements.length,
+          ...(typeof data.htmlLength === 'number' ? { htmlLength: data.htmlLength } : {}),
+        });
         return {
           url,
           title: data.title ?? '',
@@ -309,6 +349,14 @@ export class AgentRunner {
       this.debugLog('RECOVERY START', { failedCommand, error });
       for (let attempt = 1; attempt <= this.maxRecoveryAttempts; attempt += 1) {
         this.debugLog('RECOVERY ATTEMPT', { attempt, maxAttempts: this.maxRecoveryAttempts });
+        this.emit({
+          type: 'recovery',
+          jobId: job.id,
+          step: steps.length + 1,
+          attempt,
+          maxAttempts: this.maxRecoveryAttempts,
+          error,
+        });
         const ctx = await observe();
         const trajectory = buildTrajectory(trajectorySteps, items.length, visitedUrls);
         let alternatives: unknown[];
@@ -469,6 +517,16 @@ export class AgentRunner {
       this.debugLog('EXECUTING PLAN ACTION', { action: action.type, step: steps.length + 1 });
       const step = await attemptStep(action as Record<string, unknown>);
       steps.push(step);
+      this.emit({
+        type: 'step',
+        jobId: job.id,
+        step: step.n,
+        commandType: String((step.command as { type?: string }).type ?? 'UNKNOWN'),
+        ok: step.ok,
+        count: step.count,
+        itemsCount: items.length,
+        ...(step.error ? { error: step.error } : {}),
+      });
       trajectorySteps.push(buildStepRecord(step.command, step.ok, step.count, step.error));
       const stepUrl = engine.getCurrentUrl();
       if (stepUrl) visitedUrls.push(stepUrl);
@@ -570,6 +628,12 @@ export class AgentRunner {
       }
       const decision = (Array.isArray(decisions) ? decisions[0] : decisions) as Record<string, unknown>;
       this.debugLog('DECISION RECEIVED', { decision: decision.type });
+      this.emit({
+        type: 'decision',
+        jobId: job.id,
+        step: steps.length + 1,
+        commandType: typeof decision.type === 'string' ? decision.type : undefined,
+      });
       if (!decision || typeof decision !== 'object') {
         await recordResult(items.length > 0, items.length);
         this.debugWarn('EMPTY DECISION FROM LLM');
@@ -600,6 +664,16 @@ export class AgentRunner {
       }
       const step = await attemptStep(decision);
       steps.push(step);
+      this.emit({
+        type: 'step',
+        jobId: job.id,
+        step: step.n,
+        commandType: String((step.command as { type?: string }).type ?? 'UNKNOWN'),
+        ok: step.ok,
+        count: step.count,
+        itemsCount: items.length,
+        ...(step.error ? { error: step.error } : {}),
+      });
       trajectorySteps.push(buildStepRecord(step.command, step.ok, step.count, step.error));
       const currentUrl = engine.getCurrentUrl();
       if (currentUrl) visitedUrls.push(currentUrl);

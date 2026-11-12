@@ -156,10 +156,12 @@ describe('F8 — casos de uso de jobs con dobles de puertos', () => {
       priority: 3,
       correlationId: 'corr-1',
       ai: { provider: 'custom', model: 'm1' },
+      render: { mode: 'always', waitForSelector: 'app-root', waitUntil: 'networkidle' },
     }));
 
     assert.equal(view.ownerScope, undefined);
     assert.equal(view.status, 'QUEUED');
+    assert.deepEqual(view.render, { mode: 'always', waitForSelector: 'app-root', waitUntil: 'networkidle' });
     assert.equal(store.jobs.get(view.id).ownerScope, 'scope-a');
     assert.equal(queue.payloads.length, 1);
     assert.deepEqual(queue.payloads[0], {

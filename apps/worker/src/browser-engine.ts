@@ -7,6 +7,7 @@
  */
 import { CrawlerService } from '@ai-scraper/infrastructure-crawler';
 import type { EnginePageCache } from '@ai-scraper/application-execution';
+import type { RenderOptions } from '@ai-scraper/domain-scraper';
 import { ExecutionEngine } from '@ai-scraper/infrastructure-execution';
 import { getPageCache, getRateLimiter } from '@ai-scraper/infrastructure-redis';
 
@@ -86,6 +87,8 @@ export interface EngineOptions {
   signal?: AbortSignal;
   /** Selectores aprendidos del dominio para el fallback de EXTRACT_LIST (C, bloque 3). */
   learnedSelectors?: string[];
+  /** Render con navegador para SPAs. */
+  render?: RenderOptions;
 }
 
 export function createProductionEngine(opts?: EngineOptions): ExecutionEngine {
@@ -99,6 +102,7 @@ export function createProductionEngine(opts?: EngineOptions): ExecutionEngine {
     pageCache: sharedCache,
     rateLimit: rateLimitHost,
     ...interactOpts,
+    ...(opts?.render ? { render: opts.render } : {}),
     ...(opts?.signal ? { signal: opts.signal } : {}),
     ...(opts?.learnedSelectors && opts.learnedSelectors.length > 0
       ? { fallbackSelectors: () => Promise.resolve(opts.learnedSelectors ?? []) }

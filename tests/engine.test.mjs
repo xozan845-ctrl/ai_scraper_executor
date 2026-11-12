@@ -65,6 +65,39 @@ describe('ExecutionEngine FASE 2 (HTTP/Cheerio con fetcher mock)', async () => {
     assert.equal(missing.ok, false);
   });
 
+  it('render configurable para SPAs: mode always y opciones llegan al browser', async () => {
+    const calls = [];
+    const engine = new ExecutionEngine({
+      fetcher: async () => '<html><body><div id="app"></div></body></html>',
+      browserInteract: async (url, action) => {
+        calls.push(action);
+        return {
+          url,
+          title: 'SPA',
+          html: `<html><body><app-root>${'contenido '.repeat(200)}</app-root></body></html>`,
+        };
+      },
+      render: { mode: 'always', waitUntil: 'networkidle', waitForSelector: 'app-root', waitMs: 10, timeoutMs: 5000 },
+    });
+    const result = await engine.execute({ type: 'NAVIGATE', url: 'https://spa.example/' });
+    assert.equal(result.ok, true);
+    assert.equal(result.usedBrowser, true);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].kind, 'render');
+    assert.deepEqual(calls[0].render, {
+      mode: 'always', waitUntil: 'networkidle', waitForSelector: 'app-root', waitMs: 10, timeoutMs: 5000,
+    });
+
+    const never = new ExecutionEngine({
+      fetcher: async () => '<html><body><div id="app"></div></body></html>',
+      browserInteract: async () => { throw new Error('no debería renderizar'); },
+      render: { mode: 'never' },
+    });
+    const noRender = await never.execute({ type: 'NAVIGATE', url: 'https://spa.example/' });
+    assert.equal(noRender.ok, true);
+    assert.equal(noRender.usedBrowser, false);
+  });
+
   it('EXTRACT_LIST con selector inexistente devuelve error recuperable', async () => {
     const engine = new ExecutionEngine({ fetcher });
     await engine.execute({ type: 'NAVIGATE', url: 'https://tienda.com/productos' });
