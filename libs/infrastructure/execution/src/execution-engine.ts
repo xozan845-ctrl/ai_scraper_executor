@@ -36,6 +36,8 @@ export interface LooseCommand {
   source?: string;
   urlContains?: string;
   path?: string;
+  maxSteps?: number;
+  settleMs?: number;
   maxLinks?: number;
   maxPages?: number;
   pattern?: string;
@@ -67,6 +69,8 @@ export interface BrowserAction {
   kind: 'click' | 'scroll' | 'render';
   selector?: string;
   render?: RenderOptions;
+  maxSteps?: number;
+  settleMs?: number;
 }
 
 export interface BrowserResult {
@@ -74,6 +78,7 @@ export interface BrowserResult {
   url: string;
   title?: string;
   network?: CapturedNetworkResponse[];
+  scrollSteps?: number;
 }
 
 export type BrowserInteract = (url: string, action: BrowserAction, signal?: AbortSignal) => Promise<BrowserResult>;
@@ -200,6 +205,8 @@ export class ExecutionEngine {
   /** URLs ya renderizadas en Chromium en este job (render a lo sumo una vez por URL). */
   private readonly renderedUrls = new Set<string>();
   private networkResponses: CapturedNetworkResponse[] = [];
+  private readonly paginatedUrls = new Set<string>();
+  private readonly selectorAliases = new Map<string, string>();
   private memory: EngineMemory = { visited: [], lastUrl: null, lastItems: 0, discoveredSelectors: [] };
   /** Índice O(1) de URLs visitadas (evita el `includes` O(n) por navegación). */
   private readonly visitedSet = new Set<string>();
@@ -227,6 +234,8 @@ export class ExecutionEngine {
       fallbackSelectors?: () => Promise<string[]>;
       /** Configuración de render para SPAs. */
       render?: RenderOptions;
+      /** Auto-reparación: notifica el resultado de un selector de lista. */
+      onSelectorResult?: (selector: string, success: boolean, count: number) => void;
       /** Cortesía por host antes de cada fetch real (H, bloque 4). No aplica en cache hit. */
       rateLimit?: (host: string, signal?: AbortSignal) => Promise<void>;
     },
@@ -420,35 +429,59 @@ export class ExecutionEngine {
    * (C, bloque 3): si el selector de la IA da 0 elementos, reintenta tras render y, si
    * sigue vacío, prueba los selectores aprendidos del dominio antes de devolver el error.
    */
+  private selectorKey(selector: string): string {
+    try { return `${new URL(this.currentUrl ?? 'https://unknown/').hostname}|${selector}`; }
+    catch { return `unknown|${selector}`; }
+  }
+
+  private reportSelector(selector: string, success: boolean, count: number): void {
+    try { this.deps?.onSelectorResult?.(selector, success, count); } catch { /* noop */ }
+  }
+
   private async extractList(cmd: LooseCommand): Promise<ExecutionResult> {
     const selector = cmd.selector!;
     const fields = cmd.fields!;
     const limit = Math.min(cmd.limit ?? 100, 1000);
-    const first = this.extractListOnce(selector, limit, fields);
+    const aliasKey = this.selectorKey(selector);
+    const effective = this.selectorAliases.get(aliasKey) ?? selector;
+
+    const first = this.extractListOnce(effective, limit, fields);
     if (first.count > 0) {
       this.memory.lastItems = first.count;
-      logger.debug('extract_list.done', { extracted: first.count, url: this.currentUrl });
-      return { ok: true, commandType: 'EXTRACT_LIST', items: first.items, count: first.count };
+      this.reportSelector(effective, true, first.count);
+      logger.debug('extract_list.done', { extracted: first.count, url: this.currentUrl, selector: effective });
+      return {
+        ok: true,
+        commandType: 'EXTRACT_LIST',
+        items: first.items,
+        count: first.count,
+        ...(effective !== selector ? { nextHint: `selector reparado: ${effective}` } : {}),
+      };
     }
     if (this.deps?.browserInteract && needsBrowserRender(this.currentHtml ?? '')) {
       if (await this.maybeRender()) {
-        const retried = this.extractListOnce(selector, limit, fields);
+        const retried = this.extractListOnce(effective, limit, fields);
         if (retried.count > 0) {
           this.memory.lastItems = retried.count;
-          logger.debug('extract_list.done', { extracted: retried.count, url: this.currentUrl });
+          this.reportSelector(effective, true, retried.count);
+          logger.debug('extract_list.done', { extracted: retried.count, url: this.currentUrl, selector: effective });
           return { ok: true, commandType: 'EXTRACT_LIST', items: retried.items, count: retried.count, usedBrowser: true };
         }
       }
     }
-    const learned = await this.getFallbackSelectors(selector);
+    const learned = await this.getFallbackSelectors(effective);
     for (const alt of learned) {
       const altResult = this.extractListOnce(alt, limit, fields);
       if (altResult.count > 0) {
         this.memory.lastItems = altResult.count;
+        this.selectorAliases.set(aliasKey, alt);
+        this.reportSelector(alt, true, altResult.count);
+        this.reportSelector(selector, false, 0);
         logger.warn('extract_list.learned_fallback', { failed: selector, used: alt, count: altResult.count, url: this.currentUrl });
         return { ok: true, commandType: 'EXTRACT_LIST', items: altResult.items, count: altResult.count, nextHint: `selector aprendido: ${alt}` };
       }
     }
+    this.reportSelector(effective, false, 0);
     return {
       ok: false,
       commandType: 'EXTRACT_LIST',
@@ -912,10 +945,22 @@ export class ExecutionEngine {
           // ETAPA 3: scroll real en Chromium (lazy-load / infinite-scroll).
           if (this.deps?.browserInteract && this.currentUrl) {
             try {
-              const out = await this.deps.browserInteract(this.currentUrl, { kind: 'scroll', selector: cmd.selector }, this.deps.signal);
+              const out = await this.deps.browserInteract(this.currentUrl, {
+                kind: 'scroll',
+                selector: cmd.selector,
+                maxSteps: cmd.maxSteps,
+                settleMs: cmd.settleMs,
+              }, this.deps.signal);
               this.loadHtml(out.url, out.html);
               this.networkResponses = out.network ?? [];
-              return { ok: true, commandType: 'SCROLL', usedBrowser: true, nextHint: `scroll browser (${out.html.length}b)` };
+              return {
+                ok: true,
+                commandType: 'SCROLL',
+                usedBrowser: true,
+                count: out.scrollSteps,
+                data: { steps: out.scrollSteps, htmlLength: out.html.length },
+                nextHint: `scroll browser (${out.scrollSteps ?? 0} pasos, ${out.html.length}b)`,
+              };
             } catch (e) {
               if (this.deps?.signal?.aborted) throw this.deps.signal.reason;
               return { ok: false, commandType: 'SCROLL', needsBrowser: true, error: `browser SCROLL falló: ${(e as Error).message}` };
@@ -1002,7 +1047,13 @@ export class ExecutionEngine {
             for (let p = 1; p <= maxPages; p++) {
               const u = cmd.pattern.replace('{page}', String(p)).replace('N', String(p));
               const abs = toAbs(u, this.currentUrl ?? cmd.url ?? '') ?? u;
+              const key = normalizeUrlForDedupe(abs);
+              if (this.paginatedUrls.has(key)) continue;
+              this.paginatedUrls.add(key);
               urls.push(abs);
+            }
+            if (urls.length === 0) {
+              return { ok: false, commandType: 'PAGINATE', error: 'paginación repetida: todas las URLs ya se generaron' };
             }
             return { ok: true, commandType: 'PAGINATE', items: urls, count: urls.length };
           }
@@ -1017,7 +1068,14 @@ export class ExecutionEngine {
                 error: `No se encontró enlace siguiente con "${cmd.selector}"`,
               };
             }
-            return { ok: true, commandType: 'PAGINATE', items: [toAbs(href, this.currentUrl!)], count: 1 };
+            const nextUrl = toAbs(href, this.currentUrl!);
+            if (!nextUrl) return { ok: false, commandType: 'PAGINATE', error: `href no resoluble: ${href}` };
+            const nextKey = normalizeUrlForDedupe(nextUrl);
+            if (this.paginatedUrls.has(nextKey)) {
+              return { ok: false, commandType: 'PAGINATE', error: `paginación repetida: ${nextUrl}` };
+            }
+            this.paginatedUrls.add(nextKey);
+            return { ok: true, commandType: 'PAGINATE', items: [nextUrl], count: 1 };
           }
           return { ok: false, commandType: 'PAGINATE', error: 'PAGINATE requiere pattern o selector' };
         }

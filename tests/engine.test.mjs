@@ -169,6 +169,65 @@ describe('ExecutionEngine FASE 2 (HTTP/Cheerio con fetcher mock)', async () => {
     assert.equal(missing.ok, false);
   });
 
+  it('SCROLL pasa maxSteps/settleMs al browser y PAGINATE evita repetir URLs', async () => {
+    const scrollCalls = [];
+    const engine = new ExecutionEngine({
+      fetcher: async () => '<html><body><a class="next" href="/p/2">Siguiente</a><div>contenido</div></body></html>',
+      browserInteract: async (url, action) => {
+        if (action.kind === 'scroll') scrollCalls.push(action);
+        return {
+          url,
+          title: 'S',
+          html: '<html><body><a class="next" href="/p/2">Siguiente</a><div>contenido</div></body></html>',
+          scrollSteps: action.kind === 'scroll' ? 2 : undefined,
+        };
+      },
+      render: { mode: 'always' },
+    });
+    await engine.execute({ type: 'NAVIGATE', url: 'https://shop.com/' });
+    const scroll = await engine.execute({ type: 'SCROLL', maxSteps: 3, settleMs: 50 });
+    assert.equal(scroll.ok, true);
+    assert.equal(scroll.count, 2);
+    assert.equal(scrollCalls[0].maxSteps, 3);
+    assert.equal(scrollCalls[0].settleMs, 50);
+
+    const first = await engine.execute({ type: 'PAGINATE', selector: 'a.next' });
+    assert.equal(first.ok, true);
+    assert.equal(first.items[0], 'https://shop.com/p/2');
+    const repeated = await engine.execute({ type: 'PAGINATE', selector: 'a.next' });
+    assert.equal(repeated.ok, false);
+    assert.match(repeated.error, /paginación repetida/);
+  });
+
+  it('auto-reparación: recuerda el selector alternativo y reporta resultados', async () => {
+    const HTML = '<html><body><div class="alt"><span class="name">A</span></div></body></html>';
+    const reports = [];
+    let fallbackCalls = 0;
+    const engine = new ExecutionEngine({
+      fetcher: async () => HTML,
+      fallbackSelectors: async () => { fallbackCalls += 1; return ['.alt']; },
+      onSelectorResult: (selector, success, count) => reports.push({ selector, success, count }),
+    });
+    await engine.execute({ type: 'NAVIGATE', url: 'https://shop.com/' });
+    const first = await engine.execute({
+      type: 'EXTRACT_LIST',
+      selector: '.roto',
+      fields: { name: '.name' },
+    });
+    assert.equal(first.ok, true);
+    assert.equal(first.count, 1);
+    assert.ok(reports.some((row) => row.selector === '.alt' && row.success));
+    assert.ok(reports.some((row) => row.selector === '.roto' && !row.success));
+
+    const second = await engine.execute({
+      type: 'EXTRACT_LIST',
+      selector: '.roto',
+      fields: { name: '.name' },
+    });
+    assert.equal(second.ok, true);
+    assert.equal(fallbackCalls, 1, 'el alias reparado evita volver a pedir fallback');
+  });
+
   it('EXTRACT_LIST con selector inexistente devuelve error recuperable', async () => {
     const engine = new ExecutionEngine({ fetcher });
     await engine.execute({ type: 'NAVIGATE', url: 'https://tienda.com/productos' });

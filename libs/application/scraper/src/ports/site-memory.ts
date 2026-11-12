@@ -22,4 +22,6 @@ export interface SiteMemory {
   getLearnedProfile(url: string): Promise<LearnedSiteSnapshot>;
   getOrCreateProfile(domain: string, url: string): Promise<{ id?: string }>;
   recordJobResult(profileId: string, success: boolean, itemCount: number, durationMs: number): Promise<void>;
+  /** Auto-reparación: refuerza/degrada un selector de lista según su resultado. */
+  recordSelectorResult?(domain: string, selector: string, success: boolean, itemCount: number): Promise<void>;
 }

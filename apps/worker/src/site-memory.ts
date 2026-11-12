@@ -32,4 +32,20 @@ export const siteMemory: SiteMemory = {
   recordJobResult(profileId, success, itemCount, durationMs) {
     return mongoRepo.recordJobResult(profileId, success, itemCount, durationMs);
   },
+
+  async recordSelectorResult(domain, selector, success, itemCount) {
+    if (!success || itemCount <= 0) return;
+    const profile = await mongoRepo.getOrCreateProfile(domain, `https://${domain}`);
+    if (!profile.id) return;
+    await mongoRepo.updateSelectors(profile.id, {
+      listSelectors: [{
+        selector,
+        type: 'list',
+        confidence: 0.6,
+        pageUrls: [`https://${domain}`],
+        timesUsed: 1,
+        successRate: 0.5,
+      }],
+    });
+  },
 };

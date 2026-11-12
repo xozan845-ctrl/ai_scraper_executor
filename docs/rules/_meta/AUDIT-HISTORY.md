@@ -2042,3 +2042,20 @@ el stack es local, no de producción (allí el scrape debe llevar `x-api-key`, `
   network/DOM), no solo campos rellenos.
 - `_source.validation` y `_source.confidence` por item; `strict:true` descarta inválidos.
 - Evidencia: 287/287 tests, cobertura 71.87/60.47/61.83, contrato 13/13, build/lint verdes.
+
+---
+
+# P4 — paginación robusta y auto-reparación de selectores
+
+- **Fecha:** 2026-11-12
+- **Alcance:** infinite scroll, guardas de paginación y memoria de selectores.
+
+## Cambio y evidencia
+
+- `SCROLL` acepta `maxSteps` (1..50) y `settleMs`; Playwright itera el scroll y corta
+  cuando el DOM deja de crecer (2 ciclos estables).
+- `PAGINATE` registra URLs generadas/resueltas y devuelve error ante repetición,
+  evitando bucles infinitos.
+- Auto-reparación: si un selector falla y uno aprendido funciona, el engine lo recuerda
+  durante el job y notifica el resultado (`onSelectorResult`) para reforzar el perfil.
+- Evidencia: 289/289 tests, cobertura 71.85/60.37/61.55, contrato 13/13, build/lint verdes.

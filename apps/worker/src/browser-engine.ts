@@ -89,6 +89,7 @@ export interface EngineOptions {
   learnedSelectors?: string[];
   /** Render con navegador para SPAs. */
   render?: RenderOptions;
+  onSelectorResult?: (selector: string, success: boolean, count: number) => void;
 }
 
 export function createProductionEngine(opts?: EngineOptions): ExecutionEngine {
@@ -103,6 +104,7 @@ export function createProductionEngine(opts?: EngineOptions): ExecutionEngine {
     rateLimit: rateLimitHost,
     ...interactOpts,
     ...(opts?.render ? { render: opts.render } : {}),
+    ...(opts?.onSelectorResult ? { onSelectorResult: opts.onSelectorResult } : {}),
     ...(opts?.signal ? { signal: opts.signal } : {}),
     ...(opts?.learnedSelectors && opts.learnedSelectors.length > 0
       ? { fallbackSelectors: () => Promise.resolve(opts.learnedSelectors ?? []) }

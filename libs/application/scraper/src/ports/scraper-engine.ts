@@ -31,6 +31,8 @@ export interface EngineFactoryHint {
   headers?: Record<string, string>;
   /** Configuración de render para SPAs. */
   render?: RenderOptions;
+  /** Auto-reparación de selectores de lista. */
+  onSelectorResult?: (selector: string, success: boolean, count: number) => void;
 }
 
 export type CreateScraperEngine = (hint: EngineFactoryHint) => ScraperEngine;

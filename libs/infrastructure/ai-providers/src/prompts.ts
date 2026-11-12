@@ -42,6 +42,7 @@ REGLAS ESTRICTAS:
 - EXTRACT_TEXT toma texto limpio de "selector" (o body) y admite "maxLength".
 - EXTRACT_STRUCTURED lee JSON-LD, OpenGraph o microdata; úsalo si la página es un producto o artículo.
 - EXTRACT_NETWORK lee respuestas XHR/fetch/GraphQL capturadas al renderizar; filtra por "urlContains" y "path".
+- SCROLL admite "maxSteps" (1..50) y "settleMs" para infinite scroll; PAGINATE evita repetir URLs.
 - En "fields", "selector" puede ser un array de candidatos; el motor elige el valor con consenso.
 - NO uses claves extra como "paginate", "nextPageSelector": usa el comando PAGINATE por separado.
 - Responde SOLO con el JSON, sin texto adicional ni bloques de markdown.`;

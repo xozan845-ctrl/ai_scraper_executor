@@ -189,6 +189,11 @@ POST   /api/v1/jobs/:id/retry          # Reintentar (limpia artefactos, idempote
 > y `enum`. Cada item recibe `_source.confidence` compuesta y `_source.validation`;
 > con `strict:true` los items inválidos se descartan y queda un error registrado.
 >
+> **Paginación e infinite scroll**: `SCROLL` acepta `maxSteps` (1–50) y `settleMs`;
+> el navegador corta al no crecer el DOM. `PAGINATE` detecta URLs repetidas para evitar
+> bucles. Si un selector de lista falla y uno aprendido funciona, el motor lo recuerda
+> durante el job y refuerza el perfil del dominio.
+>
 > **Extracción multi-fuente**: `EXTRACT_STRUCTURED` lee JSON-LD, OpenGraph y microdata;
 > `EXTRACT_NETWORK` lee respuestas XHR/fetch/GraphQL capturadas al renderizar (filtra
 > por `urlContains` y `path`). En `EXTRACT`/`EXTRACT_LIST`, un campo puede declarar

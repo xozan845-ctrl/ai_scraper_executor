@@ -121,6 +121,8 @@ export function normalizeRawCommand(raw: unknown): NormalizeResult {
   copy('source');
   copy('urlContains');
   copy('path');
+  copy('maxSteps');
+  copy('settleMs');
   copy('maxLinks');
   copy('maxPages');
   copy('pattern');
