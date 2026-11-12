@@ -1,11 +1,18 @@
 # Migración a arquitectura hexagonal — plan, auditoría y mapeo
 
 > **Estado: traslado físico completado; conformidad hexagonal pendiente
-> (2026-10-10).** F0–F5 retiraron `packages/`, movieron las 14 librerías a `libs/` y
-> adoptaron Vitest. F7 está en curso: los puertos de jobs, sesiones y cola ya pertenecen
-> a `application/execution`, pero todavía hay casos de uso en `apps/*`, otros puertos
-> declarados en `infrastructure/*` y un adaptador que importa otros adaptadores. ADR-33
-> abre F6–F10 para cerrar esa diferencia. Las reglas canónicas son
+> (2026-11-11).** F0–F5 retiraron `packages/`, movieron las librerías a `libs/` y
+> adoptaron Vitest. F7 organizó los puertos por consumidor (`application/execution`,
+> `application/ai`) y los tres dominios por roles (`entities/`, `value-objects/`,
+> `services/`); el dominio ya no lee `process.env` (la política SSRF se inyecta).
+> F8 está completo: jobs, sesiones, usuarios, radiografía y el workflow del agente
+> (planner, runner, procesador) viven en `application/*` con puertos para motor,
+> memoria de sitio, métricas y credenciales. F9 también está cerrado: MongoDB ya no
+> importa crawler/execution (la radiografía se compone en el borde) y los
+> controllers/consumers son adaptadores delgados. F10 cerró el enforcement: el
+> verificador cubre imports, manifests, adaptadores y puertos, y
+> `tests/architecture.test.mjs` fija `R-HX-14`. La arquitectura hexagonal queda
+> **conforme**. Las reglas canónicas son
 > [`R-HX-1..14`](./rules/architecture/03-arquitectura-hexagonal.md).
 
 ## 1. Modelo objetivo
@@ -113,10 +120,10 @@ en cada paso (`R-HX-9`).
 | **F4 — `application/ai` + retirada de `packages/`** | Retirar el árbol anterior | ✅ físico |
 | **F5 — runner y cierre físico** | Adoptar Vitest y recalibrar cobertura | ✅ |
 | **F6 — contrato normativo y baseline** | ADR-33, `R-HX-10..14`, auditoría honesta y plan de deuda | ✅ |
-| **F7 — puertos y dominio** | Mover contratos de queue/storage/cache/crawler/repositories al consumidor; organizar el dominio por roles sin cambiar conducta | 🔄 jobs/sesiones/cola extraídos |
-| **F8 — casos de uso** | Crear `application/execution` y `application/scraper`; mover jobs, sesiones, usuarios/radiografía y el workflow del agente fuera de `apps/*` | ⏳ |
-| **F9 — adaptadores y borde** | Desacoplar MongoDB de crawler/execution; dejar controllers/consumers delgados y composición concentrada | ⏳ |
-| **F10 — enforcement y cierre** | Ampliar el verificador a manifests/puertos/acoplamientos, añadir tests de arquitectura y obtener todos los gates verdes | ⏳ |
+| **F7 — puertos y dominio** | Mover contratos de queue/storage/cache/crawler/repositories al consumidor; organizar el dominio por roles sin cambiar conducta | 🔄 jobs/sesiones/cola/caché/proveedor extraídos; roles de dominio y política SSRF inyectada; repositorios de scraping pendientes |
+| **F8 — casos de uso** | Crear `application/execution` y `application/scraper`; mover jobs, sesiones, usuarios/radiografía y el workflow del agente fuera de `apps/*` | ✅ jobs, sesiones, usuarios y radiografía en `application/execution`; planner, AgentRunner, procesador e interpretación en `application/scraper`; worker queda como composition root |
+| **F9 — adaptadores y borde** | Desacoplar MongoDB de crawler/execution; dejar controllers/consumers delgados y composición concentrada | ✅ radiografía y loop heurístico en `application/scraper`; Mongo sin imports entre adaptadores; composición en `apps/*` |
+| **F10 — enforcement y cierre** | Ampliar el verificador a manifests/puertos/acoplamientos, añadir tests de arquitectura y obtener todos los gates verdes | ✅ 99 imports + 18 manifests, 18 puertos protegidos, 5 tests de arquitectura y `R-HX-14` cerrado |
 
 ## 5. Orden de extracción recomendado
 

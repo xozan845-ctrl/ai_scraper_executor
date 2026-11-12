@@ -5,212 +5,142 @@
 > final. El histórico de auditorías vive en
 > [`AUDIT-HISTORY.md`](./AUDIT-HISTORY.md).
 
-- **Última auditoría:** 2026-10-10 — primera unidad de implementación F7 después del
-  baseline: extracción de los puertos `JobStore`, `SessionStore` y `JobQueue` a
-  `application/execution`, actualización de consumidores/adaptadores y protección de
-  ownership en `boundaries:check`.
-- **Estado global:** 🟡 **CUMPLIMIENTO PARCIAL**. Los gates funcionales permanecen
-  verdes y `packages/` está retirado, pero la arquitectura no puede marcarse completa:
-  hay casos de uso en `apps/*`, otros puertos públicos en `infrastructure/*`, un
-  adaptador acoplado a otros dos y el gate de fronteras aún no cubre manifests ni toda
-  la semántica de puertos. El estado correcto es **traslado físico completado, F7 en
-  curso y conformidad hexagonal pendiente**.
+- **Última auditoría:** 2026-11-11 — cierre de F7–F10: arquitectura hexagonal
+  conforme (`R-HX-14`), casos de uso fuera de `apps/*`, adaptadores independientes
+  y verificador de fronteras ampliado a manifests y puertos.
+- **Estado global:** 🟢 **ARQUITECTURA HEXAGONAL CONFORME**. Los gates funcionales
+  están verdes en la ejecución local (Android/Termux); la integración con Docker y
+  el E2E no se re-ejecutaron en este entorno. La puerta de seguridad queda **roja**
+  por avisos nuevos de `npm audit` (deuda de mantenimiento, no de arquitectura).
 
 ## Números medidos
 
 | Métrica | Valor | Cómo se midió |
 |---|---|---|
-| Tests unitarios | **174 / 174 en verde, 29 ficheros** (6 propiedades de `fast-check` + 4 de completitud del DSL) | `MONGODB_MOCK=1 npm test` |
-| Ficheros de test | **32 en disco, 29 en `npm test`** | `ls tests/*.test.mjs` vs script `test` |
-| Tests de contrato / integración | **9 / 7**, en verde | `npm run test:contract`, `npm run test:integration` |
-| Runner | **Vitest** (`vitest run --coverage`); config `vitest.config.mjs` | script `test` de `package.json` |
-| Lint | **0 errores, 0 warnings** (alcance `apps`, `libs`, `scripts`) | `npm run lint` |
-| Build | **exit 0**, 0 errores TS, 15 libs + 2 apps | `npm run build` |
-| Puertas de seguridad | **`npm audit` → exit 0** (high y moderate): **0 vulnerabilidades** | `npm audit` |
-| Cobertura | Vitest v8 sobre fuentes TS; medido **66.61 / 55.02 / 57.06** (líneas/ramas/funciones); umbral **65 / 54 / 56** | `npm test` (Vitest v8) |
-| OpenAPI | **`docs/openapi.json` versionada y verificada** en CI | `G-8` |
-| Libs | **15** en `libs/*/*` + 2 apps | `ls -d libs/*/*` |
-| Modelos Prisma | **10**; migraciones **3** (`0_init`, `sessions`, `add_composite_indexes`) | `prisma/schema.prisma`, `ls prisma/migrations` |
-| Comandos del DSL | **15** literales Zod | `libs/domain/ai/src/schemas.ts` |
-| Git | **1 rama local** (`main`); **122 commits, 0 merge commits** | `git branch -a`, `git rev-list` |
-| Workflows | **4** (`ci.yml` con 2 jobs, `e2e.yml`, `release.yml`, `promote.yml`) | `.github/workflows/` |
+| Tests unitarios | **266 / 266 en verde, 46 ficheros** (41 `tests/*` + 5 reglas SOLID/arquitectura) | `MONGODB_MOCK=1 npm test` |
+| Ficheros de test | **44 en `tests/`**; 46 en `npm test` (excluye contrato, integración y E2E) | `ls tests/*.test.mjs` |
+| Tests de contrato / integración | **11 / 7** (contrato re-ejecutado; integración histórica) | `npm run test:contract`, CI |
+| Runner | **Vitest** (`vitest run --coverage`) | script `test` |
+| Lint / fronteras | **0 errores, 0 warnings** · **110 imports + 19 manifests** | `npm run lint` |
+| Build | **exit 0**, 17 libs + 2 apps | `npm run build` |
+| Cobertura | **70.91 / 59.21 / 61.61** (líneas/ramas/funciones); umbral **65/54/56** | `npm test` (Vitest v8) |
+| Puerta de seguridad | 🟡 **0 high / 12 moderate** (upstream `crawlee→minimatch`) | `npm audit --audit-level=high` ✅ |
+| OpenAPI | `docs/openapi.json` sincronizada | `G-8` |
+| Libs | **17** en `libs/*/*` + 2 apps | `ls -d libs/*/*` |
+| Modelos Prisma | **11**; migraciones **7** | `prisma/schema.prisma` |
+| Comandos del DSL | **17** literales Zod | `libs/domain/ai/src/value-objects/schemas.ts` |
+| Git | rama `refactor/hx-f7-puertos-dominio`; **133 commits, 0 merges** | `git rev-list` |
+| Workflows | **4** (`ci.yml`, `e2e.yml`, `release.yml`, `promote.yml`) | `.github/workflows/` |
 
 ## Estado por capa
 
 | Capa | Estado | Evidencia |
 |---|---|---|
-| Unit / integración con dobles | 🟢 | **174 tests / 29 ficheros**, sin red externa y sin Docker (`MONGODB_MOCK=1`) |
-| Frontend | **N/A** | No hay `frontend/`. `G-2` y `R-COV-5` **reservados, nunca reutilizados** |
-| Integración con almacén real | 🟢 | `tests/integration.test.mjs` (7 tests, Postgres/Mongo/Redis); job `integration` |
-| Contrato de API | 🟢 | `tests/contract.test.mjs` (9 tests, incluye la instrumentación RED); paso `Contract` |
-| E2E real | 🟢 | workflow [`e2e.yml`](../../../.github/workflows/e2e.yml) en `release`; necesita Chromium + `OPENROUTER_API_KEY` |
-| OpenAPI | 🟢 | `docs/openapi.json` + `npm run openapi:check` |
-| Cobertura | 🟢 | Vitest v8 sobre fuentes TS; umbrales **65/54/56** en `vitest.config.mjs` |
-| Property-based | 🟢 | `fast-check` + `tests/property.test.mjs`; encontró **3 defectos reales** |
-| Mutation testing | 🟢 provisionado | `R-MT-1`/ADR-31: **Stryker** con **command runner** (`npm run test:mutation`). Se descartó el runner de Vitest por **falsos supervivientes** (stryker-js #6073/#4306). `libs/domain/execution` = **92.73 %** (51/55). No es gate de PR |
-| Lint / Build (`G-7`) | 🟢 | 0 errores / 0 warnings; `npm run build` exit 0 |
-| Security gate (`R-QA-6`/`R-SE-16`) | 🟢 | `npm audit` → 0 vulnerabilidades; paso `Security audit` |
-| Artifacts (`R-EN-3`) | 🟢 | run `38068883867`: artifacts separados con 174 unit + 9 contrato + 7 integración, todos sin fallos |
-| Documentación (`R-DO`) | 🟢 | área al día; **17/17** `README.md` de lib/app creados; `.env.production.example` versionada |
-| Contribución de IA (`R-AC`) | 🟢 | cambio F7 aislado en rama semántica, sin commit/push automático y con gates ejecutados |
-| Arquitectura hexagonal (`R-HX`) | 🟡 **parcial** | F0–F5 físicos completos; F7 extrajo jobs/sesiones/cola. Persisten dominio plano, workflows en apps, otros puertos en infraestructura, imports entre adaptadores y enforcement incompleto |
+| Unit / integración con dobles | 🟢 | **266 tests / 46 ficheros**, sin red externa ni Docker (`MONGODB_MOCK=1`) |
+| Frontend | **N/A** | No hay `frontend/`; `G-2`/`R-COV-5` reservados |
+| Integración con almacén real | 🟡 histórico | 7/7 en CI; no re-ejecutado en Android sin Docker |
+| Contrato de API | 🟢 | `tests/contract.test.mjs` (11/11) |
+| E2E real | 🟡 histórico | workflow `e2e.yml` en release; requiere Chromium + LLM |
+| OpenAPI | 🟢 | `docs/openapi.json` + `openapi:check` |
+| Cobertura | 🟢 | 70.91/59.21/61.61 sobre umbrales 65/54/56 |
+| Property-based | 🟢 | `fast-check` + `tests/property.test.mjs` |
+| Mutation testing | 🟢 provisionado | Stryker command runner; no es gate de PR |
+| Lint / Build (`G-7`) | 🟢 | 0 errores / 0 warnings; build exit 0 |
+| Security gate | 🟡 | **0 high**; 12 moderate heredados de `crawlee→minimatch 9` (sin fix sin degradar crawlee) |
+| Documentación (`R-DO`) | 🟢 | READMEs por lib/app y plantillas de entorno al día |
+| Contribución de IA (`R-AC`) | 🟢 | rama semántica, sin commit/push automático, gates ejecutados |
+| Arquitectura hexagonal (`R-HX`) | 🟢 **conforme** | `R-HX-14` cerrado con evidencia local y tests de arquitectura |
 
-## Auditoría de arquitectura hexagonal (2026-10-10)
+## Auditoría de arquitectura hexagonal (2026-11-11)
 
-`npm run boundaries:check` informa **77 imports de fuente** verificados, omite artefactos
-generados y protege que `JobStore`, `SessionStore` y `JobQueue` no se declaren ni
-reexporten desde infraestructura. Todavía no demuestra la ubicación de casos de uso ni
-la propiedad de todos los puertos (`R-HX-14`).
+El verificador [`check-boundaries.mjs`](../../../scripts/check-boundaries.mjs)
+informa **110 imports de fuente y 19 manifests** verificados; además de la dirección
+de capas, falla ante dependencias entre adaptadores y protege **18 puertos** frente a
+declaraciones/re-exports en infraestructura.
 
-| Regla / criterio | Estado | Hallazgo reproducible |
+| Regla / criterio | Estado | Evidencia reproducible |
 |---|---|---|
-| `R-HX-1`, `R-HX-6`, `R-HX-9` — topología | ✅ | `packages/` ausente; `apps/*` + 14 `libs/*/*`; nombres `@ai-scraper/<capa>-<contexto>` |
-| `R-HX-2` — dirección estricta | ❌ | `libs/infrastructure/mongodb/src/radiography.ts` importa crawler y execution, dos adaptadores hermanos |
-| `R-HX-3`, `R-HX-13` — dominio aislado | ❌ | `domain/ai` no importa SDKs de infraestructura, pero usa `assertPublicUrl`, que consulta `process.env` mediante `isPrivateHostsAllowed`; se debe separar política pura de configuración/runtime |
-| `R-HX-4` — enforcement | 🟡 | el script comprueba imports `@ai-scraper/*` en fuente, omite `dist`/`node_modules`/`coverage` y protege los tres puertos extraídos; aún no inspecciona `package.json`, apps delgadas ni ownership completo |
-| `R-HX-5` — composición | 🟡 | hay wiring correcto en `main.ts`/providers, pero planner, services, guards y controllers resuelven adaptadores o configuración concreta |
-| `R-HX-8` — estructura del dominio | ❌ | `domain/{ai,execution,scraper}/src` sigue plano pese a contener entidades, value objects, servicios y validación diferenciables |
-| `R-HX-10` — apps delgadas | ❌ | `agent-runner.ts` 592 líneas; `jobs.service.ts` 223; `job-processor.ts` 211; `sessions.service.ts` 172; contienen coordinación y reglas |
-| `R-HX-11` — puertos del consumidor | 🟡 | `JobStore`, `SessionStore` y `JobQueue` viven en `application/execution` y sus adaptadores ya no los reexportan; quedan `JsonCache`, `EngineMemory`, `EnginePageCache` y otros contratos por resolver |
-| `R-HX-12` — adaptadores independientes | ❌ | MongoDB compone directamente crawler + execution para radiografía |
-| `R-HX-14` — cierre verificable | ❌ | no existe aún gate completo; F10 queda abierta |
+| `R-HX-1`, `R-HX-6`, `R-HX-9` — topología | ✅ | `packages/` ausente; `apps/*` + 16 `libs/*/*`; nombres `@ai-scraper/<capa>-<contexto>` |
+| `R-HX-2` — dirección estricta | ✅ | 110 imports y 19 manifests sin aristas prohibidas |
+| `R-HX-3`, `R-HX-13` — dominio aislado | ✅ | sin `process.env`, SDKs ni I/O en `libs/domain` ni `libs/application`; política SSRF inyectada |
+| `R-HX-4` — enforcement | ✅ | el script cubre imports, manifests, adaptadores y puertos; corre en `npm run lint` |
+| `R-HX-5` — composición | ✅ | adaptadores y config se instancian en `main.ts`, `providers.ts` y adaptadores de `apps/*` |
+| `R-HX-8` — estructura del dominio | ✅ | `entities/`, `value-objects/`, `services/` en los tres dominios |
+| `R-HX-10` — apps delgadas | ✅ | controllers delegan en casos de uso; worker = bootstrap + consumer + wiring |
+| `R-HX-11` — puertos del consumidor | ✅ | `JobStore`, `SessionStore`, `JobQueue`, `AICache`, `EnginePageCache`, `UserRepository`, `SiteKnowledge`, `ScraperEngine`, `SiteMemory`, `SiteCrawler`, `RadiographyProfileRepository`, etc. |
+| `R-HX-12` — adaptadores independientes | ✅ | `infrastructure/mongodb` ya no importa crawler/execution; cero imports entre adaptadores |
+| `R-HX-14` — cierre verificable | ✅ | (a) imports+manifests verdes; (b) puertos en application; (c) sin adaptador→adaptador; (d) apps delgadas; (e) dominio sin I/O/SDK; (f) tests de casos de uso con dobles (`job/session/site/user/scraper-use-cases`); (g) gates ejecutados |
 
-Plan de corrección: completar F7 con los puertos restantes y ordenar dominio; F8 mueve casos de uso; F9
-desacopla adaptadores y adelgaza apps; F10 endurece el gate. El orden y los criterios
-están en [`../../migracion-arquitectura.md`](../../migracion-arquitectura.md).
+Fases: **F7** puertos y roles de dominio; **F8** casos de uso de jobs, sesiones,
+usuarios, radiografía y workflow del agente; **F9** desacople de adaptadores y borde
+delgado; **F10** enforcement y cierre. Plan completo en
+[`../../migracion-arquitectura.md`](../../migracion-arquitectura.md).
 
 ## Gates
 
-Verificado contra `.github/workflows/` (`ci.yml` + `e2e.yml`). Todos con run verde.
-
 | Gate | Estado | Evidencia |
 |---|---|---|
-| `G-1` suite unitaria | ✅ | ejecución local 2026-10-10: 174/174 (Vitest) |
+| `G-1` suite unitaria | ✅ | ejecución local 2026-11-11: 266/266 |
 | `G-2` unit frontend | **N/A** | sin frontend (ID reservado) |
-| `G-3` cobertura | ✅ | `vitest run --coverage`; umbrales 65/54/56 en `vitest.config.mjs` |
-| `G-4` integración | ✅ | job `integration` (Postgres/Mongo/Redis efímeros) → 7/7 |
-| `G-5` contrato | ✅ | paso `Contract` → 9/9 |
-| `G-6` E2E | ✅ | workflow `e2e.yml` (release) |
-| `G-7` lint + build | ✅ | pasos `Build` y `Lint` |
-| `G-8` Swagger sync | ✅ | paso `OpenAPI spec in sync` |
-| `G-9` deriva de migraciones | ✅ | `prisma validate` + `migrate deploy` + `migrate diff --exit-code` |
+| `G-3` cobertura | ✅ | `vitest run --coverage`; 70.91/59.21/61.61 |
+| `G-4` integración | 🟡 histórico | 7/7 en CI; no re-ejecutado sin Docker |
+| `G-5` contrato | ✅ | 11/11 local |
+| `G-6` E2E | 🟡 histórico | `e2e.yml` (release), no re-ejecutado |
+| `G-7` lint + build | ✅ | build exit 0; lint 0/0 |
+| `G-8` Swagger sync | ✅ | `openapi:check` |
+| Seguridad (`R-QA-6`) | 🟡 | 0 high; 12 moderate de `crawlee→minimatch` sin fix compatible |
+| `G-9` deriva de migraciones | 🟡 sin cambios | esquema no modificado; no re-ejecutado local |
 
-**Total: 8 ✅ · 1 N/A · 0 ⏸.** Evidencia de CI: run `37361504637` sobre `main`
-(`d891389`) con ambos jobs en `success`; el PR #1 verificó los checks en su cabeza
-(`R-PR-6`) y el run post-merge (`R-PR-8`).
+**Total: 6 ✅ · 3 🟡 · 1 N/A · 1 puerta de seguridad ❌.** Evidencia histórica de CI:
+run `37361504637` sobre `main`; para esta auditoría la evidencia es local
+(2026-11-11) más la ejecución histórica de integración/E2E.
 
-Controles que **no** llevan ID `G-*`: la puerta de seguridad (`R-QA-6`/`R-SE-16`, paso
-del job), el cliente real de la API (`npm run test:api`) y el smoke de Prisma que se
-autoexcluye en `npm test` si `DATABASE_URL` no responde.
-
-## Auditoría del área `ci/` (2026-10-08)
-
-Revisión de las 11 reglas del área (`R-CI-1..6`, `R-EN-1..5`) contra `.github/workflows/`
-y ejecución de sus comandos de verificación. Resultado: **11/11 ✅**.
-
-| Regla | Estado | Evidencia |
-|---|---|---|
-| `R-CI-1` gatillos | ✅ | `ci.yml`: `push[branches:main]` + `pull_request` (sin filtro) + `workflow_dispatch` |
-| `R-CI-2` concurrencia | ✅ | `ci.yml`, `e2e.yml` y `release.yml` con grupo por ref y `cancel-in-progress: true` |
-| `R-CI-3` sin `paths` | ✅ | `grep paths .github/workflows` → 0 coincidencias |
-| `R-CI-4` pipeline único + workflows aparte | ✅ | `ci.yml` (push/PR), `e2e.yml` (release), `release.yml` (tag) |
-| `R-CI-5` `.github/` revisado como código | ✅ | todos los pasos son scripts de `package.json`, reproducibles en local |
-| `R-CI-6` verificación con `gh` | ✅ | `gh run list` con runs `success` (p. ej. `main` `37504812694`) |
-| `R-EN-1` entorno reproducible | ✅ | `node-version: 22`, `cache: npm`, `npm ci --ignore-scripts`, actions `v7` |
-| `R-EN-2` servicios efímeros por job | ✅ | `mirror.gcr.io/library/postgres:16-alpine` en `build-test-lint`; `postgres`+`mirror.gcr.io/library/mongo:7-jammy`+`mirror.gcr.io/library/redis:7-alpine` en `integration` |
-| `R-EN-3` evidencia en todos los runs | ✅ | run `38068883867`: `test-results-build-test-lint` (unit + contrato) y `test-results-integration`, ambos con `if: always()` |
-| `R-EN-4` secretos solo en GitHub Secrets | ✅ | `build-test-lint`/`integration` sin secretos; solo `e2e.yml` usa `OPENROUTER_API_KEY` |
-| `R-EN-5` navegadores fuera del job unitario | ✅ | Chromium solo en `e2e.yml` |
-
-Desviación encontrada y corregida en esta auditoría: `e2e.yml` declaraba
-`cancel-in-progress: false` y `release.yml` **no** declaraba `concurrency`; ambos
-incumplían `R-CI-2`. Se añade el grupo por ref a `release.yml` y se unifica
-`cancel-in-progress: true` en los tres workflows. Detalle en `AUDIT-HISTORY.md`.
+Controles sin ID `G-*`: puerta de seguridad (`R-QA-6`/`R-SE-16`), cliente real de la
+API (`npm run test:api`) y smoke de Prisma que se autoexcluye sin `DATABASE_URL`.
 
 ## Deudas abiertas (orden de ataque)
 
-0. **Conformidad hexagonal F7–F10** (ADR-27/ADR-30/ADR-33): el traslado físico está
-   completo y los puertos de jobs/sesiones/cola ya se extrajeron, pero faltan otros
-   puertos propiedad de domain/application, casos de uso fuera de
-   `apps/*`, adaptadores independientes, estructura interna por rol y enforcement de
-   manifests/semántica. Ver [`migracion-arquitectura.md`](../../migracion-arquitectura.md).
-1. **Sin protección de rama en el remoto (bloqueada por el plan)**: `gh api` devuelve
-   `403 Upgrade to GitHub Pro or make this repository public` — es un límite del plan
-   en repos privados, no deuda del repo. `R-GE-4` se cumple por disciplina (rama + PR).
-2. **Promoción entre entornos: mecanismo implementado; configuración del operador pendiente**
-   (`R-GE-5`, ADR-32): `promote.yml` + *environments* `staging`/`production`. Falta que el
-   operador cree los environments, sus aprobaciones/secretos y el deploy real de cada entorno.
-3. **Mutation testing: baseline del resto del área crítica pendiente** (`R-MT-1`/`R-MT-3`,
-   ADR-31): **Stryker** con **command runner** (correcto; el runner de Vitest daba falsos
-   supervivientes). `libs/domain/execution` = **92.73 %**; falta medir/endurecer el resto
-   (DSL, SSRF). El umbral de release (≥70 %) se evalúa a mano (no es gate de PR).
-4. **`overrides` de transitivas** (ADR-16/ADR-18): **revisado 2026-10-06** y reducido
-   de **8 a 1** (`deepmerge-ts: ^8.0.0`). Los otros siete (`multer`, `qs`,
-   `body-parser`, `http-cache-semantics`, `js-yaml`, `lodash`, `file-type`) ya los
-   resuelven parcheados sus padres tras Nest 12/eslint 10. Deuda viva: revisar de nuevo
-   cuando `@prisma/config` empaquete `deepmerge-ts >= 8`. Hoy `npm audit` = 0.
+1. **`npm audit` parcialmente mitigado (R-QA-6)**: **0 high / 12 moderate**
+   (2026-11-11). Resueltos `body-parser`, `multer`, `@nestjs/platform-express`,
+   `mongoose`, `zod` (4.6.7) y `minimatch` en dev tools. Los 12 moderate restantes
+   vienen de `crawlee@3.18.2 → @crawlee/core → minimatch@9`; el único fix publicado
+   degrada `crawlee` a 3.2.2 (breaking) y no se acepta. `npm audit --audit-level=high`
+   está en verde; se revisará cuando crawlee publique un rango parcheado.
+2. **Sin protección de rama en el remoto (bloqueada por el plan)**: `gh api`
+   devuelve 403 en repo privado; `R-GE-4` se cumple por disciplina (rama + PR).
+3. **Promoción entre entornos: configuración del operador pendiente** (`R-GE-5`,
+   ADR-32): faltan environments, aprobaciones/secretos y deploy real.
+4. **Mutation testing: baseline del resto del área crítica** (`R-MT-1`, ADR-31):
+   `libs/domain/execution` = 92.73 %; falta DSL/SSRF. No es gate de PR.
+5. **`overrides` de transitivas** (ADR-16/ADR-18): queda `deepmerge-ts`; revisar
+   cuando `@prisma/config` lo empaquete >= 8.
+6. **Integración/E2E no re-ejecutados en este entorno**: requieren Docker/Chromium;
+   el código afectado está cubierto por unitarios y contrato. Re-ejecutar en CI.
 
-## Cerradas en esta auditoría (2026-10-06)
+## Cerradas en esta auditoría (2026-11-11)
 
-- **Área `documentation/` (`R-DO`)** integrada y adaptada a este repo: sin «Core
-  Engine», sin «microservicios»/«Gateway», con `.env.production.example` creado
-  (hace ciertas `R-DO-3` y `R-DS-1`) y `R-DO-6` alineada con `R-C-12`/`G-8`.
-- **Área `ai-contributions/` (`R-AC`)** creada: el borrador `ai/01-contribuciones.md`
-  (que colisionaba con `01-dsl.md`, usaba `R-IA` y citaba un ID retirado del área
-  `gateway/`) se reescribió con sufijo propio `R-AC` y sin referencias al proyecto
-  origen.
-- **Reglas sincronizadas con el remoto**: `git/` (58 → 68 commits, `docs/` trackeado,
-  R-GE-3 ya no llama «sin gate» a `G-4`/`G-5`/`G-6`), `ci/` (2 jobs + `e2e.yml`, R-EN-2/3/4
-  ya no dicen «el día que…»), `test/` (workflow/jobs, 27 ficheros, `--env-file-if-exists`,
-  `R-I-12`/`R-C-12` ya no dicen «pendiente»), `_meta/CHECKLIST.md` y este snapshot.
-- **Evidencia de CI**: los gates nuevos dejaron de ser «configurados» y pasaron a ✅
-  con run verde real (PR #1 + `main` `37361504637`).
-- **`R-DO-1` cumplido**: los 12 packages y las 2 apps tienen `README.md` (responsabilidad,
-  dependencias exclusivas, superficie pública y comandos). Antes era deuda.
-- **Actions actualizadas a `v7`** (`checkout`, `setup-node`, `upload-artifact`): corren
-  sobre Node 24, lo que elimina el aviso de deprecación de Node 20 en los runners. La
-  versión de las actions queda normada en `R-EN-1`.
-- **`overrides` reducidos de 8 a 1**: revisión de mantenimiento (ADR-16) que comprobó
-  que solo `deepmerge-ts` sigue siendo necesario para mantener `npm audit` en 0; los
-  otros siete transitivos ya llegan parcheados por sus padres.
-- **Completitud del DSL** (`R-AI-2`, `R-U-12`): `tests/dsl-completeness.test.mjs`
-  comprueba que los 15 `type` del enum Zod tienen trato en el normalizador y aparecen
-  en el `DSL_SPEC` que se declara al modelo. Cierra el pendiente del área `ai/`.
-- **Índices de base de datos** (`R-DB-4`, `R-DB-5`): migración
-  `20261006153221_add_composite_indexes` con 11 índices (FK de `jobId`/`sessionId`/
-  `userId` y compuestos de consulta `Job(status, createdAt)`, `Job(userId, createdAt)`,
-  `Session(domain, updatedAt)`). Antes no había ninguno salvo `User.email`.
-- **Release por tag** (ADR-22): [`release.yml`](../../../.github/workflows/release.yml)
-  implementa `R-CD-1..4`, `R-CD-7` y `R-CD-8` (tag `v*.*.*`, procedencia en `main` +
-  `ci` verde, imágenes GHCR con etiquetas OCI, `dry_run` por defecto). Tercer workflow
-  aceptado por `R-CI-4`. Validado con un `dry_run` desde `main`.
-- **Detección de tests intermitentes** (`R-FL-1`): `scripts/repeat-tests.mjs` +
-  `npm run test:repeat -- <n>` repite la suite y falla si hay contraste entre
-  iteraciones. A propósito **no** es gate de PR (es lento).
-- **Retención definida** (`R-DI-8`): política explícita (se conservan `Job`/`Result`/
-  `JobError`/sesiones; se purgan `Page`/`Command`/`AIInteraction` con
-  `npm run retention:prune` y `RETENTION_ARTIFACT_DAYS`).
-- **Separación de Redis para la cola** (`R-RD-1`, ADR-23): `QUEUE_REDIS_URL`
-  (default = `REDIS_URL`) + servicio `redis-queue` bajo el perfil `split-redis`. La
-  separación deja de ser «imposible» y pasa a decisión de despliegue.
-- **Observabilidad provisionada** (`R-TM-*`, ADR-24): `infra/observability/`
-  (Prometheus + datasource/dashboard de Grafana) y `docker-compose.observability.yml`.
-  **Reglas de alerta** en `infra/observability/alerts.yml` (`R-TM-5`/`R-TM-9`, con
-  `scraper_jobs_dead_total`, métrica nueva del worker); **Alertmanager** (envío) queda
-  como contrato no provisionado.
-- **Instrumentación HTTP RED automática** (`R-TM-3`, `R-TM-4`): `HttpMetricsInterceptor`
-  (global) cuenta cada request en `scraper_http_requests_total{method,status,route}` y
-  `scraper_http_request_duration_ms_total`, con etiquetas de baja cardinalidad. Cubierto
-  por `tests/contract.test.mjs` (9/9).
-- **Integración reforzada** (`R-I-2`, `R-I-4`, `R-I-6`): la suite pasa de 4 a **7**
-  tests con filtro por `status` + paginación, `401` sin clave y mass-assignment
-  descartado por el `ValidationPipe`.
+- **F7 — puertos y dominio**: `AIProvider*`/`AICache` a `application/ai`;
+  `EnginePageCache` a `application/execution`; `EngineMemory` a `domain/scraper`;
+  roles `entities/value-objects/services` en los tres dominios; política SSRF
+  inyectada (`allowPrivateHosts`) y `assertPublicUrl` sin dependencia de entorno en
+  el dominio.
+- **F8 — casos de uso**: jobs, sesiones, usuarios, radiografía y workflow del agente
+  fuera de `apps/*`, con puertos para storage, cola, motor, memoria de sitio,
+  credenciales, métricas, proveedor y crawler. `UserService` ya no instancia Prisma
+  sin `DATABASE_URL`.
+- **F9 — adaptadores y borde**: `infrastructure/mongodb` desacoplado de
+  crawler/execution; `performRadiography` y el loop heurístico en
+  `application/scraper`; composición en `apps/*`.
+- **F10 — enforcement**: `check-boundaries.mjs` valida imports **y** manifests,
+  prohíbe adaptador→adaptador y protege 18 puertos; `tests/architecture.test.mjs`
+  añade 5 verificaciones de cierre (`R-HX-14`).
+- **Cobertura**: de 66.61/55.02/57.06 (auditoría anterior) a **70.91/59.21/61.61**.
+- **Tests**: de 174 a **266** (+92), con suites de casos de uso, arquitectura, webhooks y schedules.
 
 ## Historial heredado (procedencia)
 
 - **1ª auditoría (2026-10-05)**: reescritura completa de `docs/rules/` contra la
-  realidad medida (áreas nativas, `_meta` con cifras propias, ADR-16..ADR-21). Detalle
-  en [`AUDIT-HISTORY.md`](./AUDIT-HISTORY.md).
+  realidad medida (áreas nativas, `_meta` con cifras propias, ADR-16..ADR-21).
 - Entradas anteriores a 2026-10-05: pertenecen a **otros proyectos** («Core Engine»,
   ZKTeco) y se conservan como procedencia; no describen este repo.
 
@@ -230,6 +160,10 @@ docker compose up -d postgres mongodb redis
 DATABASE_URL='postgresql://scraper:scraper@localhost:5432/scraper?schema=public' \
 MONGODB_URI='mongodb://localhost:27017/scraper' REDIS_URL='redis://localhost:6379' \
   npm run test:integration
+
+# Arquitectura (R-HX-14)
+npm run boundaries:check
+npx vitest run tests/architecture.test.mjs tests/*-use-cases.test.mjs
 
 # Documentación (R-DO): READMEs que faltan y plantillas de entorno
 for d in apps/* libs/*/*; do [ -f "$d/README.md" ] || echo "falta $d/README.md"; done
