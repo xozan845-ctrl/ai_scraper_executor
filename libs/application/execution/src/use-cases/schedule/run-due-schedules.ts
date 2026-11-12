@@ -65,6 +65,7 @@ export class RunDueSchedulesUseCase {
       ai: { provider: schedule.aiProvider, model: schedule.aiModel },
       ...(schedule.webhookUrl ? { webhookUrl: schedule.webhookUrl } : {}),
       ...(schedule.render ? { render: schedule.render } : {}),
+      ...(schedule.outputSchema ? { outputSchema: schedule.outputSchema } : {}),
       scope: schedule.ownerScope ?? 'anon',
     });
     const runCount = schedule.runCount + 1;

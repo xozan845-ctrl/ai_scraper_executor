@@ -183,8 +183,8 @@ export async function processJob(jobId: string, deps: ProcessJobDeps): Promise<A
     return { ...result, status: 'CANCELLED', error: 'Job cancelado durante la ejecución' };
   }
 
-  // Etapa 2: interpretar resultados (normalizar valores + confianza + dedup).
-  let finalItems = enrichItems(result.items);
+  // Etapa 2: interpretar resultados (normalizar valores + validar + confianza + dedup).
+  let finalItems = enrichItems(result.items, record.outputSchema);
   if (deps.interpret === true && finalItems.length > 0) {
     try {
       const interpreted = await orchestrator.interpret({
@@ -193,11 +193,23 @@ export async function processJob(jobId: string, deps: ProcessJobDeps): Promise<A
         ...(record.aiModel ? { model: record.aiModel } : {}),
       }, { signal: jobSignal, timeoutMs: Math.max(1, normalizeJobLimits(payload.limits).maxRuntimeSec * 1000) });
       if (Array.isArray(interpreted)) {
-        const candidates = enrichItems(interpreted);
+        const candidates = enrichItems(interpreted, record.outputSchema);
         if (candidates.every(hasCompleteSource)) finalItems = candidates;
       }
     } catch (e) {
       console.warn(`[WORKER] interpret falló: ${(e as Error).message}`);
+    }
+  }
+  if (record.outputSchema?.strict) {
+    const enrichedCount = finalItems.length;
+    finalItems = finalItems.filter((item) => {
+      const source = (item as { _source?: { validation?: { valid?: boolean } } })._source;
+      return source?.validation?.valid !== false;
+    });
+    if (finalItems.length < enrichedCount) {
+      await store
+        .saveError(jobId, `${enrichedCount - finalItems.length} items descartados por outputSchema.strict`)
+        .catch(() => undefined);
     }
   }
   result.items = finalItems;

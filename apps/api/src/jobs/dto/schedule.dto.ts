@@ -1,6 +1,7 @@
 import { IsUrl, IsString, MinLength, IsOptional, IsObject, IsInt, Min, Max, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import type { OutputSchema } from '@ai-scraper/domain-scraper';
 import { JobAiDto, JobLimitsDto, RenderOptionsDto } from './create-job.dto';
 
 /** POST /api/v1/schedules — job recurrente por intervalo fijo. */
@@ -51,4 +52,9 @@ export class CreateScheduleDto {
   @ValidateNested()
   @Type(() => RenderOptionsDto)
   render?: RenderOptionsDto;
+
+  @ApiPropertyOptional({ description: 'Esquema de salida por campo', type: 'object', additionalProperties: true })
+  @IsOptional()
+  @IsObject()
+  outputSchema?: OutputSchema;
 }

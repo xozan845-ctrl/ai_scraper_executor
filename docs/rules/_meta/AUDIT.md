@@ -17,17 +17,17 @@
 
 | Métrica | Valor | Cómo se midió |
 |---|---|---|
-| Tests unitarios | **281 / 281 en verde, 49 ficheros** (44 `tests/*` + 5 reglas SOLID/arquitectura) | `MONGODB_MOCK=1 npm test` |
-| Ficheros de test | **47 en `tests/`**; 49 en `npm test` (excluye contrato, integración y E2E) | `ls tests/*.test.mjs` |
+| Tests unitarios | **287 / 287 en verde, 50 ficheros** (45 `tests/*` + 5 reglas SOLID/arquitectura) | `MONGODB_MOCK=1 npm test` |
+| Ficheros de test | **48 en `tests/`**; 50 en `npm test` (excluye contrato, integración y E2E) | `ls tests/*.test.mjs` |
 | Tests de contrato / integración | **13 / 7** (contrato re-ejecutado; integración histórica) | `npm run test:contract`, CI |
 | Runner | **Vitest** (`vitest run --coverage`) | script `test` |
-| Lint / fronteras | **0 errores, 0 warnings** · **123 imports + 19 manifests** | `npm run lint` |
+| Lint / fronteras | **0 errores, 0 warnings** · **127 imports + 19 manifests** | `npm run lint` |
 | Build | **exit 0**, 17 libs + 2 apps | `npm run build` |
-| Cobertura | **71.33 / 59.38 / 61.67** (líneas/ramas/funciones); umbral **65/54/56** | `npm test` (Vitest v8) |
+| Cobertura | **71.87 / 60.47 / 61.83** (líneas/ramas/funciones); umbral **65/54/56** | `npm test` (Vitest v8) |
 | Puerta de seguridad | 🟡 **0 high / 12 moderate** (upstream `crawlee→minimatch`) | `npm audit --audit-level=high` ✅ |
 | OpenAPI | `docs/openapi.json` sincronizada | `G-8` |
 | Libs | **19** en `libs/*/*` + 2 apps | `ls -d libs/*/*` |
-| Modelos Prisma | **12**; migraciones **9** | `prisma/schema.prisma` |
+| Modelos Prisma | **12**; migraciones **10** | `prisma/schema.prisma` |
 | Comandos del DSL | **19** literales Zod | `libs/domain/ai/src/value-objects/schemas.ts` |
 | Git | rama `refactor/hx-f7-puertos-dominio`; **133 commits, 0 merges** | `git rev-list` |
 | Workflows | **4** (`ci.yml`, `e2e.yml`, `release.yml`, `promote.yml`) | `.github/workflows/` |
@@ -36,13 +36,13 @@
 
 | Capa | Estado | Evidencia |
 |---|---|---|
-| Unit / integración con dobles | 🟢 | **281 tests / 49 ficheros**, sin red externa ni Docker (`MONGODB_MOCK=1`) |
+| Unit / integración con dobles | 🟢 | **287 tests / 50 ficheros**, sin red externa ni Docker (`MONGODB_MOCK=1`) |
 | Frontend | **N/A** | No hay `frontend/`; `G-2`/`R-COV-5` reservados |
 | Integración con almacén real | 🟡 histórico | 7/7 en CI; no re-ejecutado en Android sin Docker |
 | Contrato de API | 🟢 | `tests/contract.test.mjs` (13/13) |
 | E2E real | 🟡 histórico | workflow `e2e.yml` en release; requiere Chromium + LLM |
 | OpenAPI | 🟢 | `docs/openapi.json` + `openapi:check` |
-| Cobertura | 🟢 | 71.33/59.38/61.67 sobre umbrales 65/54/56 |
+| Cobertura | 🟢 | 71.87/60.47/61.83 sobre umbrales 65/54/56 |
 | Property-based | 🟢 | `fast-check` + `tests/property.test.mjs` |
 | Mutation testing | 🟢 provisionado | Stryker command runner; no es gate de PR |
 | Lint / Build (`G-7`) | 🟢 | 0 errores / 0 warnings; build exit 0 |
@@ -61,7 +61,7 @@ declaraciones/re-exports en infraestructura.
 | Regla / criterio | Estado | Evidencia reproducible |
 |---|---|---|
 | `R-HX-1`, `R-HX-6`, `R-HX-9` — topología | ✅ | `packages/` ausente; `apps/*` + 16 `libs/*/*`; nombres `@ai-scraper/<capa>-<contexto>` |
-| `R-HX-2` — dirección estricta | ✅ | 123 imports y 19 manifests sin aristas prohibidas |
+| `R-HX-2` — dirección estricta | ✅ | 127 imports y 19 manifests sin aristas prohibidas |
 | `R-HX-3`, `R-HX-13` — dominio aislado | ✅ | sin `process.env`, SDKs ni I/O en `libs/domain` ni `libs/application`; política SSRF inyectada |
 | `R-HX-4` — enforcement | ✅ | el script cubre imports, manifests, adaptadores y puertos; corre en `npm run lint` |
 | `R-HX-5` — composición | ✅ | adaptadores y config se instancian en `main.ts`, `providers.ts` y adaptadores de `apps/*` |
@@ -80,9 +80,9 @@ delgado; **F10** enforcement y cierre. Plan completo en
 
 | Gate | Estado | Evidencia |
 |---|---|---|
-| `G-1` suite unitaria | ✅ | ejecución local 2026-11-11: 281/281 |
+| `G-1` suite unitaria | ✅ | ejecución local 2026-11-11: 287/287 |
 | `G-2` unit frontend | **N/A** | sin frontend (ID reservado) |
-| `G-3` cobertura | ✅ | `vitest run --coverage`; 71.33/59.38/61.67 |
+| `G-3` cobertura | ✅ | `vitest run --coverage`; 71.87/60.47/61.83 |
 | `G-4` integración | 🟡 histórico | 7/7 en CI; no re-ejecutado sin Docker |
 | `G-5` contrato | ✅ | 13/13 local |
 | `G-6` E2E | 🟡 histórico | `e2e.yml` (release), no re-ejecutado |
@@ -134,8 +134,8 @@ API (`npm run test:api`) y smoke de Prisma que se autoexcluye sin `DATABASE_URL`
 - **F10 — enforcement**: `check-boundaries.mjs` valida imports **y** manifests,
   prohíbe adaptador→adaptador y protege 18 puertos; `tests/architecture.test.mjs`
   añade 5 verificaciones de cierre (`R-HX-14`).
-- **Cobertura**: de 66.61/55.02/57.06 (auditoría anterior) a **71.33/59.38/61.67**.
-- **Tests**: de 174 a **281** (+107), con suites de casos de uso, arquitectura, webhooks y schedules.
+- **Cobertura**: de 66.61/55.02/57.06 (auditoría anterior) a **71.87/60.47/61.83**.
+- **Tests**: de 174 a **287** (+113), con suites de casos de uso, arquitectura, webhooks y schedules.
 
 ## Historial heredado (procedencia)
 

@@ -2025,3 +2025,20 @@ el stack es local, no de producción (allí el scrape debe llevar `x-api-key`, `
   motor elige el valor con consenso y registra el selector ganador en `_source`.
 - INSPECT_PAGE informa conteos de structured data y respuestas de red.
 - Evidencia: 281/281 tests, cobertura 71.33/59.38/61.67, contrato 13/13 y build/lint verdes.
+
+---
+
+# P3 — validación semántica y confianza real
+
+- **Fecha:** 2026-11-12
+- **Alcance:** calidad de datos por campo y rechazo opcional de items inválidos.
+
+## Cambio y evidencia
+
+- `outputSchema` por job/schedule (`strict` + `fields`): tipos string/number/price/url/
+  date/email/boolean, `required`, `pattern`, `min/max`, `enum`.
+- Validadores puros y normalización de precios/números/fechas/URLs.
+- Confianza compuesta: validación por campo × fiabilidad de la fuente (JSON-LD/microdata/
+  network/DOM), no solo campos rellenos.
+- `_source.validation` y `_source.confidence` por item; `strict:true` descarta inválidos.
+- Evidencia: 287/287 tests, cobertura 71.87/60.47/61.83, contrato 13/13, build/lint verdes.

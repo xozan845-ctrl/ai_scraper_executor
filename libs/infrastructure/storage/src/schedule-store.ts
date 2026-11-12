@@ -17,6 +17,7 @@ function toRecord(schedule: {
   aiModel: string | null;
   webhookUrl: string | null;
   renderOptions?: unknown;
+  outputSchema?: unknown;
   ownerScope: string;
   intervalSec: number;
   maxRuns: number | null;
@@ -38,6 +39,7 @@ function toRecord(schedule: {
     aiModel: schedule.aiModel ?? undefined,
     webhookUrl: schedule.webhookUrl ?? undefined,
     render: (schedule.renderOptions as ScheduleRecord['render']) ?? undefined,
+    outputSchema: (schedule.outputSchema as ScheduleRecord['outputSchema']) ?? undefined,
     ownerScope: schedule.ownerScope,
     intervalSec: schedule.intervalSec,
     maxRuns: schedule.maxRuns ?? undefined,
@@ -128,6 +130,7 @@ class PrismaScheduleStore implements ScheduleStore {
         aiModel: input.aiModel ?? null,
         webhookUrl: input.webhookUrl ?? null,
         renderOptions: (input.render ?? undefined) as never,
+        outputSchema: (input.outputSchema ?? undefined) as never,
         ownerScope: input.ownerScope ?? 'anon',
         intervalSec: input.intervalSec,
         maxRuns: input.maxRuns ?? null,

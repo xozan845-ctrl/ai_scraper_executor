@@ -38,6 +38,11 @@
             ],
             "description": "Límites del job (§35)"
           },
+          "outputSchema": {
+            "additionalProperties": true,
+            "description": "Esquema de salida por campo: { strict, fields: { campo: { type, required, pattern, min, max, enum } } }",
+            "type": "object"
+          },
           "priority": {
             "description": "FASE 11: 1 = máxima, 10 = mínima, 5 = defecto",
             "maximum": 10,
@@ -92,6 +97,11 @@
             "description": "Número máximo de ejecuciones; al alcanzarlo queda COMPLETED",
             "minimum": 1,
             "type": "number"
+          },
+          "outputSchema": {
+            "additionalProperties": true,
+            "description": "Esquema de salida por campo",
+            "type": "object"
           },
           "render": {
             "allOf": [

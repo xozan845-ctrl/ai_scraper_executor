@@ -10,4 +10,5 @@ export * from './use-cases/process-job';
 export * from './use-cases/radiography';
 export * from './use-cases/heuristic-agent-loop';
 export * from './services/interpret';
+export * from './services/output-schema';
 export * from './services/precision';
