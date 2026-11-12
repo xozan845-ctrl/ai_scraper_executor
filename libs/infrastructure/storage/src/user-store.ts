@@ -43,6 +43,11 @@ class MemoryUserRepository implements UserRepository {
     return [...this.users.values()].some((user) => user.apiKeyHash === hash);
   }
 
+  async findByApiKeyHash(hash: string): Promise<{ userId: string; email: string; role: UserRole } | null> {
+    const user = [...this.users.values()].find((row) => row.apiKeyHash === hash);
+    return user ? { userId: user.id, email: user.email, role: user.role } : null;
+  }
+
   async recordLogin(): Promise<void> {}
 
   private save(data: CreateUserData): CreatedUserRecord {
@@ -84,6 +89,14 @@ class PrismaUserRepository implements UserRepository {
 
   async existsApiKeyHash(hash: string): Promise<boolean> {
     return Boolean(await this.prisma.user.findUnique({ where: { apiKeyHash: hash }, select: { id: true } }));
+  }
+
+  async findByApiKeyHash(hash: string): Promise<{ userId: string; email: string; role: UserRole } | null> {
+    const user = await this.prisma.user.findUnique({
+      where: { apiKeyHash: hash },
+      select: { id: true, email: true, role: true },
+    });
+    return user ? { userId: user.id, email: user.email, role: user.role as UserRole } : null;
   }
 
   async recordLogin(email: string): Promise<void> {

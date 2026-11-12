@@ -1,6 +1,11 @@
-import { createJobStore, createScheduleStore, createSessionStore, createUserRepository } from '@ai-scraper/infrastructure-storage';
+import { createApiKeyRepository, createJobStore, createScheduleStore, createSessionStore, createUserRepository } from '@ai-scraper/infrastructure-storage';
 import { createJobQueue } from '@ai-scraper/infrastructure-queue';
-import { createScheduleCrudUseCases, type ScheduleStore } from '@ai-scraper/application-execution';
+import {
+  createApiKeyUseCases,
+  createScheduleCrudUseCases,
+  type ApiKeyUseCases,
+  type ScheduleStore,
+} from '@ai-scraper/application-execution';
 import { jobUrlPolicy } from './policy';
 
 export const JOB_STORE = 'JOB_STORE';
@@ -9,6 +14,7 @@ export const SESSION_STORE = 'SESSION_STORE';
 export const USER_REPOSITORY = 'USER_REPOSITORY';
 export const SCHEDULE_STORE = 'SCHEDULE_STORE';
 export const SCHEDULE_USE_CASES = 'SCHEDULE_USE_CASES';
+export const API_KEY_USE_CASES = 'API_KEY_USE_CASES';
 export const RADIOGRAPHER = 'RADIOGRAPHER';
 
 /** Radiografía inyectable (test override). */
@@ -44,6 +50,11 @@ export const scheduleUseCasesProvider = {
   provide: SCHEDULE_USE_CASES,
   useFactory: (store: ScheduleStore) => createScheduleCrudUseCases({ store, policy: jobUrlPolicy() }),
   inject: [SCHEDULE_STORE],
+};
+
+export const apiKeyUseCasesProvider = {
+  provide: API_KEY_USE_CASES,
+  useFactory: (): ApiKeyUseCases => createApiKeyUseCases({ repository: createApiKeyRepository() }),
 };
 
 export const radiographerProvider = {

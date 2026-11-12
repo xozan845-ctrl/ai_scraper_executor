@@ -50,6 +50,10 @@ export class UserService {
     return this.useCases.verifyApiKey(presented);
   }
 
+  authenticateApiKey(presented: string): Promise<{ userId: string; email: string; role: UserRole } | null> {
+    return this.useCases.authenticateApiKey(presented);
+  }
+
   generateApiKey(): string {
     return this.useCases.generateApiKey();
   }

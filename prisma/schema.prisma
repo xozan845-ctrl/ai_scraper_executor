@@ -54,6 +54,20 @@ model Job {
 }
 
 // Sesión tipo "chat": una URL a analizar con su contexto (radiografía) e historial.
+model ApiKey {
+  id         String    @id @default(cuid())
+  name       String
+  keyHash    String    @unique
+  prefix     String
+  role       String    @default("user")
+  createdBy  String?
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([role, revokedAt])
+}
+
 model JobSchedule {
   id           String    @id @default(cuid())
   url          String

@@ -11,12 +11,15 @@ import { SessionsService } from './sessions.service';
 import { FirstUserController } from './first-user.controller';
 import { SchedulesController } from './schedules.controller';
 import { SchedulesService } from './schedules.service';
+import { ApiKeysController } from './api-keys.controller';
+import { ApiKeysService } from './api-keys.service';
+import { AdminGuard } from './admin.guard';
 import { UserService } from './user.service';
 import { HealthController } from '../health/health.controller';
 import { ApiKeyGuard } from './api-key.guard';
 import { CreateRateLimitGuard } from './rate-limit.guard';
 import { FirstRunGuard } from './first-run.guard';
-import { storeProvider, queueProvider, sessionStoreProvider, userRepositoryProvider, scheduleStoreProvider, scheduleUseCasesProvider, radiographerProvider } from './providers';
+import { storeProvider, queueProvider, sessionStoreProvider, userRepositoryProvider, scheduleStoreProvider, scheduleUseCasesProvider, apiKeyUseCasesProvider, radiographerProvider } from './providers';
 
 @Module({
   controllers: [
@@ -27,6 +30,7 @@ import { storeProvider, queueProvider, sessionStoreProvider, userRepositoryProvi
     SessionsController,
     FirstUserController,
     SchedulesController,
+    ApiKeysController,
     HealthController,
   ],
   providers: [
@@ -36,7 +40,9 @@ import { storeProvider, queueProvider, sessionStoreProvider, userRepositoryProvi
     SessionsService,
     UserService,
     SchedulesService,
+    ApiKeysService,
     ApiKeyGuard,
+    AdminGuard,
     CreateRateLimitGuard,
     FirstRunGuard,
     storeProvider,
@@ -45,6 +51,7 @@ import { storeProvider, queueProvider, sessionStoreProvider, userRepositoryProvi
     userRepositoryProvider,
     scheduleStoreProvider,
     scheduleUseCasesProvider,
+    apiKeyUseCasesProvider,
     radiographerProvider,
   ],
 })

@@ -1,6 +1,20 @@
 {
   "components": {
     "schemas": {
+      "CreateApiKeyDto": {
+        "properties": {
+          "name": {
+            "example": "Cliente Acme — producción",
+            "maxLength": 80,
+            "minLength": 2,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
       "CreateJobDto": {
         "properties": {
           "ai": {
@@ -221,6 +235,97 @@
   },
   "openapi": "3.0.0",
   "paths": {
+    "/api/v1/auth/api-keys": {
+      "get": {
+        "operationId": "ApiKeysController_list",
+        "parameters": [
+          {
+            "description": "API key de administración (superadmin)",
+            "in": "header",
+            "name": "x-api-key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Lista API keys emitidas (sin el secreto)",
+        "tags": [
+          "auth"
+        ]
+      },
+      "post": {
+        "operationId": "ApiKeysController_create",
+        "parameters": [
+          {
+            "description": "API key de administración (superadmin)",
+            "in": "header",
+            "name": "x-api-key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateApiKeyDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Clave creada; el campo apiKey solo aparece aquí"
+          }
+        },
+        "summary": "Genera una API key de cliente (se muestra una sola vez)",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/api-keys/{id}": {
+      "delete": {
+        "operationId": "ApiKeysController_revoke",
+        "parameters": [
+          {
+            "description": "API key de administración (superadmin)",
+            "in": "header",
+            "name": "x-api-key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Revoca una API key de cliente",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/api/v1/auth/register-first": {
       "post": {
         "operationId": "FirstUserController_registerFirst",

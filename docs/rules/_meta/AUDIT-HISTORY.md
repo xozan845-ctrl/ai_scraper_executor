@@ -1953,3 +1953,21 @@ el stack es local, no de producción (allí el scrape debe llevar `x-api-key`, `
   `MONGODB_MOCK=1 npm test` → **266/266**, cobertura **70.91/59.21/61.61**,
   contrato **11/11**, OpenAPI sincronizada, `prisma validate` ✅.
 - **Límite:** integración/E2E no re-ejecutados en Android sin Docker/Chromium.
+
+---
+
+# API keys de cliente
+
+- **Fecha:** 2026-11-12
+- **Alcance:** emisión, listado y revocación de claves de cliente por API.
+
+## Cambio y evidencia
+
+- Modelo `ApiKey` (hash SHA-256, prefijo, rol, `lastUsedAt`, `revokedAt`) y migración.
+- Endpoints `POST/GET/DELETE /api/v1/auth/api-keys`, protegidos por `ApiKeyGuard` + `AdminGuard`.
+- Claves de entorno y usuarios `superadmin` administran; las claves de cliente tienen rol
+  `user`, consumen la API normal y no pueden administrar claves.
+- El secreto se devuelve una sola vez; en BD solo queda el hash. `authScope` por clave
+  mantiene aislamiento de jobs entre clientes.
+- Evidencia: unitarios de casos de uso/guards, contrato de API (12/12), OpenAPI sincronizada,
+  build/lint/test verdes.
