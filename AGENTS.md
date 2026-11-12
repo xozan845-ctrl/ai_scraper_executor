@@ -4,7 +4,7 @@ Guía para agentes de IA que trabajen en **ai-scraping-executor**. Monorepo npm 
 (`apps/*` + `libs/*/*`), TypeScript, Node ≥20 (la CI y las imágenes usan 22), runner
 **Vitest** (`npm test`).
 
-`LA IA ES EL CEREBRO. CRAWLEE ES EL MOTOR.` La IA decide QUÉ (DSL de 15 comandos); el motor decide CÓMO.
+`LA IA ES EL CEREBRO. CRAWLEE ES EL MOTOR.` La IA decide QUÉ (DSL de 17 comandos); el motor decide CÓMO.
 
 ## Punto fijo normativo (leer antes de cambiar)
 
@@ -113,7 +113,7 @@ libs/application/ai               AIOrchestrator, prompts, context-builder; F8 a
    con `rootDir: src` y `outDir: dist`. Los tests cargan `dist/`, así que edita TS y **rebuild** antes de testear.
 2. **Seguridad**: toda validación de URL pasa por `@ai-scraper/shared-security` (`assertPublicUrl`). La IA nunca
    ejecuta código arbitrario. SSRF/allowlist en `CommandValidator`. No duplicar lógica SSRF.
-3. **DSL**: los 15 comandos están en `libs/domain/ai/src/schemas.ts` (Zod). La IA solo emite estos.
+3. **DSL**: los 17 comandos están en `libs/domain/ai/src/value-objects/schemas.ts` (Zod). La IA solo emite estos.
    Los modelos débiles se corrigen en `normalize.ts` ANTES de validar; la validación sigue estricta.
 4. **Trazabilidad §33**: cada item extraído lleva `_source { url, selector, scrapedAt }`.
 5. **Fallbacks**: Mongo/Redis/Prisma tienen fallback en memoria avisado por log. Nunca fallar en silencio.

@@ -17,15 +17,15 @@ ADR-NN` y se añade el nuevo. El árbol de reglas tiene la misma regla (`R-COV-3
 
 ---
 
-## ADR-01: La IA decide QUÉ, el motor decide CÓMO (DSL de 15 comandos)
+## ADR-01: La IA decide QUÉ, el motor decide CÓMO (DSL de 17 comandos)
 
 - **Fecha**: 2026-09-28
 - **Estado**: Aceptado
 - **Contexto**: Un agente que scrappea con un LLM tiene dos riesgos: que el modelo
   ejecute acciones arbitrarias sobre la máquina, y que la lógica de crawling se
   disperse entre prompts.
-- **Decisión**: El LLM emite **exclusivamente** un plan en el DSL de 15 comandos
-  (`libs/domain/ai/src/schemas.ts`), validado con Zod después de pasar por el
+- **Decisión**: El LLM emite **exclusivamente** un plan en el DSL de 17 comandos
+  (`libs/domain/ai/src/value-objects/schemas.ts`), validado con Zod después de pasar por el
   normalizador. El motor (`ExecutionEngine`) interpreta esos comandos. La IA nunca
   ejecuta código: no hay eval, ni shell, ni acceso a ficheros.
 - **Consecuencias**: (a) el prompt es pequeño y sus tokens son caros → presupuestados

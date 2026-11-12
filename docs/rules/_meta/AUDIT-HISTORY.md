@@ -1903,3 +1903,53 @@ el stack es local, no de producción (allí el scrape debe llevar `x-api-key`, `
 - `README.md`: añadido `POST /api/v1/jobs/:id/retry` a la lista de endpoints de Jobs.
 - Verificación: `npm run openapi:check` (sin cambios), `npm run lint` (verde), `MONGODB_MOCK=1 npm test` (174/174 verde), cobertura 66/55/57.
 - Rama: `docs/fix-audit-snapshot-and-endpoints` (semántica, desde `main` actualizado).
+
+---
+
+# Cierre F7–F10 y conformidad hexagonal
+
+- **Fecha:** 2026-11-11
+- **Disparador:** cierre de las fases F7–F10 de ADR-33 y verificación de `R-HX-14`.
+
+## Cambio y evidencia
+
+- **F7:** puertos de cache/proveedor/motor/memoria en `application/*`/`domain/scraper`;
+  roles de dominio (`entities/value-objects/services`); política SSRF inyectada.
+- **F8:** casos de uso de jobs, sesiones, usuarios, radiografía y workflow del agente
+  en `application/execution` y `application/scraper`; `apps/*` queda como composition
+  root. Tests con dobles de puertos en `tests/*-use-cases.test.mjs`.
+- **F9:** `infrastructure/mongodb` desacoplado de crawler/execution; radiografía y
+  loop heurístico en `application/scraper`; cero imports entre adaptadores.
+- **F10:** `check-boundaries.mjs` valida **99 imports + 18 manifests**, prohíbe
+  adaptador→adaptador y protege 18 puertos; `tests/architecture.test.mjs` (5 tests)
+  fija los criterios de `R-HX-14`.
+- **Medición local:** `npm run build` ✅, `npm run lint` ✅ (0/0),
+  `MONGODB_MOCK=1 npm test` → **254/254**, cobertura **70.20/58.62/60.57**,
+  `test:contract` 9/9, `openapi:check` ✅.
+- **Deuda nueva detectada:** `npm audit` → 5 high / 27 moderate (avisos 2026-11);
+  se registra como deuda de mantenimiento separada, no de arquitectura.
+- **Límite del entorno:** integración y E2E no re-ejecutados en Android/Termux
+  (requieren Docker/Chromium); su evidencia histórica de CI se conserva.
+
+---
+
+# Cierre N1–N3 + mantenimiento de seguridad
+
+- **Fecha:** 2026-11-11
+- **Alcance:** webhooks firmados, jobs programados y comandos EXTRACT_TABLE/EXTRACT_TEXT.
+
+## Cambio y evidencia
+
+- **N1 Webhooks:** `webhookUrl` en jobs, SSRF centralizado (`safePostJson`, sin
+  redirects), firma HMAC-SHA256, 3 reintentos y métricas de envío/fallo.
+- **N2 Schedules:** modelo `JobSchedule`, API CRUD/pausa/resume, scheduler en worker
+  con lock Redis por schedule y cierre por `maxRuns`.
+- **N3 Extracción:** DSL a 17 comandos (`EXTRACT_TABLE`, `EXTRACT_TEXT`), normalizador,
+  límites, prompts y motor con trazabilidad `_source`.
+- **Mantenimiento:** `npm audit` de 5 high / 27 moderate a **0 high / 12 moderate**
+  (upstream `crawlee→minimatch`); actualizados zod 4.6.7, mongoose 8.24.8,
+  `@nestjs/platform-express` 12.4.2 y overrides de `minimatch`.
+- **Medición local:** build ✅, lint 0/0 (110 imports + 19 manifests),
+  `MONGODB_MOCK=1 npm test` → **266/266**, cobertura **70.91/59.21/61.61**,
+  contrato **11/11**, OpenAPI sincronizada, `prisma validate` ✅.
+- **Límite:** integración/E2E no re-ejecutados en Android sin Docker/Chromium.

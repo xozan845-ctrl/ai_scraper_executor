@@ -13,7 +13,7 @@ abierto).
 
 | Archivo | Contenido | Sufijo |
 |---|---|---|
-| `01-dsl.md` | El DSL cerrado: 15 comandos, Zod estricto, normalizador, validación SSRF/allowlist, presupuestos anti-escalada | `R-AI` (1–8) |
+| `01-dsl.md` | El DSL cerrado: 17 comandos, Zod estricto, normalizador, validación SSRF/allowlist, presupuestos anti-escalada | `R-AI` (1–8) |
 | `02-modelos.md` | Proveedor, selección y fallback de modelos, prompts, caché LLM, presupuesto de tokens, circuit breaker | `R-AI` (9–16) |
 
 > Los documentos derivados de este área (**AUDIT, CHECKLIST, historiales**) no viven
@@ -27,14 +27,14 @@ abierto).
 | `R-AI-*` | 1–8 | `01-dsl.md` | Qué puede emitir la IA y cómo se valida |
 | `R-AI-*` | 9–16 | `02-modelos.md` | Proveedor, modelos, prompts, caché y presupuesto |
 
-## Los 15 comandos del DSL
+## Los 17 comandos del DSL
 
-Fuente única: [`../../../libs/domain/ai/src/schemas.ts`](../../../libs/domain/ai/src/schemas.ts).
+Fuente única: [`../../../libs/domain/ai/src/value-objects/schemas.ts`](../../../libs/domain/ai/src/value-objects/schemas.ts).
 
 ```
-NAVIGATE · EXTRACT · EXTRACT_LIST · FOLLOW_LINKS · PAGINATE · SCROLL · CLICK · TYPE
-WAIT · FINISH · AUTHENTICATE · GET_ATTRIBUTE · INSPECT_PAGE · INSPECT_LINKS
-INSPECT_ELEMENTS
+NAVIGATE · EXTRACT · EXTRACT_LIST · EXTRACT_TABLE · EXTRACT_TEXT · FOLLOW_LINKS
+PAGINATE · SCROLL · CLICK · TYPE · WAIT · FINISH · AUTHENTICATE · GET_ATTRIBUTE
+INSPECT_PAGE · INSPECT_LINKS · INSPECT_ELEMENTS
 ```
 
 Si se añade un comando, se añade **su schema Zod**, su normalizador si el modelo

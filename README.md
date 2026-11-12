@@ -116,6 +116,11 @@ npm run test:api:fast       # solo los rápidos (sin radiografía/job/chat real)
 | `RADIOGRAPHY_TIMEOUT_MS` | Timeout de una radiografía de sesión | `120000` |
 | `ALLOWED_DOMAINS` | Dominios permitidos | - (todos) |
 | `RATE_LIMIT_CREATE_PER_MIN` | Rate limit POST /jobs | `30` |
+| `WEBHOOK_SIGNING_SECRET` | Secreto HMAC-SHA256 para firmar webhooks (`X-Webhook-Signature`) | - (sin firma) |
+| `WEBHOOK_TIMEOUT_MS` | Timeout de cada entrega de webhook | `5000` |
+| `WEBHOOK_MAX_ATTEMPTS` | Intentos por webhook (backoff exponencial) | `3` |
+| `SCHEDULER_TICK_MS` | Frecuencia del scheduler del worker | `15000` |
+| `SCHEDULER_BATCH` | Schedules vencidos procesados por tick | `50` |
 | `INSTANCE_ID` | ID réplica métricas | `hostname-pid` |
 
 ## Estructura del Proyecto
@@ -130,7 +135,7 @@ libs/
   shared/observability/  # Logger JSON + MetricsCollector (Prometheus, instance labels)
   domain/execution/      # JobStatus/JobLimits/DEFAULT_LIMITS/normalizeJobLimits
   domain/scraper/        # TracedValue/StructuredItem (trazabilidad)
-  domain/ai/             # DSL Zod (15 comandos) + CommandValidator + normalize
+  domain/ai/             # DSL Zod (17 comandos) + CommandValidator + normalize
   application/ai/        # AIOrchestrator + prompts + context-builder
   application/execution/ # Puertos/DTOs de jobs, sesiones y cola
   infrastructure/crawler/       # CrawlerService (CheerioCrawler + PlaywrightCrawler, hybrid, SessionPool)
@@ -151,7 +156,7 @@ apps/worker/Dockerfile   # node:22-bookworm-slim + Playwright Chromium
 
 ### Jobs
 ```
-POST   /api/v1/jobs                    # Crear job {url, instruction, limits?, ai?, priority?}
+POST   /api/v1/jobs                    # Crear job {url, instruction, limits?, ai?, priority?, webhookUrl?}
 GET    /api/v1/jobs?limit=20           # Listar jobs
 GET    /api/v1/jobs/:id                # Detalle job
 GET    /api/v1/jobs/:id/results        # Items extraídos (con _source tracing)
@@ -160,6 +165,26 @@ GET    /api/v1/jobs/:id/ai?limit=50    # Interacciones LLM (paginado)
 POST   /api/v1/jobs/:id/cancel         # Cancelar (terminal seguro)
 POST   /api/v1/jobs/:id/retry          # Reintentar (limpia artefactos, idempotente)
 ```
+
+> **Webhooks**: `webhookUrl` recibe un `POST` JSON al terminar el job
+> (`job.completed|failed|timeout|cancelled`). La URL pasa SSRF y no se permiten
+> redirects; con `WEBHOOK_SIGNING_SECRET` se firma el cuerpo con HMAC-SHA256 en
+> `X-Webhook-Signature: sha256=<hex>`. Se reintenta con backoff (5xx/429/timeout) y
+> un fallo del receptor **no** cambia el estado del job.
+
+### Schedules (jobs recurrentes)
+```
+POST   /api/v1/schedules             # Crear {url, instruction, intervalSec, maxRuns?, limits?, ai?, webhookUrl?}
+GET    /api/v1/schedules             # Listar schedules del usuario
+GET    /api/v1/schedules/:id         # Detalle
+POST   /api/v1/schedules/:id/pause   # Pausar
+POST   /api/v1/schedules/:id/resume  # Reanudar (recalcula nextRunAt)
+DELETE /api/v1/schedules/:id         # Eliminar
+```
+
+> El **worker** ejecuta los schedules vencidos con lock distribuido en Redis (una
+> sola réplica encola cada ejecución). `intervalSec` mínimo 10 s; `maxRuns` cierra el
+> schedule en `COMPLETED`. Cada ejecución reutiliza los webhooks de N1.
 
 ### Radiografía / Memoria (FASE 12)
 ```
@@ -310,10 +335,11 @@ RATE_LIMIT_CREATE_PER_MIN=60
   `safeFetchText` (revalida **cada redirect** y el tamaño del body), `createAllowlist`.
   `ALLOW_PRIVATE_HOSTS=1` solo tiene efecto fuera de `NODE_ENV=production`.
 - **Allowlist por job**: dominio fijado al crear job, IA no puede escalar.
-- **Límites anti-escalada (§35)**: `PAGINATE/FOLLOW_LINKS/EXTRACT_LIST` se recortan en planner **y** en
+- **Límites anti-escalada (§35)**: `PAGINATE/FOLLOW_LINKS/EXTRACT_LIST/EXTRACT_TABLE` se recortan en planner **y** en
   cada decisión dinámica (Fase B/recovery); `maxRuntimeSec` actúa como deadline del job.
 - **Auth fail-closed**: `API_KEYS` por header `x-api-key`; en `NODE_ENV=production` sin claves, todo responde 401.
-- **DSL tipado**: 15 comandos Zod — la IA **nunca** ejecuta código arbitrario.
+- **DSL tipado**: 17 comandos Zod — la IA **nunca** ejecuta código arbitrario.
+  `EXTRACT_TABLE` devuelve filas con cabeceras y `EXTRACT_TEXT` texto limpio acotado.
 - **Rate limits**: API (Redis sliding-window, fallback memoria) + Crawlee (`CRAWLEE_MAX_REQUESTS_PER_MINUTE`).
 - **Sanitización**: HTML >2MB rechazado, timeout 20s, UA propio.
 - **Idempotencia**: reintentos BullMQ limpian artefactos previos (`clearJobArtifacts`); cancelación
@@ -365,7 +391,7 @@ OPENROUTER_FALLBACK_MODELS=qwen/qwen3.8-27b:free,nvidia/nemotron-3-super-120b-a1
 
 ### 2. Prompts reforzados con el esquema DSL
 
-Los prompts del planner/explorer/recovery incluyen el **esquema DSL completo** (15 comandos) y un
+Los prompts del planner/explorer/recovery incluyen el **esquema DSL completo** (17 comandos) y un
 ejemplo, exigiendo el campo `"type"` en MAYÚSCULAS y prohibiendo comandos inventados
 (`loop`, `waitForSelector`, etc.). Ver `libs/infrastructure/ai-providers/src/prompts.ts`.
 
