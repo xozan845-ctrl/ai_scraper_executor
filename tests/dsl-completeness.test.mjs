@@ -14,9 +14,9 @@ const providers = await import('../libs/infrastructure/ai-providers/dist/index.j
 const TYPES = Object.values(commands.CommandType);
 
 describe('Completitud del DSL (R-AI-2, R-U-12)', () => {
-  it('el enum del DSL tiene exactamente 17 comandos', () => {
-    assert.equal(TYPES.length, 17, `se esperaban 17 tipos, hay ${TYPES.length}`);
-    assert.equal(new Set(TYPES).size, 17, 'hay tipos duplicados en el enum');
+  it('el enum del DSL tiene exactamente 19 comandos', () => {
+    assert.equal(TYPES.length, 19, `se esperaban 19 tipos, hay ${TYPES.length}`);
+    assert.equal(new Set(TYPES).size, 19, 'hay tipos duplicados en el enum');
   });
 
   it('cada type sobrevive al normalizador (no se descarta ni muta)', () => {

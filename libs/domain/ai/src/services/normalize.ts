@@ -30,6 +30,19 @@ const ALIASES: Record<string, string> = {
   extracttext: 'EXTRACT_TEXT',
   'extract-text': 'EXTRACT_TEXT',
   text: 'EXTRACT_TEXT',
+  extract_structured: 'EXTRACT_STRUCTURED',
+  extractstructured: 'EXTRACT_STRUCTURED',
+  structured_data: 'EXTRACT_STRUCTURED',
+  jsonld: 'EXTRACT_STRUCTURED',
+  json_ld: 'EXTRACT_STRUCTURED',
+  opengraph: 'EXTRACT_STRUCTURED',
+  open_graph: 'EXTRACT_STRUCTURED',
+  microdata: 'EXTRACT_STRUCTURED',
+  extract_network: 'EXTRACT_NETWORK',
+  extractnetwork: 'EXTRACT_NETWORK',
+  network: 'EXTRACT_NETWORK',
+  xhr: 'EXTRACT_NETWORK',
+  api_data: 'EXTRACT_NETWORK',
   follow_links: 'FOLLOW_LINKS',
   followlinks: 'FOLLOW_LINKS',
   paginate: 'PAGINATE',
@@ -105,6 +118,9 @@ export function normalizeRawCommand(raw: unknown): NormalizeResult {
   copy('attribute');
   copy('limit');
   copy('maxLength');
+  copy('source');
+  copy('urlContains');
+  copy('path');
   copy('maxLinks');
   copy('maxPages');
   copy('pattern');
@@ -120,6 +136,13 @@ export function normalizeRawCommand(raw: unknown): NormalizeResult {
   copy('successSelector');
   copy('captchaSelector');
   copy('mfaSelector');
+
+  if (type === 'EXTRACT_STRUCTURED' && out.source === undefined) {
+    const sourceByAlias: Record<string, string> = {
+      jsonld: 'jsonld', json_ld: 'jsonld', opengraph: 'opengraph', open_graph: 'opengraph', microdata: 'microdata',
+    };
+    if (sourceByAlias[lower]) out.source = sourceByAlias[lower];
+  }
 
   // Tolerancia a modelos débiles: username/password → *Selector.
   if (type === 'AUTHENTICATE') {
@@ -173,7 +196,7 @@ function clampNum(v: unknown, max: number): number | undefined {
 
 function clampToSchemaBounds(cmd: Record<string, unknown>, notes: string[]): void {
   const type = cmd.type;
-  if (type === 'EXTRACT_LIST' || type === 'EXTRACT_TABLE') {
+  if (type === 'EXTRACT_LIST' || type === 'EXTRACT_TABLE' || type === 'EXTRACT_STRUCTURED' || type === 'EXTRACT_NETWORK') {
     const c = clampNum(cmd.limit, 1000);
     if (c !== undefined && c !== cmd.limit) { cmd.limit = c; notes.push('limit recortado a 1000'); }
   } else if (type === 'EXTRACT_TEXT') {

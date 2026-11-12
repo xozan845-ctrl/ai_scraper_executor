@@ -2007,3 +2007,21 @@ el stack es local, no de producción (allí el scrape debe llevar `x-api-key`, `
   opcional `PRECISION_MIN`.
 - Tests de dataset perfecto, campos ausentes/erróneos, items extra y tolerancias.
 - Evidencia: 278/278 tests, cobertura 71.09/58.92/61.63, build/lint verdes.
+
+---
+
+# P2 — extracción multi-fuente y precisión
+
+- **Fecha:** 2026-11-12
+- **Alcance:** JSON-LD/OpenGraph/microdata, respuestas de red y selectores candidatos.
+
+## Cambio y evidencia
+
+- `EXTRACT_STRUCTURED` (`source: auto|jsonld|opengraph|microdata`) y `EXTRACT_NETWORK`
+  (`urlContains`, `path`, `limit`) en el DSL (19 comandos).
+- Captura de respuestas JSON XHR/fetch/GraphQL durante el render Playwright, expuesta
+  en `INSPECT_PAGE.network` y extraíble con `EXTRACT_NETWORK`.
+- `fields` de `EXTRACT`/`EXTRACT_LIST` aceptan arrays de selectores candidatos; el
+  motor elige el valor con consenso y registra el selector ganador en `_source`.
+- INSPECT_PAGE informa conteos de structured data y respuestas de red.
+- Evidencia: 281/281 tests, cobertura 71.33/59.38/61.67, contrato 13/13 y build/lint verdes.

@@ -61,7 +61,7 @@ Marcar las capas ✅ que apliquen y **justificar las que no**.
 
 ## 5. IA y DSL ([`ai/`](../ai/README.md)) — si el PR toca planes, prompts o modelos
 
-- [ ] **R-AI-1..3** — Solo los 17 comandos del DSL; el plan se valida con Zod tras `normalize`.
+- [ ] **R-AI-1..3** — Solo los 19 comandos del DSL; el plan se valida con Zod tras `normalize`.
 - [ ] **R-AI-7** — El límite efectivo de un comando nunca supera el del job (`clampCommandLimits`).
 - [ ] **R-AI-13/14** — Un LLM caído abre el circuit breaker y el job **termina**; no queda colgado.
 - [ ] **R-AI-15/16** — Se cita el ID de modelo; el fallback de modelo solo salta en 404/429.

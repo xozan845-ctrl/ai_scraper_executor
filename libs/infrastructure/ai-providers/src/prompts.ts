@@ -18,16 +18,18 @@ export const DSL_SPEC = `DSL DE COMANDOS (usa EXACTAMENTE el campo "type" EN MAY
 6. {"type":"EXTRACT_LIST","selector":"<css de cada item>","fields":{"name":"<css dentro del item>","price":"<css>","link":{"selector":"a","attribute":"href"}},"limit":<n>}
 7. {"type":"EXTRACT_TABLE","selector":"<css de la tabla>","limit":<n>}
 8. {"type":"EXTRACT_TEXT","selector":"<css del contenedor>","maxLength":<n>}
-9. {"type":"FOLLOW_LINKS","selector":"<css de <a>>","maxLinks":<n>,"sameDomainOnly":true}
-10. {"type":"PAGINATE","pattern":"<url con {n} para el número de página>","maxPages":<n>}
-11. {"type":"PAGINATE","selector":"<css del enlace siguiente>"}
-12. {"type":"CLICK","selector":"<css>"}
-13. {"type":"GET_ATTRIBUTE","selector":"<css>","attribute":"<href|src|...>"}
-14. {"type":"WAIT","ms":<n>}
-15. {"type":"TYPE","selector":"<css input>","text":"<texto>"}
-16. {"type":"AUTHENTICATE","usernameSelector":"<css>","passwordSelector":"<css>","submitSelector":"<css>"}
-17. {"type":"SCROLL"}
-18. {"type":"FINISH"}
+9. {"type":"EXTRACT_STRUCTURED","source":"auto|jsonld|opengraph|microdata","limit":<n>}
+10. {"type":"EXTRACT_NETWORK","urlContains":"<fragmento de la URL>","path":"<ruta JSON>","limit":<n>}
+11. {"type":"FOLLOW_LINKS","selector":"<css de <a>>","maxLinks":<n>,"sameDomainOnly":true}
+12. {"type":"PAGINATE","pattern":"<url con {n} para el número de página>","maxPages":<n>}
+13. {"type":"PAGINATE","selector":"<css del enlace siguiente>"}
+14. {"type":"CLICK","selector":"<css>"}
+15. {"type":"GET_ATTRIBUTE","selector":"<css>","attribute":"<href|src|...>"}
+16. {"type":"WAIT","ms":<n>}
+17. {"type":"TYPE","selector":"<css input>","text":"<texto>"}
+18. {"type":"AUTHENTICATE","usernameSelector":"<css>","passwordSelector":"<css>","submitSelector":"<css>"}
+19. {"type":"SCROLL"}
+20. {"type":"FINISH"}
 
 REGLAS ESTRICTAS:
 - TODOS los comandos van dentro de {"version":"1.0","actions":[ ... ]}.
@@ -38,6 +40,9 @@ REGLAS ESTRICTAS:
 - EXTRACT_LIST requiere "selector" y "fields" (objeto selector→string o {selector,attribute}).
 - EXTRACT_TABLE requiere "selector" de una tabla; devuelve filas con cabeceras.
 - EXTRACT_TEXT toma texto limpio de "selector" (o body) y admite "maxLength".
+- EXTRACT_STRUCTURED lee JSON-LD, OpenGraph o microdata; úsalo si la página es un producto o artículo.
+- EXTRACT_NETWORK lee respuestas XHR/fetch/GraphQL capturadas al renderizar; filtra por "urlContains" y "path".
+- En "fields", "selector" puede ser un array de candidatos; el motor elige el valor con consenso.
 - NO uses claves extra como "paginate", "nextPageSelector": usa el comando PAGINATE por separado.
 - Responde SOLO con el JSON, sin texto adicional ni bloques de markdown.`;
 

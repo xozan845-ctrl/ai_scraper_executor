@@ -98,6 +98,77 @@ describe('ExecutionEngine FASE 2 (HTTP/Cheerio con fetcher mock)', async () => {
     assert.equal(noRender.usedBrowser, false);
   });
 
+  it('EXTRACT_STRUCTURED lee JSON-LD/OpenGraph/microdata y los selectores candidatos consensúan', async () => {
+    const HTML = `<!doctype html><html><head>
+      <meta property="og:title" content="Producto OG"/>
+      <meta property="og:url" content="https://shop.com/p/1"/>
+      <script type="application/ld+json">{"@context":"https://schema.org","@type":"Product","name":"Portátil","offers":{"price":"999","priceCurrency":"EUR"}}</script>
+    </head><body>
+      <div itemscope itemtype="https://schema.org/Product"><span itemprop="name">Ratón</span><meta itemprop="sku" content="S1"/></div>
+      <div class="product-card"><span class="name">Portátil</span><span class="price">999</span></div>
+    </body></html>`;
+    const engine = new ExecutionEngine({ fetcher: async () => HTML });
+    await engine.execute({ type: 'NAVIGATE', url: 'https://shop.com/p/1' });
+
+    const jsonld = await engine.execute({ type: 'EXTRACT_STRUCTURED', source: 'jsonld' });
+    assert.equal(jsonld.ok, true);
+    assert.equal(jsonld.items[0].type, 'Product');
+    assert.equal(jsonld.items[0].name, 'Portátil');
+    assert.equal(jsonld.items[0]['offers.price'], '999');
+    assert.equal(jsonld.items[0]._source.kind, 'jsonld');
+
+    const og = await engine.execute({ type: 'EXTRACT_STRUCTURED', source: 'opengraph' });
+    assert.equal(og.items[0].title, 'Producto OG');
+    const micro = await engine.execute({ type: 'EXTRACT_STRUCTURED', source: 'microdata' });
+    assert.equal(micro.items[0].name, 'Ratón');
+    assert.equal(micro.items[0].sku, 'S1');
+
+    const list = await engine.execute({
+      type: 'EXTRACT_LIST',
+      selector: '.product-card',
+      fields: { name: ['.no-existe', '.name'], price: ['.price'] },
+    });
+    assert.equal(list.ok, true);
+    assert.equal(list.items[0].name.value, 'Portátil');
+    assert.equal(list.items[0].name.source.selector, '.product-card .name');
+  });
+
+  it('EXTRACT_NETWORK lee JSON de XHR/fetch capturado en el render', async () => {
+    const engine = new ExecutionEngine({
+      fetcher: async () => '<html><body><div id="app"></div></body></html>',
+      browserInteract: async (url) => ({
+        url,
+        title: 'SPA',
+        html: '<html><body><div id="app">ok</div></body></html>',
+        network: [{
+          url: 'https://api.shop.com/v1/products?page=1',
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ data: { items: [{ name: 'A', price: 10 }, { name: 'B', price: 20 }] } }),
+        }],
+      }),
+      render: { mode: 'always' },
+    });
+    await engine.execute({ type: 'NAVIGATE', url: 'https://shop.com/' });
+    const page = await engine.execute({ type: 'INSPECT_PAGE' });
+    assert.equal(page.data.network.count, 1);
+    assert.equal(page.data.network.responses[0].status, 200);
+
+    const extracted = await engine.execute({
+      type: 'EXTRACT_NETWORK',
+      urlContains: '/v1/products',
+      path: 'data.items',
+    });
+    assert.equal(extracted.ok, true);
+    assert.equal(extracted.count, 2);
+    assert.equal(extracted.items[0].name, 'A');
+    assert.equal(extracted.items[1].price, 20);
+    assert.equal(extracted.items[0]._source.kind, 'network');
+
+    const missing = await engine.execute({ type: 'EXTRACT_NETWORK', urlContains: '/no-existe' });
+    assert.equal(missing.ok, false);
+  });
+
   it('EXTRACT_LIST con selector inexistente devuelve error recuperable', async () => {
     const engine = new ExecutionEngine({ fetcher });
     await engine.execute({ type: 'NAVIGATE', url: 'https://tienda.com/productos' });

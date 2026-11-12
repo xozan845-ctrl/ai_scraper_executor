@@ -14,7 +14,7 @@ modelo se convierte en acciones.
 
 | ID | Regla |
 |---|---|
-| R-AI-1 | **El DSL es cerrado y es la única superficie de acción**: la IA decide **qué** hacer únicamente mediante los **17 comandos** del enum Zod de [`schemas.ts`](../../../libs/domain/ai/src/value-objects/schemas.ts) (`NAVIGATE`, `EXTRACT`, `EXTRACT_LIST`, `EXTRACT_TABLE`, `EXTRACT_TEXT`, `FOLLOW_LINKS`, `PAGINATE`, `SCROLL`, `CLICK`, `TYPE`, `WAIT`, `FINISH`, `AUTHENTICATE`, `GET_ATTRIBUTE`, `INSPECT_PAGE`, `INSPECT_LINKS`, `INSPECT_ELEMENTS`). El motor decide **cómo** ejecutarlos. **Prohibido** que la salida del modelo produzca directamente una llamada `fetch`, una expresión de JavaScript, un comando de shell o una consulta a base de datos. |
+| R-AI-1 | **El DSL es cerrado y es la única superficie de acción**: la IA decide **qué** hacer únicamente mediante los **19 comandos** del enum Zod de [`schemas.ts`](../../../libs/domain/ai/src/value-objects/schemas.ts) (`NAVIGATE`, `EXTRACT`, `EXTRACT_LIST`, `EXTRACT_TABLE`, `EXTRACT_TEXT`, `EXTRACT_STRUCTURED`, `EXTRACT_NETWORK`, `FOLLOW_LINKS`, `PAGINATE`, `SCROLL`, `CLICK`, `TYPE`, `WAIT`, `FINISH`, `AUTHENTICATE`, `GET_ATTRIBUTE`, `INSPECT_PAGE`, `INSPECT_LINKS`, `INSPECT_ELEMENTS`). El motor decide **cómo** ejecutarlos. **Prohibido** que la salida del modelo produzca directamente una llamada `fetch`, una expresión de JavaScript, un comando de shell o una consulta a base de datos. |
 | R-AI-2 | **Un comando nuevo nace con su schema y su test**: añadir un `type` al DSL obliga, en el mismo cambio, a (a) su schema Zod, (b) su tratamiento en `normalize.ts` si los modelos débiles se desvían, (c) su ejecución en `libs/infrastructure/execution`, y (d) al menos un test en `tests/dsl.test.mjs` o `tests/engine.test.mjs`. Un `type` sin schema es un tipo que no existe. |
 | R-AI-3 | **Validación estricta después de normalizar**: el orden es **siempre** normalizar → validar. `CommandValidator` (`validator.ts`) aplica el schema Zod y **rechaza** el plan entero si un comando viola el esquema, el dominio, la allowlist o los presupuestos. La normalización **no** relaja la validación: solo corrige desviaciones conocidas de formato (`{"action":"navigate"}` → `{"type":"NAVIGATE"}`, `maxItems` → `limit`, `cssSelector` → `selector`, `pages` → `maxPages`, `{steps:[…]}` → `actions`). |
 | R-AI-4 | **Normalizador antes que validado, y el normalizador es una lista cerrada**: `normalize.ts` corrige únicamente las formas que se han observado en modelos reales y las documenta en su tabla. Un comando **inventado** por el modelo (p. ej. `loop`, `waitForSelector`, `runScript`) **se descarta**, no se "adapta". Cualquier corrección nueva del normalizador llega con un test que reproduce la salida desviada del modelo. |
@@ -26,7 +26,7 @@ modelo se convierte en acciones.
 ## Verificación
 
 ```bash
-# El enum Zod del DSL: debe listar los 17 comandos
+# El enum Zod del DSL: debe listar los 19 comandos
 grep -oE "z.literal\('[A-Z_]+'\)" libs/domain/ai/src/value-objects/schemas.ts | sort -u
 
 # El recorte de límites existe y se aplica en el motor

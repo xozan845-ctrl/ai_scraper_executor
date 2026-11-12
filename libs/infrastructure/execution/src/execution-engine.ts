@@ -11,7 +11,7 @@
 import * as cheerio from 'cheerio';
 import { createHash } from 'node:crypto';
 import type { ScrapingCommand as StrictCommand } from '@ai-scraper/domain-ai';
-import type { EngineMemory, RenderOptions } from '@ai-scraper/domain-scraper';
+import type { CapturedNetworkResponse, EngineMemory, RenderOptions } from '@ai-scraper/domain-scraper';
 import type { EnginePageCache } from '@ai-scraper/application-execution';
 import { logger } from '@ai-scraper/shared-observability';
 import { assertPublicUrl, isAllowedHost, safeFetchText } from '@ai-scraper/shared-security';
@@ -30,9 +30,12 @@ export interface LooseCommand {
   url?: string;
   selector?: string;
   attribute?: string;
-  fields?: Record<string, string | { selector: string; attribute?: string }>;
+  fields?: Record<string, FieldSpec>;
   limit?: number;
   maxLength?: number;
+  source?: string;
+  urlContains?: string;
+  path?: string;
   maxLinks?: number;
   maxPages?: number;
   pattern?: string;
@@ -70,6 +73,7 @@ export interface BrowserResult {
   html: string;
   url: string;
   title?: string;
+  network?: CapturedNetworkResponse[];
 }
 
 export type BrowserInteract = (url: string, action: BrowserAction, signal?: AbortSignal) => Promise<BrowserResult>;
@@ -135,19 +139,42 @@ function toAbs(href: string, base: string): string | null {
   }
 }
 
+type FieldSpec = string | string[] | { selector: string | string[]; attribute?: string };
+
 function extractFieldValue(
   $: cheerio.CheerioAPI,
   scope: cheerio.Cheerio<unknown> | cheerio.CheerioAPI,
-  spec: string | { selector: string; attribute?: string },
-): string | null {
-  const sel = typeof spec === 'string' ? spec : spec.selector;
-  const attr = typeof spec === 'string' ? undefined : spec.attribute;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const el = (scope as any)(sel).first?.() ?? $(sel).first();
-  if (!el || el.length === 0) return null;
-  if (!attr || attr === 'text') return el.text().replace(/\s+/g, ' ').trim().slice(0, 500) || null;
-  if (attr === 'html') return el.html()?.slice(0, 1000) ?? null;
-  return el.attr(attr)?.slice(0, 1000) ?? null;
+  spec: FieldSpec,
+): { value: string | null; selector: string } {
+  const selectors = typeof spec === 'string'
+    ? [spec]
+    : Array.isArray(spec)
+      ? spec
+      : (Array.isArray(spec.selector) ? spec.selector : [spec.selector]);
+  const attr = typeof spec === 'string' || Array.isArray(spec) ? undefined : spec.attribute;
+  const candidates: Array<{ value: string; selector: string }> = [];
+  for (const selector of selectors) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const scopeAny = scope as any;
+    const el = typeof scopeAny.find === 'function' ? scopeAny.find(selector).first() : $(selector).first();
+    if (!el || el.length === 0) continue;
+    const value = !attr || attr === 'text'
+      ? el.text().replace(/\s+/g, ' ').trim().slice(0, 500)
+      : attr === 'html'
+        ? el.html()?.slice(0, 1000) ?? ''
+        : el.attr(attr)?.slice(0, 1000) ?? '';
+    if (value) candidates.push({ value, selector });
+  }
+  if (candidates.length === 0) return { value: null, selector: selectors[0] ?? '' };
+  const counts = new Map<string, number>();
+  for (const candidate of candidates) counts.set(candidate.value, (counts.get(candidate.value) ?? 0) + 1);
+  let winner = candidates[0]!;
+  let best = 0;
+  for (const candidate of candidates) {
+    const score = counts.get(candidate.value) ?? 0;
+    if (score > best) { best = score; winner = candidate; }
+  }
+  return winner;
 }
 
 /**
@@ -172,6 +199,7 @@ export class ExecutionEngine {
   private lastStatusCode: number | undefined = undefined;
   /** URLs ya renderizadas en Chromium en este job (render a lo sumo una vez por URL). */
   private readonly renderedUrls = new Set<string>();
+  private networkResponses: CapturedNetworkResponse[] = [];
   private memory: EngineMemory = { visited: [], lastUrl: null, lastItems: 0, discoveredSelectors: [] };
   /** Índice O(1) de URLs visitadas (evita el `includes` O(n) por navegación). */
   private readonly visitedSet = new Set<string>();
@@ -297,6 +325,7 @@ export class ExecutionEngine {
     this.currentUrl = url;
     this.lastStatusCode = statusCode;
     this.currentHtmlLength = html.length;
+    this.networkResponses = [];
     this.markVisited(url);
     this.memory.lastUrl = url;
   }
@@ -334,6 +363,7 @@ export class ExecutionEngine {
       const out = await interact(url, { kind: 'render', ...(render ? { render } : {}) }, this.deps?.signal);
       this.renderedUrls.add(key);
       this.loadHtml(out.url, out.html);
+      this.networkResponses = out.network ?? [];
       return true;
     } catch (e) {
       if (this.deps?.signal?.aborted) throw this.deps.signal.reason;
@@ -351,7 +381,7 @@ export class ExecutionEngine {
   private extractListOnce(
     selector: string,
     limit: number,
-    fields: Record<string, string | { selector: string; attribute?: string }>,
+    fields: Record<string, FieldSpec>,
   ): { items: Record<string, unknown>[]; count: number } {
     const $ = this.requirePage();
     const items: Record<string, unknown>[] = [];
@@ -361,18 +391,10 @@ export class ExecutionEngine {
       if (items.length >= limit) return false;
       const row: Record<string, unknown> = {};
       for (const [k, spec] of Object.entries(fields)) {
-        const sel = typeof spec === 'string' ? spec : spec.selector;
-        const attr = typeof spec === 'string' ? undefined : spec.attribute;
-        const el = $(card).find(sel).first();
-        const value =
-          el.length === 0
-            ? null
-            : !attr || attr === 'text'
-              ? el.text().replace(/\s+/g, ' ').trim().slice(0, 500) || null
-              : el.attr(attr)?.slice(0, 1000) ?? null;
+        const extracted = extractFieldValue($, $(card), spec);
         row[k] = {
-          value,
-          source: { url: this.currentUrl, selector: `${selector} ${sel}`, scrapedAt: new Date().toISOString() },
+          value: extracted.value,
+          source: { url: this.currentUrl, selector: `${selector} ${extracted.selector}`, scrapedAt: new Date().toISOString() },
         };
       }
       row._source = { url: this.currentUrl, selector, scrapedAt: new Date().toISOString() };
@@ -432,6 +454,149 @@ export class ExecutionEngine {
       commandType: 'EXTRACT_LIST',
       error: `0 elementos para selector "${selector}" → Recovery (§28): probar INSPECT_ELEMENTS`,
     };
+  }
+
+  private extractNetwork(cmd: LooseCommand): ExecutionResult {
+    const limit = Math.min(Math.max(Math.floor(cmd.limit ?? 100), 1), 1000);
+    const scrapedAt = new Date().toISOString();
+    const responses = this.networkResponses.filter((response) =>
+      !cmd.urlContains || response.url.includes(cmd.urlContains),
+    );
+    if (responses.length === 0) {
+      return {
+        ok: false,
+        commandType: 'EXTRACT_NETWORK',
+        error: 'sin respuestas JSON capturadas; usa render.mode=always y espera la carga de la SPA',
+      };
+    }
+
+    const readPath = (value: unknown, path: string): unknown => {
+      let current: unknown = value;
+      for (const part of path.split('.').filter(Boolean)) {
+        if (!current || typeof current !== 'object') return undefined;
+        current = (current as Record<string, unknown>)[part];
+      }
+      return current;
+    };
+
+    const items: unknown[] = [];
+    for (const response of responses) {
+      if (items.length >= limit) break;
+      let parsed: unknown;
+      try { parsed = JSON.parse(response.body); } catch { continue; }
+      const selected = cmd.path ? readPath(parsed, cmd.path) : parsed;
+      if (selected === undefined) continue;
+      const rows = Array.isArray(selected) ? selected : [selected];
+      for (const row of rows) {
+        if (items.length >= limit) break;
+        const item: Record<string, unknown> = row && typeof row === 'object' && !Array.isArray(row)
+          ? { ...(row as Record<string, unknown>) }
+          : { value: row };
+        item._source = { url: response.url, selector: 'network', kind: 'network', scrapedAt };
+        items.push(item);
+      }
+    }
+
+    if (items.length === 0) {
+      return { ok: false, commandType: 'EXTRACT_NETWORK', error: 'ninguna respuesta JSON coincidió con el filtro/path' };
+    }
+    this.memory.lastItems = items.length;
+    logger.debug('extract_network.done', { count: items.length, responses: responses.length, url: this.currentUrl });
+    return { ok: true, commandType: 'EXTRACT_NETWORK', items, count: items.length };
+  }
+
+  private extractStructured(cmd: LooseCommand): ExecutionResult {
+    const $ = this.requirePage();
+    const source = cmd.source ?? 'auto';
+    const limit = Math.min(Math.max(Math.floor(cmd.limit ?? 100), 1), 1000);
+    const scrapedAt = new Date().toISOString();
+    const items: Record<string, unknown>[] = [];
+
+    const flatten = (entity: Record<string, unknown>, prefix = ''): Record<string, unknown> => {
+      const out: Record<string, unknown> = {};
+      for (const [rawKey, value] of Object.entries(entity)) {
+        if (rawKey === '@context' || value === null || value === undefined) continue;
+        const key = `${prefix}${rawKey === '@type' ? 'type' : rawKey.replace(/^@/, '')}`;
+        if (Array.isArray(value)) {
+          const primitives = value.filter((entry) => entry === null || typeof entry !== 'object');
+          if (primitives.length > 0) out[key] = primitives.join(', ');
+          else if (value[0] && typeof value[0] === 'object') {
+            out[key] = value.map((entry) => JSON.stringify(entry)).join(' | ').slice(0, 2000);
+          }
+        } else if (typeof value === 'object') {
+          Object.assign(out, flatten(value as Record<string, unknown>, `${key}.`));
+        } else {
+          out[key] = value;
+        }
+      }
+      return out;
+    };
+
+    if (source === 'auto' || source === 'jsonld') {
+      $('script[type="application/ld+json"]').each((_index, element) => {
+        if (items.length >= limit) return false;
+        const raw = $(element).html();
+        if (!raw) return;
+        try {
+          const parsed = JSON.parse(raw) as unknown;
+          const entities = Array.isArray(parsed)
+            ? parsed
+            : (parsed && typeof parsed === 'object' && '@graph' in (parsed as Record<string, unknown>)
+              ? (parsed as Record<string, unknown>)['@graph']
+              : [parsed]);
+          for (const entity of Array.isArray(entities) ? entities : [entities]) {
+            if (items.length >= limit) break;
+            if (!entity || typeof entity !== 'object' || Array.isArray(entity)) continue;
+            const flat = flatten(entity as Record<string, unknown>);
+            if (Object.keys(flat).length === 0) continue;
+            flat._source = { url: this.currentUrl, selector: 'script[type="application/ld+json"]', kind: 'jsonld', scrapedAt };
+            items.push(flat);
+          }
+        } catch {
+          logger.debug('structured.jsonld_invalid', { url: this.currentUrl });
+        }
+      });
+    }
+
+    if ((source === 'auto' || source === 'opengraph') && items.length < limit) {
+      const og: Record<string, unknown> = {};
+      $('meta[property^="og:"], meta[name^="og:"]').each((_index, element) => {
+        const property = ($(element).attr('property') ?? $(element).attr('name') ?? '').replace(/^og:/, '');
+        const content = $(element).attr('content');
+        if (property && content) og[property] = content;
+      });
+      if (Object.keys(og).length > 0) {
+        og._source = { url: this.currentUrl, selector: 'meta[property^="og:"]', kind: 'opengraph', scrapedAt };
+        items.push(og);
+      }
+    }
+
+    if ((source === 'auto' || source === 'microdata') && items.length < limit) {
+      $('[itemscope]').each((_index, element) => {
+        if (items.length >= limit) return false;
+        const scope = $(element);
+        const itemtype = scope.attr('itemtype') ?? '';
+        const record: Record<string, unknown> = {};
+        if (itemtype) record.type = itemtype.split('/').filter(Boolean).pop();
+        scope.find('[itemprop]').each((_propIndex, prop) => {
+          const name = $(prop).attr('itemprop');
+          if (!name) return;
+          const value = $(prop).attr('content') ?? $(prop).attr('href') ?? $(prop).attr('src')
+            ?? $(prop).attr('datetime') ?? $(prop).text().replace(/\s+/g, ' ').trim();
+          if (value) record[name] = value.slice(0, 2000);
+        });
+        if (Object.keys(record).length <= (itemtype ? 1 : 0)) return;
+        record._source = { url: this.currentUrl, selector: '[itemscope]', kind: 'microdata', scrapedAt };
+        items.push(record);
+      });
+    }
+
+    if (items.length === 0) {
+      return { ok: false, commandType: 'EXTRACT_STRUCTURED', error: `sin datos estructurados (${source})` };
+    }
+    this.memory.lastItems = items.length;
+    logger.debug('extract_structured.done', { count: items.length, source, url: this.currentUrl });
+    return { ok: true, commandType: 'EXTRACT_STRUCTURED', items: items.slice(0, limit), count: Math.min(items.length, limit) };
   }
 
   private extractTable(cmd: LooseCommand): ExecutionResult {
@@ -570,6 +735,20 @@ export class ExecutionEngine {
               title,
               htmlLength: this.currentHtmlLength,
               linksCount: links,
+              structured: {
+                jsonLd: $('script[type="application/ld+json"]').length,
+                openGraph: $('meta[property^="og:"]').length,
+                microdata: $('[itemscope]').length,
+              },
+              network: {
+                count: this.networkResponses.length,
+                responses: this.networkResponses.slice(0, 10).map((response) => ({
+                  url: response.url,
+                  status: response.status,
+                  contentType: response.contentType,
+                  size: response.body.length,
+                })),
+              },
               textSnippet: $('body').text().replace(/\s+/g, ' ').trim().slice(0, 500),
             },
           };
@@ -620,19 +799,22 @@ export class ExecutionEngine {
           const $ = this.requirePage();
           if (!cmd.fields) return { ok: false, commandType: 'EXTRACT', error: 'EXTRACT requiere fields' };
           const obj: Record<string, unknown> = {};
+          const usedSelectors: string[] = [];
           for (const [k, spec] of Object.entries(cmd.fields)) {
+            const extracted = extractFieldValue($, $, spec);
+            usedSelectors.push(extracted.selector);
             obj[k] = {
-              value: extractFieldValue($, $, spec),
+              value: extracted.value,
               source: {
                 url: this.currentUrl,
-                selector: typeof spec === 'string' ? spec : spec.selector,
+                selector: extracted.selector,
                 scrapedAt: new Date().toISOString(),
               },
             };
           }
           obj._source = {
             url: this.currentUrl,
-            selector: [...new Set(Object.values(cmd.fields).map((spec) => typeof spec === 'string' ? spec : spec.selector))].join(', ').slice(0, 500),
+            selector: [...new Set(usedSelectors)].join(', ').slice(0, 500),
             scrapedAt: new Date().toISOString(),
           };
           this.memory.lastItems = 1;
@@ -648,6 +830,12 @@ export class ExecutionEngine {
 
         case 'EXTRACT_TEXT':
           return this.extractText(cmd);
+
+        case 'EXTRACT_STRUCTURED':
+          return this.extractStructured(cmd);
+
+        case 'EXTRACT_NETWORK':
+          return this.extractNetwork(cmd);
 
         case 'GET_ATTRIBUTE': {
           const $ = this.requirePage();
@@ -686,6 +874,7 @@ export class ExecutionEngine {
             try {
               const out = await this.deps.browserInteract(this.currentUrl!, { kind: 'click', selector: cmd.selector }, this.deps.signal);
               this.loadHtml(out.url, out.html);
+              this.networkResponses = out.network ?? [];
               return { ok: true, commandType: 'CLICK', usedBrowser: true, nextHint: out.title || out.url };
             } catch (e) {
               if (this.deps?.signal?.aborted) throw this.deps.signal.reason;
@@ -725,6 +914,7 @@ export class ExecutionEngine {
             try {
               const out = await this.deps.browserInteract(this.currentUrl, { kind: 'scroll', selector: cmd.selector }, this.deps.signal);
               this.loadHtml(out.url, out.html);
+              this.networkResponses = out.network ?? [];
               return { ok: true, commandType: 'SCROLL', usedBrowser: true, nextHint: `scroll browser (${out.html.length}b)` };
             } catch (e) {
               if (this.deps?.signal?.aborted) throw this.deps.signal.reason;

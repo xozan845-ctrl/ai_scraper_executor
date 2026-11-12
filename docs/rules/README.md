@@ -6,7 +6,7 @@ conveniencia de un PR; cambian por decisión explícita y quedan registradas aqu
 [`../decisiones.md`](../decisiones.md) como ADR.
 
 > **La IA ES EL CEREBRO. CRAWLEE ES EL MOTOR.** La IA decide **QUÉ** (un DSL cerrado
-> de 17 comandos, [`ai/`](./ai/README.md)); el motor decide **CÓMO**
+> de 19 comandos, [`ai/`](./ai/README.md)); el motor decide **CÓMO**
 > ([`scraping/`](./scraping/README.md)). Esa frase es el criterio con el que se lee
 > cualquier regla ambigua: si la decisión la puede tomar un modelo, necesita estar
 > dentro del DSL y pasar por validación.
@@ -50,7 +50,7 @@ rules/
 | Área | Estado | Índice | Contenido |
 |---|---|---|---|
 | `architecture/` | ✅ activa | [`README.md`](./architecture/README.md) | Modelo canónico hexagonal (`domain`/`application`/`infrastructure`/`shared` + `apps/*` como composition root), dirección de dependencia y aristas prohibidas, puertos/adaptadores, enforcement por lint y migración strangler (`R-HX`); vista histórica de las 5 capas, separación API/worker, orden de build del monorepo, `dist/` y no `src/`, fallbacks en memoria (`R-AR`); naming de archivos/clases/tablas/commits (`R-NC`) |
-| `ai/` | ✅ activa | [`README.md`](./ai/README.md) | El DSL de 17 comandos: Zod estricto, normalizador anti-alucinación, límites anti-escalada, presupuesto de tokens, allowlist no escalable, prompts, fallback de modelos OpenRouter, caché LLM, circuit breaker (`R-AI`) |
+| `ai/` | ✅ activa | [`README.md`](./ai/README.md) | El DSL de 19 comandos: Zod estricto, normalizador anti-alucinación, límites anti-escalada, presupuesto de tokens, allowlist no escalable, prompts, fallback de modelos OpenRouter, caché LLM, circuit breaker (`R-AI`) |
 | `ai-contributions/` | ✅ activa | [`README.md`](./ai-contributions/README.md) | Cómo colabora un agente de IA en el repo: lectura de contexto, tooling, commits atómicos, gates sin pases libres, PR como entregable, no refactors oportunistas (`R-AC`) |
 | `security/` | ✅ activa | [`README.md`](./security/README.md) | SSRF centralizado (`assertPublicUrl`/`assertSafeUrl`/`safeFetchText`), allowlist de dominios, `x-api-key` fail-closed, credenciales de sesión cifradas AES-256-GCM, CORS y cabeceras, rate limiting, `npm audit` (`R-SE`) |
 | `scraping/` | ✅ activa | [`README.md`](./scraping/README.md) | El motor: HTTP/Cheerio antes que browser, presupuestos por job, deduplicación de URLs, `PageCache` con TTL, browser pool, cancelación, recovery, trazabilidad `_source` (`R-SC`) |
