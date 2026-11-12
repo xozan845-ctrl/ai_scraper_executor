@@ -114,11 +114,37 @@ describe('Contrato de la API (R-C-*)', () => {
     assert.equal(r.status, 400);
   });
 
+  it('API keys: admin emite, el cliente consume y no administra; revocar invalida', async () => {
+    const created = await postJson('/api/v1/auth/api-keys', { name: 'Cliente contrato' });
+    assert.equal(created.status, 201);
+    const key = await created.json();
+    assert.match(key.apiKey, /^sk-.{22}$/);
+    assert.equal(key.role, 'user');
+    assert.ok(!('keyHash' in key));
+
+    const clientHeaders = { 'x-api-key': key.apiKey };
+    const consume = await req('/api/v1/jobs', { headers: clientHeaders });
+    assert.equal(consume.status, 200);
+
+    const forbidden = await req('/api/v1/auth/api-keys', { headers: clientHeaders });
+    assert.equal(forbidden.status, 403);
+
+    const listed = await authed('/api/v1/auth/api-keys');
+    assert.equal(listed.status, 200);
+    assert.ok((await listed.json()).some((row) => row.id === key.id));
+
+    const revoked = await authed(`/api/v1/auth/api-keys/${key.id}`, { method: 'DELETE' });
+    assert.equal(revoked.status, 200);
+    const after = await req('/api/v1/jobs', { headers: clientHeaders });
+    assert.equal(after.status, 401);
+  });
+
   it('R-C-2: la spec OpenAPI declara los endpoints bajo el prefijo', async () => {
     const spec = await (await req('/api/v1/docs-json')).json();
     assert.ok(spec.openapi, 'sin campo openapi');
     assert.ok(spec.paths['/api/v1/jobs'], 'falta /api/v1/jobs en la spec');
     assert.ok(spec.paths['/api/v1/schedules'], 'falta /api/v1/schedules en la spec');
+    assert.ok(spec.paths['/api/v1/auth/api-keys'], 'falta /api/v1/auth/api-keys en la spec');
   });
 
   it('R-TM-4: las peticiones HTTP se instrumentan (métricas RED)', async () => {

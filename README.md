@@ -186,6 +186,13 @@ DELETE /api/v1/schedules/:id         # Eliminar
 > sola réplica encola cada ejecución). `intervalSec` mínimo 10 s; `maxRuns` cierra el
 > schedule en `COMPLETED`. Cada ejecución reutiliza los webhooks de N1.
 
+### API keys de cliente (solo superadmin)
+```
+POST   /api/v1/auth/api-keys         # Genera {name} y devuelve apiKey una sola vez
+GET    /api/v1/auth/api-keys         # Lista claves (sin secreto)
+DELETE /api/v1/auth/api-keys/:id     # Revoca
+```
+
 ### Radiografía / Memoria (FASE 12)
 ```
 POST   /api/v1/radiography             # Radiografía real {url, maxDepth?, maxPages?, forceBrowser?}
@@ -234,6 +241,10 @@ GET    /api/v1/dashboard               # SPA dashboard (auto-refresh 5s)
   - La clave por query string ya no se acepta (evita fugas en logs/Referer).
   - También acepta claves de **usuarios registrados en BD** (hash SHA-256); la API key que
     devuelve `/auth/register-first` autentica directamente.
+  - **Claves de cliente**: un superadmin las emite con `POST /api/v1/auth/api-keys` (se
+    muestran una sola vez), las lista con `GET` y las revoca con `DELETE /:id`. Tienen
+    rol `user`, consumen la API normal pero **no** pueden administrar claves. Cada clave
+    tiene su propio `authScope`, por lo que los jobs quedan aislados entre clientes.
   - Protegidos: `/jobs`, `/radiography` y `/metrics`. El dashboard SPA pide la clave y la envía por header.
   - Prometheus debe enviar `x-api-key` al scrapear `/metrics/prometheus` si `API_KEYS` está activo.
 - **Bootstrap (`POST /api/v1/auth/register-first`)**: crea el primer superadmin **solo si no hay usuarios**

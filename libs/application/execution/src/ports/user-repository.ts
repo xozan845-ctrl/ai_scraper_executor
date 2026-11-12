@@ -26,5 +26,6 @@ export interface UserRepository {
   createFirstUser(data: CreateFirstUserData): Promise<CreatedUserRecord>;
   findByEmail(email: string): Promise<{ email: string; role: UserRole } | null>;
   existsApiKeyHash(hash: string): Promise<boolean>;
+  findByApiKeyHash(hash: string): Promise<{ userId: string; email: string; role: UserRole } | null>;
   recordLogin(email: string): Promise<void>;
 }

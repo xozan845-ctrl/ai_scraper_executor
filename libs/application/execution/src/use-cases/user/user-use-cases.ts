@@ -36,6 +36,11 @@ export class UserUseCases {
     return this.deps.repository.existsApiKeyHash(hashApiKey(presented));
   }
 
+  async authenticateApiKey(presented: string): Promise<{ userId: string; email: string; role: UserRole } | null> {
+    if (!presented) return null;
+    return this.deps.repository.findByApiKeyHash(hashApiKey(presented));
+  }
+
   generateApiKey(): string {
     return generateApiKey();
   }
