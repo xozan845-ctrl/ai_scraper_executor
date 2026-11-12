@@ -1,0 +1,36 @@
+{
+  "expected": [
+    {
+      "fields": {
+        "name": "Portátil",
+        "price": 999,
+        "link": "https://shop.com/p/1"
+      }
+    },
+    {
+      "fields": {
+        "name": "Ratón",
+        "price": 20,
+        "link": "https://shop.com/p/2"
+      }
+    }
+  ],
+  "actual": [
+    {
+      "name": { "value": "Portátil" },
+      "price": { "value": "999", "normalized": 999 },
+      "link": { "value": "https://shop.com/p/1" },
+      "_source": { "url": "https://shop.com/", "selector": ".card", "scrapedAt": "2026-01-01T00:00:00.000Z" }
+    },
+    {
+      "name": { "value": "Ratón" },
+      "price": { "value": "25" },
+      "link": { "value": "https://shop.com/p/2" },
+      "_source": { "url": "https://shop.com/", "selector": ".card", "scrapedAt": "2026-01-01T00:00:00.000Z" }
+    }
+  ],
+  "options": {
+    "matchBy": "link",
+    "numericTolerance": 0
+  }
+}

@@ -52,8 +52,16 @@ npm run dev:worker  # Worker consumiendo cola
 
 ```bash
 # Tests unitarios/integración (mocks, sin BD reales) — runner Vitest
-npm test                    # 174 tests (29 suites): unitarios + propiedades, con dobles y sin infraestructura real
+npm test                    # 278 tests (49 suites): unitarios + propiedades, con dobles y sin infraestructura real
 MONGODB_MOCK=1 npm test     # Forzar mock MongoDB
+npm run precision:check     # evalúa precisión por campo sobre un golden set JSON
+
+#### Golden set de precisión (P1)
+
+`npm run precision:check` evalúa un JSON `{ expected, actual, options? }` y reporta
+`precision`, `recall`, `f1`, `fillRate`, `wrongValueRate` y métricas por campo.
+Opciones: `matchBy` (p. ej. `link`/`sku`), `caseInsensitive`, `numericTolerance`.
+Sirve para medir regresiones por dominio antes de cambiar selectores/prompts.
 
 # Test E2E real contra https://www.sevasaonline.com/
 # Requiere: Docker (postgres+mongodb+redis) + OPENROUTER_API_KEY en .env + Playwright Chromium en host

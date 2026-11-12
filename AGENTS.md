@@ -26,6 +26,7 @@ npm run lint                   # eslint apps libs scripts + boundaries (0 errors
 npm run typecheck              # alias de build
 npm test                       # 174 tests unitarios + propiedades (mocks, sin BD reales)
 MONGODB_MOCK=1 npm test        # fuerza mock MongoDB (recomendado en local sin Docker)
+npm run precision:check         # precisión por campo sobre el golden set (P1)
 npm run test:contract          # contrato de la API /api/v1 (G-5), sin infra
 npm run test:integration       # integración con Postgres/Mongo/Redis reales (G-4)
 npm run openapi:check          # verifica que docs/openapi.json está en sync (G-8)
